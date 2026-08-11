@@ -17,6 +17,9 @@
 > **Không có test case nghĩa là KHÔNG TỒN TẠI.**
 > Một tính năng / function / file được xem là **chưa hoàn thành** khi chưa có test case tương ứng đi kèm — dù code có chạy được. "Chạy được ở local" không phải là bằng chứng tồn tại; **test case là bằng chứng**. Merge/release một thay đổi không kèm test là vi phạm quy tắc này.
 
+> **Không commit thẳng vào `main` — MỌI thay đổi phải qua PR (hoặc ít nhất 1 issue).**
+> Mọi commit có ảnh hưởng đến code đều phải đi kèm một **Pull Request (PR)** — hoặc tối thiểu một **Issue** ghi rõ lý do. Điều này giữ lịch sử có thể truy vết, cho phép review và **tránh system break** về sau. Khi một thay đổi không đủ lớn cho PR riêng, tạo Issue ghi chú đi kèm. Merge trực tiếp lên `main` (trừ hotfix khẩn cấp có ghi chú) là vi phạm quy tắc này.
+
 ---
 
 ## 1. Tổng quan dự án (Project Overview)
@@ -314,7 +317,7 @@ config/default.yml
 ```yaml
 app:
   name: averon
-  version: 0.1.0          # tuân theo quy tắc version §10
+  version: 0.2.0          # tuân theo quy tắc version §10
 
 discord:
   token: ${DISCORD_TOKEN}  # secret — từ .env
@@ -512,6 +515,7 @@ Version dạng `<MAJOR>.<MINOR>.<PATCH>`. Chỉ **một** vị trí tăng trong 
 5. **Config**: viết `config/defaults.yml` + `config/schema.yml` cho module (bất kỳ tuỳ chỉnh nào của module phải có config, không hard-code).
 6. **Test**: viết test cho logic module; chạy được bằng lệnh trong `module.yml`.
 7. **Cập nhật docs**: README module (song ngữ) + `CHANGELOG.md` theo §10 (đúng loại bump: Added → MINOR).
+8. **Tạo nhánh + mở PR**: làm việc trên nhánh feature (`feature/...` hoặc `fix/...`), **không commit thẳng `main`**; mở PR lên `main` để review + CI chạy (rule Golden Rule §1).
 8. **Tự kiểm tra**:
    - [ ] Không sửa file nào ngoài folder module (trừ CHANGELOG.md)?
    - [ ] `module.yml` hợp lệ theo schema (§4)?
@@ -541,6 +545,7 @@ Version dạng `<MAJOR>.<MINOR>.<PATCH>`. Chỉ **một** vị trí tăng trong 
 - ❌ Hard-code config / token vào code.
 - ❌ Commit secret vào git (token, `.env`).
 - ❌ Bump version sai loại so với nội dung thay đổi (§10).
+- ❌ Commit thẳng vào `main` mà không qua PR/issue (trừ hotfix khẩn cấp có ghi chú) — rule Golden Rule §1.
 
 ---
 

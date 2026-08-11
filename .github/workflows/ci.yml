@@ -1,0 +1,77 @@
+# CI — Averon
+# Chạy trên runner SELF-HOSTED: tận dụng build native (C/C++/Rust) và tiết kiệm quota GitHub-hosted.
+# EN: Runs on SELF-HOSTED runners to support native module builds (C/C++/Rust) and save quota.
+#
+# PHÂN LOẠI RUNNER THEO LABEL — EN: Runner selection by label.
+# - `self-hosted` (bắt buộc) : runner tiêu chuẩn, chạy hầu hết job / standard runner
+# - `Linux` | `Windows` | `macOS` : theo hệ điều hành / per-OS
+# - `gpu`   : (tùy chọn / optional) runner có GPU cho job ML/data nặng
+# Job build native (C/C++/Rust) chỉ chạy khi bật opt-in `run_native` (workflow_dispatch).
+# EN: The native build job only runs when `run_native` opt-in is set.
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_native:
+        description: "Chạy job build native (có runner với toolchain C/C++/Rust)? / Run native build job?"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Job chính: install → lint → test → build → validate-config ──
+  # EN: Main job
+  verify:
+    name: verify
+    runs-on: [self-hosted, Linux]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build (type-check)
+        run: npm run build
+
+      - name: Validate config
+        run: npm run validate:config
+
+  # ── Job build native dành cho module ngoại ngữ (C/C++/Rust) ─────
+  # EN: Native build job for non-JS/TS modules — chỉ khi opt-in.
+  native-verify:
+    name: native-verify
+    runs-on: [self-hosted, Linux]
+    needs: verify
+    if: inputs.run_native == true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Build native modules
+        run: |
+          echo "Native build placeholder — add your C/C++/Rust build here"
+          # Ví dụ: npx cmake-js rebuild mỗi module có build native / cargo build v.v.

@@ -1,0 +1,52 @@
+name: "🐛 Bug report"
+description: "Báo lỗi / Report a bug"
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: desc
+    attributes:
+      label: Mô tả / Description
+      description: "Điều gì xảy ra vs. điều mong đợi? EN: What happened vs. expected."
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        **Module bị ảnh hưởng:** (vd `modules/example`. EN: Affected module.)
+  - type: input
+    id: module
+    attributes:
+      label: Module
+      placeholder: modules/example
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "Version bot trong config/default.yml + module.yml (theo §10)"
+      placeholder: 0.1.0
+  - type: dropdown
+    id: env
+    attributes:
+      label: Môi trường / Environment
+      options: ["dev", "prod", "staging"]
+      default: 0
+  - type: textarea
+    id: steps
+    attributes:
+      label: Các bước tái hiện / Steps to reproduce
+      placeholder: |
+        1. Chạy lệnh ...
+        2. ...
+        Expected: ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log / Stack trace
+      description: "(Che token bằng logger.mask — §7.4. EN: Mask secrets. Đừng dán token thật.)"
+      render: shell
+  - type: textarea
+    id: extra
+    attributes:
+      label: Thông tin thêm / Extra context

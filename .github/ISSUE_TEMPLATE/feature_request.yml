@@ -1,0 +1,38 @@
+name: "✨ Feature request"
+description: "Đề xuất tính năng mới / Suggest a new feature"
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Vấn đề / Problem
+      description: "Tính năng giải quyết điều gì? EN: What does it solve?"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Giải pháp đề xuất / Proposed solution
+      description: "Mô tả chức năng mong muốn. EN: Describe desired behavior."
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Phạm vi / Scope
+      description: "Module mới hay sửa module có sẵn? (Golden Rule: KHÔNG sửa core.)"
+      options:
+        - "Module mới trong modules/ (new module)"
+        - "Sửa module có sẵn (existing module)"
+        - "Core/shared (chỉ khi thật cần — cần lý do rõ ràng)"
+  - type: input
+    id: language
+    attributes:
+      label: Ngôn ngữ đề xuất (nếu là module mới)
+      description: "theo §2.3 — mặc định TypeScript. EN: Language per §2.3, default TS."
+      placeholder: typescript
+  - type: textarea
+    id: context
+    attributes:
+      label: Bối cảnh / Additional context
