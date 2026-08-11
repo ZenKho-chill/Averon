@@ -20,9 +20,25 @@ import type { AppConfig } from '../config/index.js';
 /** Lệnh cần sync lên Discord — metadata từ module.yml. */
 export interface SyncCommand {
   name: string;
-  description?: { vi?: string; en?: string } | string;
+  /** Desc theo nhiều ngôn ngữ: `{ vi: '...', en: '...' }` hoặc 1 chuỗi. Map key ngắn → Discord Locale. */
+  description?: Record<string, string> | string;
   type?: 'chat_input' | 'user' | 'message';
   scope?: Array<'global' | 'guild' | 'user'>;
+}
+
+/** Map key ngắn trong module.yml → Discord Locale code (`en-US`, `vi`, ...). */
+const LOCALE_MAP: Record<string, string> = {
+  en: 'en-US', vi: 'vi', fr: 'fr', de: 'de', es: 'es-ES', pt: 'pt-BR',
+  ja: 'ja', ko: 'ko', 'zh-CN': 'zh-CN', 'zh-TW': 'zh-TW', ru: 'ru', it: 'it',
+};
+
+/** Dựng description_localizations từ object desc đa ngôn ngữ. */
+function buildLocalizations(description: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, text] of Object.entries(description)) {
+    if (typeof text === 'string') out[LOCALE_MAP[key] ?? key] = text;
+  }
+  return out;
 }
 
 type RegisterScope = 'global' | 'guild' | 'user';
@@ -132,14 +148,24 @@ export class DiscordClient {
 
   /** Dựng Discord.js builder từ metadata lệnh (theo type). */
   private toBuilder(cmd: SyncCommand): unknown {
-    const desc = typeof cmd.description === 'string' ? cmd.description : cmd.description?.en ?? cmd.description?.vi ?? `/${cmd.name}`;
     if (cmd.type === 'user') {
       return new ContextMenuCommandBuilder().setName(cmd.name).setType(ApplicationCommandType.User);
     }
     if (cmd.type === 'message') {
       return new ContextMenuCommandBuilder().setName(cmd.name).setType(ApplicationCommandType.Message);
     }
-    return new SlashCommandBuilder().setName(cmd.name).setDescription(desc);
+
+    // Slash command: desc đa ngôn ngữ → description_localizations (Discord tự chọn theo locale user)
+    const builder = new SlashCommandBuilder().setName(cmd.name);
+    if (typeof cmd.description === 'string') {
+      builder.setDescription(cmd.description);
+    } else if (cmd.description) {
+      const fallback = cmd.description.en ?? cmd.description.vi ?? `/${cmd.name}`;
+      builder.setDescription(fallback);
+      const loc = buildLocalizations(cmd.description);
+      if (Object.keys(loc).length > 0) builder.setDescriptionLocalizations(loc);
+    }
+    return builder;
   }
 
   /** Đăng ký event handler (gọi từ loader). */

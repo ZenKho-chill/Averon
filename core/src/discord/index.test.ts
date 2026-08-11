@@ -123,6 +123,33 @@ describe('DiscordClient', () => {
     expect(cmds.set.mock.calls[0][0].map((b) => b.name)).toEqual(['ping', 'Avatar']);
   });
 
+  it('toBuilder desc object → description_localizations theo Discord Locale + fallback en', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig({ global: true }), logger);
+    const cmds = mockAppCommands();
+    // @ts-expect-error — private field
+    discord.client.application = { commands: cmds };
+    await discord.syncCommands([
+      { name: 'ping', description: { vi: 'Lệnh ping', en: 'Ping command' }, scope: ['global'] },
+    ]);
+    const builder = cmds.set.mock.calls[0][0][0];
+    const json = builder.toJSON();
+    expect(json.description).toBe('Ping command'); // fallback en
+    expect(json.description_localizations).toEqual({ 'en-US': 'Ping command', vi: 'Lệnh ping' });
+  });
+
+  it('toBuilder desc string → chỉ setDescription, không localization', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig({ global: true }), logger);
+    const cmds = mockAppCommands();
+    // @ts-expect-error — private field
+    discord.client.application = { commands: cmds };
+    await discord.syncCommands([{ name: 'ping', description: 'Plain desc', scope: ['global'] }]);
+    const json = cmds.set.mock.calls[0][0][0].toJSON();
+    expect(json.description).toBe('Plain desc');
+    expect(json.description_localizations).toBeUndefined();
+  });
+
   it('syncCommands guild=true + guild_id → 1 call set() với guildId', async () => {
     const logger = makeLogger();
     const config = makeConfig({ guild: true });

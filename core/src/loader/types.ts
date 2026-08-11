@@ -26,10 +26,8 @@ export interface ModuleManifest {
   };
   commands?: Array<{
     name: string;
-    description?: {
-      vi?: string;
-      en?: string;
-    };
+    /** Desc đa ngôn ngữ: `{ vi: '...', en: '...' }` (map sang Discord Locale khi sync). */
+    description?: Record<string, string>;
     handler: string;
     enabled?: boolean;
     /** Loại lệnh Discord: chat_input (slash) | user | message (context menu). Mặc định chat_input. */
