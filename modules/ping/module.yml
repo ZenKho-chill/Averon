@@ -1,0 +1,14 @@
+name: ping
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: ">=18"
+  transport: in-process
+entry: src/index.ts
+commands:
+  - name: ping
+    description:
+      vi: "Lệnh ping"
+      en: "Ping command"
+    handler: commands/ping.ts

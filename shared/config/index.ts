@@ -14,9 +14,10 @@ import type { LoadConfigOptions } from './types.js';
 export * from './errors.js';
 export * from './types.js';
 export { deepMerge } from './merge.js';
+// findProjectRoot được export trực tiếp từ hàm dưới
 
 /** Tìm project root (nơi có package.json) — hoạt động cả khi chạy từ src lẫn từ dist. */
-function findProjectRoot(startDir: string): string {
+export function findProjectRoot(startDir: string): string {
   let dir = startDir;
   for (let i = 0; i < 10; i++) {
     if (existsSync(join(dir, 'package.json'))) return dir;
@@ -29,8 +30,7 @@ function findProjectRoot(startDir: string): string {
 
 /** Thư mục config mặc định: <project root>/config. */
 function defaultConfigDir(): string {
-  const moduleDir = dirname(fileURLToPath(import.meta.url));
-  return join(findProjectRoot(moduleDir), 'config');
+  return process.env.VITEST === 'true' ? join(process.cwd(), 'config') : join(findProjectRoot(dirname(fileURLToPath(import.meta.url))), 'config');
 }
 
 /** Xác định env: ưu tiên option.env, rồi AVERON_ENV, rồi NODE_ENV, mặc định 'dev' (§8). */

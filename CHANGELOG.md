@@ -3,6 +3,29 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.4.0] — 2026-08-11
+**Loại / Type:** MINOR — tính năng mới / new feature
+
+### Added
+- `core/config`: wrapper `shared/config` — load config tổng + validate bằng `core.schema.json`, kèm test (VI)
+  EN: `core/config`: wraps `shared/config` — loads core config + validates with `core.schema.json`, with tests.
+- `core/crash`: global anti-crash handlers (uncaughtException/unhandledRejection) + quarantine module lỗi liên tục + crash report ra `crash-reports/`, kèm test (VI)
+  EN: `core/crash`: global anti-crash handlers + repeated-failure quarantine + crash reports to `crash-reports/`, with tests.
+- `core/registry`: service registry (DI) + module registry, kèm test (VI)
+  EN: `core/registry`: service registry (DI) + module registry, with tests.
+- `core/lifecycle`: pipeline load/unload/reload module với hook onLoad/onUnload, kèm test (VI)
+  EN: `core/lifecycle`: module load/unload/reload pipeline with onLoad/onUnload hooks, with tests.
+- `core/loader`: parse `module.yml` + import entry point (in-process) + register commands/events, kèm test (VI)
+  EN: `core/loader`: parse `module.yml` + import entry point (in-process) + register commands/events, with tests.
+- `core/discord`: wrapper Discord.js client (login, intents từ config), kèm test (VI)
+  EN: `core/discord`: Discord.js client wrapper (login, intents from config), with tests.
+- `core/ipc`: lớp giao tiếp đa ngôn ngữ (in-process / subprocess qua JSON-RPC; socket/ffi sẽ bổ sung), kèm test (VI)
+  EN: `core/ipc`: multi-language communication layer (in-process / subprocess over JSON-RPC; socket/ffi TBD), with tests.
+- `core/bootstrap`: entry point chạy pipeline config → logger → anti-crash → module loader → discord login (§9.1), kèm test (VI)
+  EN: `core/bootstrap`: entry point running the boot pipeline config → logger → anti-crash → module loader → discord login (§9.1), with tests.
+- `scripts/new-module.mjs`: scaffold module mới theo template chuẩn (§5.1) + module mẫu `/ping` (VI)
+  EN: `scripts/new-module.mjs`: scaffold a new module per standard template (§5.1) + sample `/ping` module.
+
 ## [0.3.0] — 2026-08-11
 **Loại / Type:** MINOR — tính năng mới / new feature
 
