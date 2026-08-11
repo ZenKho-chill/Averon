@@ -1,0 +1,23 @@
+# ==================================================
+# Averon — override môi trường PROD (§8)
+# EN: Averon — PROD environment overrides.
+# Log tối giản, không màu, ẩn stack trace khỏi output user.
+# ==================================================
+
+# ⚠️ KHÔNG commit token thật lên repo public! Thay placeholder bằng token thật trên máy chạy prod.
+# EN: NEVER commit a real token to this public repo! Replace the placeholder on the prod host.
+discord:
+  token: "PASTE_DISCORD_TOKEN_HERE"
+
+logging:
+  level: INFO
+  console_color: false
+  file:
+    enabled: true
+    dir: logs/
+    max_size_mb: 20
+    keep_files: 7
+
+dev:
+  hot_reload: false
+  show_stacktrace: false

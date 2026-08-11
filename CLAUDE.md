@@ -123,7 +123,7 @@ averon/
 ├── CHANGELOG.md                   # nhật ký thay đổi — SONG NGỮ, tuân thủ quy tắc version (§10)
 ├── LICENSE
 ├── .gitignore
-├── .env.example                   # MẪU biến môi trường (SECRET KHÔNG BAO GIỜ commit; xem §6.3)
+# ├── .env.example                   # (bỏ — không còn dùng file env)
 ├── package.json                   # workspace root (core + module TS)
 ├── tsconfig.base.json             # config TS dùng chung
 │
@@ -192,7 +192,7 @@ averon/
 - `core/src/*` chia theo trách nhiệm rõ ràng (loader / lifecycle / registry / ipc / discord / crash) — tránh "core" thành túi rác.
 - `crash-reports/` — lưu crash dump riêng, tách khỏi logs.
 - `config/schemas/*.json` — validate config bằng schema, "fail-fast" thay vì crash im lặng.
-- `.env.example` — secret (token, DB password) **không** nằm trong YAML (xem §6.3).
+- Secret (token) đặt trực tiếp trong config/dev.yml + config/prod.yml (xem §6.3).
 - `scripts/new-module.mjs` — scaffold module để mọi module sinh ra đều chuẩn cấu trúc.
 - `shared/` tách logger/config/db/utils — đây là nơi duy nhất chứa "tiện ích dùng chung".
 
@@ -298,14 +298,14 @@ Config tổng được merge theo thứ tự — giá trị sau đè giá trị 
 ```
 config/default.yml
       + config/<env>.yml          # env = AVARON_ENV | NODE_ENV (dev | prod | staging...)
-      + biến môi trường (process.env)  # chỉ cho secret, xem §6.3
+      # + biến môi trường (bỏ — không còn dùng env vars)
       + config/module/defaults.yml (riêng từng module, do core merge)
 ```
 
-### 6.3 Secret (bí mật) — KHÔNG nằm trong YAML
-- Token bot, mật khẩu DB, API key → **chỉ** trong `.env` / `process.env` (file `.env` phải được gitignore).
-- YAML có thể tham chiếu bằng `${VAR_NAME}` (core resolve lúc load).
-- Commit YAML có secret là **lỗi nghiêm trọng**. Logging phải che secret (xem §7.4).
+### 6.3 Secret (bí mật) — token đặt trực tiếp trong config
+- Token bot đặt trực tiếp trong `config/dev.yml` và `config/prod.yml` (không dùng `.env`).
+- **Repo này PUBLIC** — nếu lỡ commit token thật, hãy **reset token ngay trên Discord Developer Portal** và thay placeholder.
+- Logging phải che secret khi ghi log (xem §7.4).
 
 ### 6.4 Validate khi khởi động (Fail-fast)
 - Khi boot, core validate toàn bộ config bằng JSON Schema (`config/schemas/*.json`).
@@ -320,7 +320,7 @@ app:
   version: 0.2.0          # tuân theo quy tắc version §10
 
 discord:
-  token: ${DISCORD_TOKEN}  # secret — từ .env
+  # token: bỏ — đặt trực tiếp trong config/dev.yml + config/prod.yml
   intents: [Guilds, GuildMessages, MessageContent]
 
 logging:
@@ -543,7 +543,7 @@ Version dạng `<MAJOR>.<MINOR>.<PATCH>`. Chỉ **một** vị trí tăng trong 
 - ❌ Nuốt lỗi im lặng, không log.
 - ❌ Viết / sửa code mà **không kèm test case** (không có test = tính năng không tồn tại, §12.3).
 - ❌ Hard-code config / token vào code.
-- ❌ Commit secret vào git (token, `.env`).
+- ❌ Commit secret vào git (token thật trong config).
 - ❌ Bump version sai loại so với nội dung thay đổi (§10).
 - ❌ Commit thẳng vào `main` mà không qua PR/issue (trừ hotfix khẩn cấp có ghi chú) — rule Golden Rule §1.
 
