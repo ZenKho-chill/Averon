@@ -22,7 +22,15 @@
           "type": "array",
           "items": { "type": "string", "enum": ["Guilds", "GuildMessages", "MessageContent", "GuildMembers", "GuildVoiceStates", "DirectMessages"] }
         },
-        "register_commands": { "type": "boolean", "default": false }
+        "guild_id": { "type": "string", "pattern": "^\\d+$" },
+        "register_commands": {
+          "type": "object",
+          "properties": {
+            "global": { "type": "boolean", "default": true },
+            "guild": { "type": "boolean", "default": false },
+            "user": { "type": "boolean", "default": false }
+          }
+        }
       }
     },
     "logging": {

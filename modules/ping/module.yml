@@ -12,3 +12,5 @@ commands:
       vi: "Lệnh ping"
       en: "Ping command"
     handler: commands/ping.ts
+    type: chat_input   # chat_input | user | message (context menu)
+    scope: [global]    # global | guild | user (mặc định global)

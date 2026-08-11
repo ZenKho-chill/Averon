@@ -13,8 +13,8 @@ EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, 
   EN: Removed all env vars (`process.env`/`AVERON_ENV`/`NODE_ENV`) — edit `config.yml` directly; no more `.env`.
 - **Cross-platform path**: `defaultConfigDir()` bỏ nhánh `process.cwd()` — luôn tính từ `import.meta.url` → `findProjectRoot`, chạy đúng Windows + Linux (VI)
   EN: `defaultConfigDir()` no longer uses `process.cwd()` — always resolved from `import.meta.url` → `findProjectRoot`, correct on Windows + Linux.
-- **Cờ `discord.register_commands`**: false (mặc định, dev) bỏ qua sync slash command qua REST; true (prod) gọi `client.application.commands.set()` lúc boot — tránh re-register mỗi lần restart ở dev (VI)
-  EN: `discord.register_commands`: false (default, dev) skips REST slash-command sync; true (prod) calls `client.application.commands.set()` at boot — avoids re-registering on every dev restart.
+- **`discord.register_commands` theo 3 scope** `global`/`guild`/`user` (object thay vì boolean): global = slash toàn app, guild = slash cho guild cụ thể (cần `guild_id`, tức thời ở dev), user = context menu (type user/message). Mỗi lệnh trong module.yml khai báo `type` + `scope`; core chỉ đăng ký scope được bật — tránh re-register guild/user mỗi lần restart ở dev (VI)
+  EN: `discord.register_commands` is now a 3-scope object `global`/`guild`/`user`: global = app-wide slash, guild = guild-scoped slash (needs `guild_id`, instant for dev), user = context menus (type user/message). Each command in module.yml declares `type` + `scope`; core only registers enabled scopes — avoids re-registering guild/user on every dev restart.
 
 ## [0.4.0] — 2026-08-11
 **Loại / Type:** MINOR — tính năng mới / new feature

@@ -67,7 +67,7 @@ export async function bootstrap() {
   const discord = new DiscordClient(config, logger);
 
   // 6.1 Attach commands/events từ registry (listener xử lý — luôn gắn)
-  const commands: Array<{ name: string; description?: { vi?: string; en?: string } | string }> = [];
+  const commands: Array<{ name: string; description?: { vi?: string; en?: string } | string; type?: 'chat_input' | 'user' | 'message'; scope?: Array<'global' | 'guild' | 'user'> }> = [];
   for (const module of registry.getAllModules()) {
     for (const cmd of module.commands) {
       commands.push(cmd);
@@ -78,7 +78,7 @@ export async function bootstrap() {
 
   await discord.login();
 
-  // 6.2 Sync slash command lên Discord qua REST — chỉ khi register_commands=true
+  // 6.2 Sync command lên Discord qua REST — theo 3 scope (global/guild/user) trong register_commands
   await discord.syncCommands(commands);
 
   // 7. Khởi động watchdog

@@ -22,6 +22,8 @@ export interface ModuleRegistryEntry {
     name: string;
     handler: string;
     description?: { vi?: string; en?: string } | string;
+    type?: 'chat_input' | 'user' | 'message';
+    scope?: Array<'global' | 'guild' | 'user'>;
   }>;
   events: Array<{ name: string; handler: string }>;
   runtime: {

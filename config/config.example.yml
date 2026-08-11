@@ -17,11 +17,17 @@ discord:
   # EN: This repo is PUBLIC — never commit a real token! Replace the placeholder locally.
   token: "PASTE_DISCORD_TOKEN_HERE"
   intents: [Guilds, GuildMessages, MessageContent]
-  # BẬT mới sync slash command lên Discord qua REST (khi boot).
-  # EN: Set true to sync slash commands to Discord via REST at boot.
-  # TẮT ở dev để tránh re-register mỗi lần khởi động lại (§8).
-  # EN: Off in dev to avoid re-registering on every restart (§8).
-  register_commands: false
+  # Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true.
+  # EN: Guild ID for guild-scoped command sync — required when register_commands.guild=true.
+  # guild_id: "123456789012345678"
+  # Bật/tắt sync command lên Discord qua REST (khi boot), theo 3 scope (§8).
+  # EN: Toggle REST slash-command sync at boot, per scope (§8).
+  # global: slash toàn app (cache ~1h) | guild: slash cho guild cụ thể (tức thời, dev) | user: context menu.
+  # TẮT guild/user ở dev để tránh re-register mỗi lần khởi động lại.
+  register_commands:
+    global: true
+    guild: false
+    user: false
 
 logging:
   level: INFO             # DEBUG | INFO | WARN | ERROR | FATAL

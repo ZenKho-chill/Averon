@@ -32,6 +32,10 @@ export interface ModuleManifest {
     };
     handler: string;
     enabled?: boolean;
+    /** Loại lệnh Discord: chat_input (slash) | user | message (context menu). Mặc định chat_input. */
+    type?: 'chat_input' | 'user' | 'message';
+    /** Scope đăng ký: global | guild | user. Mặc định ['global']. Khớp toggle register_commands ở core (§8). */
+    scope?: Array<'global' | 'guild' | 'user'>;
   }>;
   events?: Array<{
     name: string;

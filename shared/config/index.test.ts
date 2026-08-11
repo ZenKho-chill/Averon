@@ -119,7 +119,9 @@ describe('loadConfig — integration với config thật của dự án (§6.5)'
     const cfg = loadConfig<AppConfig>({ configDir, file: 'config.example.yml', schema: schemaFile });
     expect(cfg.app.name).toBe('averon');
     expect(cfg.app.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(cfg.discord.register_commands).toBe(false);
+    expect(cfg.discord.register_commands.global).toBe(true);
+    expect(cfg.discord.register_commands.guild).toBe(false);
+    expect(cfg.discord.register_commands.user).toBe(false);
     expect(['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL']).toContain(cfg.logging.level);
   });
 });

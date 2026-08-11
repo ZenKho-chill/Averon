@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 function makeAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     app: { name: 'averon', version: '0.4.0' },
-    discord: { token: 'test-token', intents: ['Guilds'], register_commands: false },
+    discord: { token: 'test-token', intents: ['Guilds'], register_commands: { global: true, guild: false, user: false } },
     logging: { level: 'INFO', console_color: false, file: { enabled: false, dir: 'logs/', max_size_mb: 20, keep_files: 7 } },
     crash: { max_failures: 5, fail_window_ms: 300000, watchdog: { enabled: false, max_restarts: 5, window_min: 5 } },
     dev: { hot_reload: false, show_stacktrace: false },
@@ -24,7 +24,8 @@ describe('loadCoreConfig', () => {
     expect(cfg.app.name).toBe('averon');
     expect(cfg.app.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(cfg.discord.intents).toContain('Guilds');
-    expect(cfg.discord.register_commands).toBe(false);
+    expect(cfg.discord.register_commands.global).toBe(true);
+    expect(cfg.discord.register_commands.guild).toBe(false);
   });
 
   it('thiếu config.yml → ConfigError kèm gợi ý copy example', async () => {
@@ -66,7 +67,7 @@ describe('getDiscordToken', () => {
   });
 
   it('token thiếu / không phải string → ConfigError', () => {
-    const cfg = makeAppConfig({ discord: { token: '', intents: ['Guilds'], register_commands: false } as AppConfig['discord'] });
+    const cfg = makeAppConfig({ discord: { token: '', intents: ['Guilds'], register_commands: { global: true, guild: false, user: false } } as AppConfig['discord'] });
     expect(() => getDiscordToken(cfg)).toThrow(/token/);
   });
 });

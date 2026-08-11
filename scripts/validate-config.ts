@@ -22,7 +22,10 @@ try {
   const config = loadConfig<AppConfig>({ configDir, file, schema: schemaFile });
   console.log(
     `[validate-config] OK — file=${file} app=${config.app.name} v${config.app.version} ` +
-      `logging.level=${config.logging.level} register_commands=${config.discord.register_commands}`,
+      `logging.level=${config.logging.level} ` +
+      `register_commands=global:${config.discord.register_commands.global}` +
+      `,guild:${config.discord.register_commands.guild}` +
+      `,user:${config.discord.register_commands.user}`,
   );
   process.exit(0);
 } catch (err) {

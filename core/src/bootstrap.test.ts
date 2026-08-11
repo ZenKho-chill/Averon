@@ -6,7 +6,7 @@ import type { AppConfig } from './config/index.js';
 vi.mock('./config/index.js', () => ({
   loadCoreConfig: vi.fn(async () => ({
     app: { name: 'averon', version: '0.4.0' },
-    discord: { token: 'test-token', intents: ['Guilds'], register_commands: false },
+    discord: { token: 'test-token', intents: ['Guilds'], register_commands: { global: false, guild: false, user: false } },
     logging: { level: 'INFO', console_color: false, file: { enabled: false } },
     crash: { max_failures: 5, fail_window_ms: 300000, watchdog: { enabled: false } },
     dev: { hot_reload: false, show_stacktrace: false },

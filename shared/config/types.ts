@@ -13,8 +13,20 @@ export interface AppConfig {
   discord: {
     token?: string;
     intents: string[];
-    /** Bật mới sync slash command lên Discord qua REST khi boot. Tắt ở dev để tránh re-register mỗi lần restart. */
-    register_commands: boolean;
+    /** Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true (§8). */
+    guild_id?: string;
+    /**
+     * Bật/tắt sync command lên Discord qua REST khi boot, theo 3 scope (§8).
+     * - global: slash command toàn app (cache ~1h)
+     * - guild:  slash command cho guild cụ thể (tức thời — dev)
+     * - user:   context menu (chuột phải vào user/message)
+     * Module khai báo scope của từng lệnh trong module.yml; cờ này là toggle tổng.
+     */
+    register_commands: {
+      global: boolean;
+      guild: boolean;
+      user: boolean;
+    };
   };
   logging: {
     level: LogLevel;

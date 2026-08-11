@@ -230,6 +230,8 @@ commands:                          # core tự đăng ký lệnh
       en: "Example command"
     handler: commands/example.ts
     enabled: true
+    type: chat_input               # chat_input (slash) | user | message (context menu) — mặc định chat_input
+    scope: [global]                # global | guild | user — mặc định ['global']; khớp toggle register_commands ở core (§8)
 
 events:                            # core tự attach listener
   - name: messageCreate            # tên event Discord (hoặc event nội bộ core)
@@ -257,6 +259,7 @@ tests:
 - Field bắt buộc: `name`, `version`, `runtime.*`, `entry`. Thiếu → core **từ chối load** và log ERROR với lý do cụ thể.
 - `name` phải trùng tên folder module, kebab-case, không trùng module khác.
 - Core validate manifest bằng `config/schemas/module.schema.json` ngay ở giai đoạn REGISTERED.
+- Mỗi command khai báo `type` (loại lệnh Discord) và `scope` (đăng ký ở đâu). Core chỉ đăng ký lệnh vào scope được bật trong `discord.register_commands` (§8) — lệnh `scope: [guild]` không bao giờ được gửi lên global.
 
 ---
 
@@ -321,9 +324,14 @@ discord:
   # ⚠️ REPO PUBLIC — KHÔNG commit token thật! Chỉ sửa trong config.yml (gitignored).
   token: "PASTE_DISCORD_TOKEN_HERE"
   intents: [Guilds, GuildMessages, MessageContent]
-  # BẬT mới sync slash command lên Discord qua REST khi boot. TẮT ở dev (§8).
-  # EN: Set true to sync slash commands via REST at boot; off in dev to avoid re-registering.
-  register_commands: false
+  # Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true.
+  guild_id: "123456789012345678"    # (tùy chọn / optional)
+  # Bật/tắt sync command qua REST khi boot, theo 3 scope (§8).
+  # global: slash toàn app (~1h cache) | guild: slash cho guild cụ thể (tức thời, dev) | user: context menu.
+  register_commands:
+    global: true
+    guild: false
+    user: false
 
 logging:
   level: INFO             # DEBUG | INFO | WARN | ERROR | FATAL
@@ -397,7 +405,7 @@ Không có env vars — mode = tự chỉnh giá trị trong **1 file** `config/
 | Message lỗi cho user | Chi tiết | Ngắn gọn, an toàn (không lộ cấu trúc nội bộ) |
 | Build/optimize | Off (source map bật, build nhanh) | On (bundle, minify, source map tắt) |
 | Watchdog | Bật (nhẹ) | Bật (nghiêm ngặt hơn, log đầy đủ) |
-| `discord.register_commands` | **`false`** — tránh re-register slash command mỗi lần restart | **`true`** — sync lên Discord qua REST khi boot |
+| `discord.register_commands` | `global: true`, **`guild/user: false`** — tránh re-register mỗi lần restart | `global/guild/user: true` — sync lên Discord qua REST khi boot |
 
 ---
 
