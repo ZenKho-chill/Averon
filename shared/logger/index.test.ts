@@ -20,7 +20,7 @@ function captureLogger(options: { level?: string; source?: string; context?: str
 describe('formatLine', () => {
   it('đúng format §7.2: [ts] [LEVEL ] [source] [context] message', () => {
     const line = formatLine('INFO', 'core/loader', 'modules/example', 'hello');
-    expect(line).toMatch(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+Z\] \[INFO \] \[core\/loader\] \[modules\/example\] hello$/);
+    expect(line).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[INFO \] \[core\/loader\] \[modules\/example\] hello$/);
   });
 
   it('thêm meta dạng JSON khi có', () => {

@@ -76,44 +76,32 @@ describe('DiscordClient', () => {
     expect(discord.client.listeners('messageCreate').length).toBe(1);
   });
 
-  /** Mock application.commands: fetch trả Map<id,{id,name}>; set/delete ghi lại lời gọi. */
-  function mockAppCommands(existing: Array<{ id: string; name: string }> = []) {
+  /** Mock application.commands: chỉ có set() (bulk replace). */
+  function mockAppCommands() {
     const set = vi.fn().mockResolvedValue(undefined);
-    const del = vi.fn().mockResolvedValue(undefined);
-    const fetch = vi.fn(async () => new Map(existing.map((c) => [c.id, c])));
-    return { fetch, set, delete: del };
+    return { set };
   }
 
-  it('syncCommands mọi scope=false → skip REST hết, không fetch/set', async () => {
+  it('syncCommands mọi scope=false → skip REST hết, không gọi set', async () => {
     const logger = makeLogger();
     const discord = new DiscordClient(makeConfig({ global: false, guild: false, user: false }), logger);
     const cmds = mockAppCommands();
     // @ts-expect-error — private field
     discord.client.application = { commands: cmds };
     await discord.syncCommands([{ name: 'ping', description: { en: 'Ping command' } }]);
-    expect(cmds.fetch).not.toHaveBeenCalled();
     expect(cmds.set).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Skip register commands (global)'));
   });
 
-  it('syncCommands global=true → fetch rồi xóa stale trước khi set', async () => {
+  it('syncCommands global=true → 1 call set() thay toàn bộ list (không fetch/delete lẻ)', async () => {
     const logger = makeLogger();
     const discord = new DiscordClient(makeConfig({ global: true }), logger);
-    // 'oldcmd' tồn tại trên Discord nhưng không còn trong desired → stale
-    const cmds = mockAppCommands([
-      { id: '111', name: 'oldcmd' },
-      { id: '222', name: 'ping' },
-    ]);
+    const cmds = mockAppCommands();
     // @ts-expect-error — private field
     discord.client.application = { commands: cmds };
     await discord.syncCommands([{ name: 'ping', description: { en: 'Ping command' }, scope: ['global'] }]);
-    // xóa stale trước
-    expect(cmds.delete).toHaveBeenCalledWith('111');
-    expect(cmds.delete).not.toHaveBeenCalledWith('222');
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Xóa command stale global'));
-    // set 1 lần với list mong muốn (không guildId)
-    expect(cmds.set).toHaveBeenCalledTimes(1);
-    expect(cmds.set.mock.calls[0][1]).toBeUndefined();
+    expect(cmds.set).toHaveBeenCalledTimes(1); // 1 call duy nhất
+    expect(cmds.set.mock.calls[0][1]).toBeUndefined(); // không guildId
     // @ts-expect-error — toJSON là method của builder
     expect(cmds.set.mock.calls[0][0].map((b) => ({ name: b.name, description: b.description }))).toEqual([
       { name: 'ping', description: 'Ping command' },
@@ -135,17 +123,15 @@ describe('DiscordClient', () => {
     expect(cmds.set.mock.calls[0][0].map((b) => b.name)).toEqual(['ping', 'Avatar']);
   });
 
-  it('syncCommands guild=true + guild_id → fetch guild, xóa stale, set với guildId', async () => {
+  it('syncCommands guild=true + guild_id → 1 call set() với guildId', async () => {
     const logger = makeLogger();
     const config = makeConfig({ guild: true });
     config.discord.guild_id = '123456789';
     const discord = new DiscordClient(config, logger);
-    const cmds = mockAppCommands([{ id: '333', name: 'legacy' }]);
+    const cmds = mockAppCommands();
     // @ts-expect-error — private field
     discord.client.application = { commands: cmds };
     await discord.syncCommands([{ name: 'ping', description: { en: 'Ping command' }, scope: ['guild'] }]);
-    expect(cmds.fetch).toHaveBeenCalledWith({ guildId: '123456789' });
-    expect(cmds.delete).toHaveBeenCalledWith('333', '123456789');
     expect(cmds.set).toHaveBeenCalledTimes(1);
     expect(cmds.set.mock.calls[0][1]).toBe('123456789');
   });
@@ -157,7 +143,6 @@ describe('DiscordClient', () => {
     // @ts-expect-error — private field
     discord.client.application = { commands: cmds };
     await discord.syncCommands([{ name: 'ping', scope: ['guild'] }]);
-    expect(cmds.fetch).not.toHaveBeenCalled();
     expect(cmds.set).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('guild_id'));
   });
