@@ -3,6 +3,19 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.3.0] — 2026-08-11
+**Loại / Type:** MINOR — tính năng mới / new feature
+
+### Added
+- `shared/config`: YAML loader + merge theo env + interpolate `${VAR}` (`${VAR:-default}`) + validate fail-fast bằng AJV JSON Schema (§6), kèm test (VI)
+  EN: `shared/config`: YAML loader + env merge + `${VAR}` interpolation (`${VAR:-default}`) + fail-fast AJV JSON-Schema validation (§6), with tests.
+- `shared/logger`: 5 level + format §7.2 + console màu (dev) + file rotate theo size (prod) + mask secret (§7.4), kèm test (VI)
+  EN: `shared/logger`: 5 levels + §7.2 format + colored console (dev) + size-rotating file (prod) + secret masking (§7.4), with tests.
+- Config mặc định `default.yml` + override `dev.yml`/`prod.yml` + `schemas/core.schema.json` (§6.5) (VI)
+  EN: Default `default.yml` + `dev.yml`/`prod.yml` overrides + `schemas/core.schema.json` (§6.5).
+- `validate-config` giờ dùng chính `shared/config` (bỏ placeholder) (VI)
+  EN: `validate-config` now uses the real `shared/config` (placeholder removed).
+
 ## [0.2.0] — 2026-08-11
 **Loại / Type:** MINOR — tính năng mới / new feature
 

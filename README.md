@@ -27,8 +27,15 @@ npm test        # chạy test / run tests
 npm run dev     # chạy dev (chưa khả dụng — chờ core skeleton) / dev mode (pending core skeleton)
 ```
 
-> ⚠️ Đang ở giai đoạn **khởi tạo nền móng (v0.2.0)** — chưa có tính năng bot thực tế.
-> EN: ⚠️ Currently in **foundation scaffold (v0.2.0)** — no bot features yet.
+> ⚠️ Đang ở giai đoạn **khởi tạo nền móng (v0.3.0)** — chưa có tính năng bot thực tế.
+> EN: ⚠️ Currently in **foundation scaffold (v0.3.0)** — no bot features yet.
+
+## Shared services
+
+- **`shared/config`** — load YAML, merge theo môi trường, interpolate biến, validate fail-fast bằng JSON Schema (`config/schemas/`).
+- **`shared/logger`** — 5 cấp độ (DEBUG→FATAL), console màu ở dev, file rotate theo dung lượng ở prod, che bí mật khi log.
+
+EN: **`shared/config`** — YAML loading, env merge, variable interpolation, fail-fast JSON-Schema validation (`config/schemas/`). **`shared/logger`** — 5 levels (DEBUG→FATAL), colored console in dev, size-based file rotation in prod, secret masking.
 
 ## CI/CD
 

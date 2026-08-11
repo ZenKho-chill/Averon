@@ -1,0 +1,34 @@
+# ==================================================
+# Averon — config mặc định (mọi môi trường)
+# EN: Averon — default config (all environments).
+# Thứ tự merge: default.yml → <env>.yml → env vars (§6.2)
+# ==================================================
+
+app:
+  name: averon
+  version: 0.3.0          # tuân theo quy tắc version §10
+
+discord:
+  token: ${DISCORD_TOKEN:-}            # secret — từ .env; rỗng khi chưa đặt (§6.3)
+  intents: [Guilds, GuildMessages, MessageContent]
+
+logging:
+  level: INFO             # DEBUG | INFO | WARN | ERROR | FATAL
+  console_color: false
+  file:
+    enabled: true
+    dir: logs/
+    max_size_mb: 20
+    keep_files: 7
+
+crash:
+  max_failures: 5         # số lần lỗi trước khi quarantine module (§9.2)
+  fail_window_ms: 300000  # cửa sổ 5 phút
+  watchdog:
+    enabled: true
+    max_restarts: 5       # giới hạn restart trong cửa sổ (§9.3)
+    window_min: 5
+
+dev:
+  hot_reload: false
+  show_stacktrace: true

@@ -1,0 +1,13 @@
+# ==================================================
+# Averon — override môi trường DEV (§8)
+# EN: Averon — DEV environment overrides.
+# Log chi tiết hơn, console có màu, hot-reload bật.
+# ==================================================
+
+logging:
+  level: DEBUG
+  console_color: true
+
+dev:
+  hot_reload: true
+  show_stacktrace: true

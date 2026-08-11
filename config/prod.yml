@@ -1,0 +1,18 @@
+# ==================================================
+# Averon — override môi trường PROD (§8)
+# EN: Averon — PROD environment overrides.
+# Log tối giản, không màu, ẩn stack trace khỏi output user.
+# ==================================================
+
+logging:
+  level: INFO
+  console_color: false
+  file:
+    enabled: true
+    dir: logs/
+    max_size_mb: 20
+    keep_files: 7
+
+dev:
+  hot_reload: false
+  show_stacktrace: false
