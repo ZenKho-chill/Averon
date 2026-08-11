@@ -6,12 +6,14 @@
  * - Middleware cho commands/events
  * - Rate-limit handling
  */
-import { Client, GatewayIntentBits, type ClientOptions } from 'discord.js';
+import { Client, GatewayIntentBits, SlashCommandBuilder, type ClientOptions } from 'discord.js';
 import type { Logger } from '../../../shared/logger/index.js';
 import type { AppConfig } from '../config/index.js';
 
 export class DiscordClient {
   private readonly client: Client;
+
+  private readonly registerCommands: boolean;
 
   constructor(
     private readonly config: AppConfig,
@@ -20,6 +22,7 @@ export class DiscordClient {
     const intents = config.discord.intents.map((intent: string) => GatewayIntentBits[intent as keyof typeof GatewayIntentBits]);
     const options: ClientOptions = { intents };
     this.client = new Client(options);
+    this.registerCommands = config.discord.register_commands === true;
   }
 
   /** Login với token từ config. */
@@ -43,6 +46,24 @@ export class DiscordClient {
         this.logger.error(`Command '${name}' thất bại`, { error: err });
       }
     });
+  }
+
+  /**
+   * Sync slash command lên Discord qua REST — CHỈ khi `discord.register_commands: true`.
+   * EN: Sync slash commands to Discord via REST — ONLY when `discord.register_commands: true`.
+   * Tắt ở dev để tránh re-register mỗi lần khởi động lại (§8).
+   */
+  async syncCommands(commands: Array<{ name: string; description?: { vi?: string; en?: string } | string }>): Promise<void> {
+    if (!this.registerCommands) {
+      this.logger.info('Skip register commands (dev) — discord.register_commands=false');
+      return;
+    }
+    const builders = commands.map((cmd) => {
+      const desc = typeof cmd.description === 'string' ? cmd.description : cmd.description?.en ?? cmd.description?.vi ?? `/${cmd.name}`;
+      return new SlashCommandBuilder().setName(cmd.name).setDescription(desc);
+    });
+    await this.client.application?.commands.set(builders);
+    this.logger.info(`Đã register ${builders.length} slash command lên Discord`);
   }
 
   /** Đăng ký event handler (gọi từ loader). */

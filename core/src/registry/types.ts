@@ -18,7 +18,11 @@ export interface ModuleRegistryEntry {
   version: string;
   state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'UNLOADED' | 'FAULTED';
   entry: string; // đường dẫn entry point
-  commands: Array<{ name: string; handler: string }>;
+  commands: Array<{
+    name: string;
+    handler: string;
+    description?: { vi?: string; en?: string } | string;
+  }>;
   events: Array<{ name: string; handler: string }>;
   runtime: {
     language: string;

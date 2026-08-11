@@ -11,19 +11,20 @@ export { ConfigError };
 export type { AppConfig };
 
 /**
- * Load config tổng từ config/default.yml + config/<env>.yml, validate bằng core.schema.json.
- * EN: Load core config from config/default.yml + config/<env>.yml, validate with core.schema.json.
+ * Load config tổng từ config/config.yml, validate bằng core.schema.json.
+ * EN: Load core config from config/config.yml, validate with core.schema.json.
  *
- * @param env Môi trường đích (mặc định: AVERON_ENV || NODE_ENV || 'dev')
+ * @param configDir Thư mục chứa config.yml (mặc định: config/ của dự án)
+ * @param file Tên file config (mặc định: config.yml)
  * @throws ConfigError nếu config không hợp lệ
  */
-export async function loadCoreConfig(env?: string, configDir?: string): Promise<AppConfig> {
+export async function loadCoreConfig(configDir?: string, file?: string): Promise<AppConfig> {
   const moduleDir = dirname(fileURLToPath(import.meta.url));
   const root = configDir ? dirname(configDir) : findProjectRoot(moduleDir);
   const finalConfigDir = configDir ?? join(root, 'config');
   const schemaFile = join(root, 'config', 'schemas', 'core.schema.json');
 
-  return loadConfig<AppConfig>({ configDir: finalConfigDir, env, schema: schemaFile });
+  return loadConfig<AppConfig>({ configDir: finalConfigDir, file, schema: schemaFile });
 }
 
 /**
@@ -36,7 +37,7 @@ export function getDiscordToken(config: AppConfig): string {
     throw new ConfigError(
       'Thiếu token Discord trong config. ' +
         'EN: Missing Discord token in config. ' +
-        'Kiểm tra config/dev.yml hoặc config/prod.yml.',
+        'Sửa discord.token trong config/config.yml.',
     );
   }
   return token;

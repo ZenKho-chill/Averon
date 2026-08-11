@@ -25,7 +25,6 @@ export interface CrashReporterOptions {
   getModuleStates: () => CrashReport['context']['modules'];
   /** Thư mục ghi crash report. */
   crashDir: string;
-  env: string;
   appVersion: string;
   /** Quy tắc quarantine (§9.2). */
   maxFailures?: number;
@@ -103,7 +102,6 @@ export class CrashReporter {
       timestamp: new Date().toISOString(),
       error: { name: err.name, message: err.message, stack: err.stack },
       context: {
-        env: this.options.env,
         appVersion: this.options.appVersion,
         nodeVersion: process.version,
         modules: this.options.getModuleStates(),

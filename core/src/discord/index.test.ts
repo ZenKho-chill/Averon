@@ -13,10 +13,10 @@ function makeLogger(): Logger {
   };
 }
 
-function makeConfig(): AppConfig {
+function makeConfig(registerCommands = false): AppConfig {
   return {
-    app: { name: 'averon', version: '0.3.0' },
-    discord: { token: 'test-token', intents: ['Guilds'] },
+    app: { name: 'averon', version: '0.4.0' },
+    discord: { token: 'test-token', intents: ['Guilds'], register_commands: registerCommands },
     logging: { level: 'INFO', console_color: false },
     crash: { max_failures: 5, fail_window_ms: 300000 },
     dev: { hot_reload: false, show_stacktrace: false },
@@ -70,5 +70,35 @@ describe('DiscordClient', () => {
     discord.registerEvent('messageCreate', handler);
     // @ts-expect-error — private field
     expect(discord.client.listeners('messageCreate').length).toBe(1);
+  });
+
+  it('syncCommands register_commands=false → skip REST, log rõ', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(false), logger);
+    const set = vi.fn();
+    // @ts-expect-error — private field
+    discord.client.application = { commands: { set } };
+    await discord.syncCommands([{ name: 'ping', description: { en: 'Ping command' } }]);
+    expect(set).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Skip register commands'));
+  });
+
+  it('syncCommands register_commands=true → gọi REST commands.set', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(true), logger);
+    const set = vi.fn().mockResolvedValue(undefined);
+    // @ts-expect-error — private field
+    discord.client.application = { commands: { set } };
+    await discord.syncCommands([
+      { name: 'ping', description: { en: 'Ping command' } },
+      { name: 'meo', description: 'Meo command' },
+    ]);
+    expect(set).toHaveBeenCalled();
+    // JSON-ify để so sánh dễ — builders chứa data
+    // @ts-expect-error — toJSON là method của builder
+    expect(set.mock.calls[0][0].map((b) => ({ name: b.name, description: b.description }))).toEqual([
+      { name: 'ping', description: 'Ping command' },
+      { name: 'meo', description: 'Meo command' },
+    ]);
   });
 });

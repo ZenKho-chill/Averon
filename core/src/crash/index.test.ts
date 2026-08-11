@@ -30,7 +30,6 @@ function makeReporter(opts: {
     logger,
     getModuleStates: opts.getModuleStates ?? (() => []),
     crashDir: dir,
-    env: 'test',
     appVersion: '0.3.0',
     maxFailures: opts.maxFailures,
     windowMs: opts.windowMs,
@@ -75,7 +74,6 @@ describe('CrashReporter', () => {
       timestamp: '2026-08-11T00:00:00.000Z',
       error: { name: 'Test', message: 'boom', stack: 'line' },
       context: {
-        env: 'test',
         appVersion: '0.3.0',
         nodeVersion: 'v22',
         modules: [],

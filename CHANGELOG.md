@@ -3,6 +3,19 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.5.0] — 2026-08-11
+**Loại / Type:** MINOR — thay đổi kiến trúc config / config architecture change (có phá vỡ config cũ / breaking config change: nạp lại config từ default/dev/prod sang 1 file `config.yml`)
+
+### Changed
+- **Config 1 file duy nhất** `config/config.yml` (gitignored) + `config/config.example.yml` (tracked) — bỏ `default.yml`/`dev.yml`/`prod.yml` + bỏ merge theo env (VI)
+  EN: Single `config/config.yml` (gitignored) + tracked `config/config.example.yml` — dropped `default.yml`/`dev.yml`/`prod.yml` + env-based merge.
+- **Bỏ toàn bộ biến môi trường** (`process.env`/`AVERON_ENV`/`NODE_ENV`) — user tự sửa trực tiếp `config.yml`; không còn `.env` (VI)
+  EN: Removed all env vars (`process.env`/`AVERON_ENV`/`NODE_ENV`) — edit `config.yml` directly; no more `.env`.
+- **Cross-platform path**: `defaultConfigDir()` bỏ nhánh `process.cwd()` — luôn tính từ `import.meta.url` → `findProjectRoot`, chạy đúng Windows + Linux (VI)
+  EN: `defaultConfigDir()` no longer uses `process.cwd()` — always resolved from `import.meta.url` → `findProjectRoot`, correct on Windows + Linux.
+- **Cờ `discord.register_commands`**: false (mặc định, dev) bỏ qua sync slash command qua REST; true (prod) gọi `client.application.commands.set()` lúc boot — tránh re-register mỗi lần restart ở dev (VI)
+  EN: `discord.register_commands`: false (default, dev) skips REST slash-command sync; true (prod) calls `client.application.commands.set()` at boot — avoids re-registering on every dev restart.
+
 ## [0.4.0] — 2026-08-11
 **Loại / Type:** MINOR — tính năng mới / new feature
 

@@ -21,7 +21,8 @@
         "intents": {
           "type": "array",
           "items": { "type": "string", "enum": ["Guilds", "GuildMessages", "MessageContent", "GuildMembers", "GuildVoiceStates", "DirectMessages"] }
-        }
+        },
+        "register_commands": { "type": "boolean", "default": false }
       }
     },
     "logging": {

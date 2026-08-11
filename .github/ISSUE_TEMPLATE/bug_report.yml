@@ -24,7 +24,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: "Version bot trong config/default.yml + module.yml (theo §10)"
+      description: "Version bot trong config/config.yml + module.yml (theo §10)"
       placeholder: 0.1.0
   - type: dropdown
     id: env

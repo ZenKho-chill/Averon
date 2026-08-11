@@ -13,6 +13,8 @@ export interface AppConfig {
   discord: {
     token?: string;
     intents: string[];
+    /** Bật mới sync slash command lên Discord qua REST khi boot. Tắt ở dev để tránh re-register mỗi lần restart. */
+    register_commands: boolean;
   };
   logging: {
     level: LogLevel;
@@ -41,12 +43,10 @@ export interface AppConfig {
 
 /** Tuỳ chọn khi load config. */
 export interface LoadConfigOptions {
-  /** Thư mục chứa default.yml + <env>.yml (mặc định: config/ của dự án). */
+  /** Thư mục chứa config.yml (mặc định: config/ của dự án). */
   configDir?: string;
-  /** Env đích (mặc định: AVERON_ENV || NODE_ENV || 'dev'). */
-  env?: string;
+  /** Tên file config (mặc định: config.yml). */
+  file?: string;
   /** JSON Schema (object) hoặc đường dẫn tới file schema (JSON/YAML). */
   schema?: object | string;
-  /** Nguồn biến môi trường — cho phép test inject (mặc định: process.env). */
-  envSource?: Record<string, string | undefined>;
 }

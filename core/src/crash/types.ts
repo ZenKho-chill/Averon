@@ -11,7 +11,6 @@ export interface CrashReport {
     stack?: string;
   };
   context: {
-    env: string;
     appVersion: string;
     nodeVersion: string;
     modules: {

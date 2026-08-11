@@ -1,32 +1,49 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { loadCoreConfig, ConfigError, getDiscordToken } from './index.js';
 import type { AppConfig } from './index.js';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+function makeAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  return {
+    app: { name: 'averon', version: '0.4.0' },
+    discord: { token: 'test-token', intents: ['Guilds'], register_commands: false },
+    logging: { level: 'INFO', console_color: false, file: { enabled: false, dir: 'logs/', max_size_mb: 20, keep_files: 7 } },
+    crash: { max_failures: 5, fail_window_ms: 300000, watchdog: { enabled: false, max_restarts: 5, window_min: 5 } },
+    dev: { hot_reload: false, show_stacktrace: false },
+    ...overrides,
+  };
+}
 
 describe('loadCoreConfig', () => {
-  it('load + validate config từ default.yml + dev.yml', async () => {
-    const cfg = await loadCoreConfig('dev', join(process.cwd(), 'config'));
+  it('load + validate config từ config.example.yml (file mẫu, luôn track)', async () => {
+    const configDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'config');
+    const cfg = await loadCoreConfig(configDir, 'config.example.yml');
     expect(cfg.app.name).toBe('averon');
     expect(cfg.app.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(cfg.logging.level).toBe('DEBUG'); // dev.yml override
     expect(cfg.discord.intents).toContain('Guilds');
+    expect(cfg.discord.register_commands).toBe(false);
   });
 
-  it('load + validate config từ default.yml + prod.yml', async () => {
-    const cfg = await loadCoreConfig('prod', join(process.cwd(), 'config'));
-    expect(cfg.app.name).toBe('averon');
-    expect(cfg.logging.level).toBe('INFO'); // prod.yml override
+  it('thiếu config.yml → ConfigError kèm gợi ý copy example', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'averon-cfgerr-'));
+    const cfgDir = join(root, 'config');
+    try {
+      mkdirSync(cfgDir, { recursive: true });
+      await expect(loadCoreConfig(cfgDir)).rejects.toThrow(/config\.example\.yml/);
+    } finally {
+      try { rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
   });
 
   it('config sai (thiếu required / sai kiểu) → ConfigError', async () => {
-    // Fixture theo layout loadCoreConfig kỳ vọng: <root>/config/{default.yml,schemas/core.schema.json}
     const root = mkdtempSync(join(tmpdir(), 'averon-cfgerr-'));
     const cfgDir = join(root, 'config');
     try {
       mkdirSync(join(cfgDir, 'schemas'), { recursive: true });
-      writeFileSync(join(cfgDir, 'default.yml'), 'app:\n  version: 0.1.0\n'); // thiếu name → sai schema
+      writeFileSync(join(cfgDir, 'config.yml'), 'app:\n  version: 0.1.0\n'); // thiếu name → sai schema
       writeFileSync(
         join(cfgDir, 'schemas', 'core.schema.json'),
         JSON.stringify({
@@ -35,7 +52,7 @@ describe('loadCoreConfig', () => {
           properties: { app: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, version: { type: 'string' } } } },
         }),
       );
-      await expect(loadCoreConfig('dev', cfgDir)).rejects.toThrow(ConfigError);
+      await expect(loadCoreConfig(cfgDir)).rejects.toThrow(ConfigError);
     } finally {
       try { rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }
     }
@@ -44,24 +61,12 @@ describe('loadCoreConfig', () => {
 
 describe('getDiscordToken', () => {
   it('lấy token từ config đã validate', () => {
-    const cfg: AppConfig = {
-      app: { name: 'averon', version: '0.3.0' },
-      discord: { token: 'test-token', intents: ['Guilds'] },
-      logging: { level: 'INFO', console_color: false },
-      crash: { max_failures: 5, fail_window_ms: 300000 },
-      dev: { hot_reload: false, show_stacktrace: false },
-    };
+    const cfg = makeAppConfig();
     expect(getDiscordToken(cfg)).toBe('test-token');
   });
 
   it('token thiếu / không phải string → ConfigError', () => {
-    const cfg: AppConfig = {
-      app: { name: 'averon', version: '0.3.0' },
-      discord: { intents: ['Guilds'] },
-      logging: { level: 'INFO', console_color: false },
-      crash: { max_failures: 5, fail_window_ms: 300000 },
-      dev: { hot_reload: false, show_stacktrace: false },
-    } as never;
+    const cfg = makeAppConfig({ discord: { token: '', intents: ['Guilds'], register_commands: false } as AppConfig['discord'] });
     expect(() => getDiscordToken(cfg)).toThrow(/token/);
   });
 });

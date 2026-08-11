@@ -7,7 +7,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { ConfigError } from './errors.js';
-import { deepMerge } from './merge.js';
 import { loadSchema, validateConfig } from './validator.js';
 import type { LoadConfigOptions } from './types.js';
 
@@ -28,42 +27,32 @@ export function findProjectRoot(startDir: string): string {
   throw new ConfigError('Không tìm thấy project root (package.json). EN: Cannot find project root.');
 }
 
-/** Thư mục config mặc định: <project root>/config. */
+/** Thư mục config mặc định: <project root>/config (tính từ module location — cross-platform). */
 function defaultConfigDir(): string {
-  return process.env.VITEST === 'true' ? join(process.cwd(), 'config') : join(findProjectRoot(dirname(fileURLToPath(import.meta.url))), 'config');
-}
-
-/** Xác định env: ưu tiên option.env, rồi AVERON_ENV, rồi NODE_ENV, mặc định 'dev' (§8). */
-export function resolveEnv(options: LoadConfigOptions = {}): string {
-  const source = options.envSource ?? process.env;
-  return options.env ?? source.AVERON_ENV ?? source.NODE_ENV ?? 'dev';
+  return join(findProjectRoot(dirname(fileURLToPath(import.meta.url))), 'config');
 }
 
 /**
- * Load + merge + (tuỳ chọn) validate config.
- * EN: Load, merge, and optionally validate config.
+ * Load + (tuỳ chọn) validate config từ 1 file duy nhất (config.yml).
+ * EN: Load and optionally validate config from a single file (config.yml).
  */
 export function loadConfig<T>(options: LoadConfigOptions = {}): T {
   const configDir = options.configDir ?? defaultConfigDir();
-  const env = resolveEnv(options);
+  const file = join(configDir, options.file ?? 'config.yml');
 
-  const files = [join(configDir, 'default.yml')];
-  const envFile = join(configDir, `${env}.yml`);
-  if (existsSync(envFile)) files.push(envFile);
-
-  let merged: unknown = {};
-  for (const file of files) {
-    if (!existsSync(file)) {
-      throw new ConfigError(`Không tìm thấy file config: ${file}. EN: Config file not found: ${file}`);
-    }
-    const doc = YAML.parse(readFileSync(file, 'utf8')) ?? {};
-    merged = deepMerge(merged, doc);
+  if (!existsSync(file)) {
+    throw new ConfigError(
+      `Không tìm thấy file config: ${file}. EN: Config file not found: ${file}. ` +
+        'Hãy copy config/config.example.yml → config/config.yml rồi chỉnh sửa. EN: Copy config/config.example.yml → config/config.yml and edit.',
+    );
   }
+
+  const config = YAML.parse(readFileSync(file, 'utf8')) ?? {};
 
   if (options.schema) {
     const schema = typeof options.schema === 'string' ? loadSchema(options.schema) : options.schema;
-    validateConfig(merged, schema, files);
+    validateConfig(config, schema, [file]);
   }
 
-  return merged as T;
+  return config as T;
 }

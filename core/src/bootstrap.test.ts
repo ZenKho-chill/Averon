@@ -5,8 +5,8 @@ import type { AppConfig } from './config/index.js';
 // Mock loadCoreConfig để trả về config giả
 vi.mock('./config/index.js', () => ({
   loadCoreConfig: vi.fn(async () => ({
-    app: { name: 'averon', version: '0.3.0' },
-    discord: { token: 'test-token', intents: ['Guilds'] },
+    app: { name: 'averon', version: '0.4.0' },
+    discord: { token: 'test-token', intents: ['Guilds'], register_commands: false },
     logging: { level: 'INFO', console_color: false, file: { enabled: false } },
     crash: { max_failures: 5, fail_window_ms: 300000, watchdog: { enabled: false } },
     dev: { hot_reload: false, show_stacktrace: false },
@@ -19,6 +19,7 @@ vi.mock('./discord/index.js', () => ({
     login = vi.fn().mockResolvedValue(undefined);
     registerCommand = vi.fn();
     registerEvent = vi.fn();
+    syncCommands = vi.fn().mockResolvedValue(undefined);
     getClient = vi.fn();
   },
 }));

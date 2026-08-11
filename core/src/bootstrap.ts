@@ -28,7 +28,7 @@ export async function bootstrap() {
       keepFiles: config.logging.file.keep_files,
     } : null,
   });
-  logger.info('Averon booting', { env: process.env.AVERON_ENV ?? process.env.NODE_ENV ?? 'dev', version: config.app.version });
+  logger.info('Averon booting', { version: config.app.version, register_commands: config.discord.register_commands });
 
   // 3. Đăng ký anti-crash handlers
   const registry = new Registry();
@@ -36,7 +36,6 @@ export async function bootstrap() {
     logger,
     getModuleStates: () => registry.getAllModules(),
     crashDir: 'crash-reports',
-    env: process.env.AVERON_ENV ?? process.env.NODE_ENV ?? 'dev',
     appVersion: config.app.version,
     maxFailures: config.crash.max_failures,
     windowMs: config.crash.fail_window_ms,
@@ -66,13 +65,21 @@ export async function bootstrap() {
 
   // 6. Khởi tạo Discord client
   const discord = new DiscordClient(config, logger);
-  // TODO: attach commands/events từ registry
-  // for (const module of registry.getAllModules()) {
-  //   for (const cmd of module.commands) {
-  //     discord.registerCommand(cmd.name, ...);
-  //   }
-  // }
+
+  // 6.1 Attach commands/events từ registry (listener xử lý — luôn gắn)
+  const commands: Array<{ name: string; description?: { vi?: string; en?: string } | string }> = [];
+  for (const module of registry.getAllModules()) {
+    for (const cmd of module.commands) {
+      commands.push(cmd);
+      // TODO: nạp handler từ cmd.handler để gắn (status hiện tại chỉ giữ metadata)
+    }
+    // TODO: module.events — nạp handler từ evt.handler để gắn listener
+  }
+
   await discord.login();
+
+  // 6.2 Sync slash command lên Discord qua REST — chỉ khi register_commands=true
+  await discord.syncCommands(commands);
 
   // 7. Khởi động watchdog
   if (config.crash.watchdog.enabled) {
