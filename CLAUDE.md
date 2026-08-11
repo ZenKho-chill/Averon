@@ -317,7 +317,7 @@ config/default.yml
 ```yaml
 app:
   name: averon
-  version: 0.1.0          # tuân theo quy tắc version §10
+  version: 0.2.0          # tuân theo quy tắc version §10
 
 discord:
   token: ${DISCORD_TOKEN}  # secret — từ .env
