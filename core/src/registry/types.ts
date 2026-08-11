@@ -13,6 +13,9 @@ export interface CoreServices {
 
 export type ServiceKey = keyof CoreServices;
 
+/** Handler command: nhận interaction, trả promise/void. */
+export type CommandHandler = (interaction: unknown) => Promise<void> | void;
+
 export interface ModuleRegistryEntry {
   name: string;
   version: string;
@@ -20,7 +23,8 @@ export interface ModuleRegistryEntry {
   entry: string; // đường dẫn entry point
   commands: Array<{
     name: string;
-    handler: string;
+    handler: string;            // path file handler (tương đối module dir)
+    handlerFn?: CommandHandler; // function đã import (bootstrap dùng để gắn listener)
     description?: { vi?: string; en?: string } | string;
     type?: 'chat_input' | 'user' | 'message';
     scope?: Array<'global' | 'guild' | 'user'>;
