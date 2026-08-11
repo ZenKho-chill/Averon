@@ -3,6 +3,17 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.6.0] — 2026-08-11
+**Loại / Type:** MINOR — tính năng mới / new feature
+
+### Added
+- **`syncCommands` fetch + diff + xóa stale**: khi boot, fetch command hiện có trên Discord → xóa command không còn trong manifest (kể cả lệnh đổi scope global→guild) → đăng ký lại. Gộp slash + context menu vào 1 lần `set()` cho target global (tránh overwrite). Có test cho từng scope (VI)
+  EN: `syncCommands` now fetches existing Discord commands, deletes stale ones (incl. scope-changed), then re-registers. Slash + context menus merged into one global `set()` to avoid overwrites. Tested per scope.
+- **Semantic checks config** (`shared/config/semantic.ts`): `register_commands.guild=true` bắt buộc `discord.guild_id`; token placeholder trong config thật → lỗi; path Windows hardcode → cảnh báo. Chạy trong boot + `validate:config` (VI)
+  EN: Config semantic checks: `guild:true` requires `guild_id`; placeholder token in real config is an error; Windows hardcoded paths warn. Runs at boot + `validate:config`.
+- **Backup config tự động + rollback**: mỗi boot với config hợp lệ → backup `config.yml` vào `config/backups/`, giữ 10 bản mới nhất; `npm run restore:config` list + khôi phục (`--yes` để xác nhận) (VI)
+  EN: Auto config backup each successful boot into `config/backups/` (keep 10); `npm run restore:config` lists + restores (`--yes` to confirm).
+
 ## [0.5.0] — 2026-08-11
 **Loại / Type:** MINOR — thay đổi kiến trúc config / config architecture change (có phá vỡ config cũ / breaking config change: nạp lại config từ default/dev/prod sang 1 file `config.yml`)
 

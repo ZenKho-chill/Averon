@@ -6,7 +6,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
-import { loadConfig } from '../shared/config/index.js';
+import { loadConfig, validateSemantics } from '../shared/config/index.js';
 import type { AppConfig } from '../shared/config/index.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -20,6 +20,7 @@ const file = existsSync(join(configDir, 'config.yml')) ? 'config.yml' : 'config.
 
 try {
   const config = loadConfig<AppConfig>({ configDir, file, schema: schemaFile });
+  validateSemantics(config, { file, allowPlaceholderToken: false });
   console.log(
     `[validate-config] OK — file=${file} app=${config.app.name} v${config.app.version} ` +
       `logging.level=${config.logging.level} ` +

@@ -1,6 +1,6 @@
 /**
- * shared/config — loader config YAML + merge theo env + validate fail-fast (CLAUDE.md §6).
- * EN: shared/config — YAML config loader with env merge and fail-fast validation.
+ * shared/config — loader config 1 file YAML + validate fail-fast (CLAUDE.md §6).
+ * EN: shared/config — single-file YAML config loader with fail-fast validation.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -13,6 +13,8 @@ import type { LoadConfigOptions } from './types.js';
 export * from './errors.js';
 export * from './types.js';
 export { deepMerge } from './merge.js';
+export { validateSemantics } from './semantic.js';
+export { backupConfig, listBackups, restoreConfig } from './backup.js';
 // findProjectRoot được export trực tiếp từ hàm dưới
 
 /** Tìm project root (nơi có package.json) — hoạt động cả khi chạy từ src lẫn từ dist. */

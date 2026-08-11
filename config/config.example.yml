@@ -10,7 +10,7 @@
 
 app:
   name: averon
-  version: 0.5.0          # tuân theo quy tắc version §10
+  version: 0.6.0          # tuân theo quy tắc version §10
 
 discord:
   # ⚠️ Repo này PUBLIC — KHÔNG commit token thật! Thay placeholder cục bộ.

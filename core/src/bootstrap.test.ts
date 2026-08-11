@@ -24,6 +24,11 @@ vi.mock('./discord/index.js', () => ({
   },
 }));
 
+// Mock backupConfig để không copy file config thật trong test
+vi.mock('../../shared/config/index.js', () => ({
+  backupConfig: vi.fn(() => 'config/backups/config-test.yml'),
+}));
+
 afterEach(() => {
   vi.restoreAllMocks();
 });

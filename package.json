@@ -1,6 +1,6 @@
 {
   "name": "averon",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A modular multi-language Discord bot / Discord bot đa chức năng theo hướng module hóa",
   "private": true,
   "type": "module",
@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "new:module": "node scripts/new-module.mjs",
-    "validate:config": "tsx scripts/validate-config.ts"
+    "validate:config": "tsx scripts/validate-config.ts",
+    "restore:config": "tsx scripts/restore-config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

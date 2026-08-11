@@ -309,9 +309,16 @@ tests:
 - Logging phải che secret khi ghi log (xem §7.4).
 
 ### 6.4 Validate khi khởi động (Fail-fast)
-- Khi boot, core validate `config/config.yml` bằng JSON Schema (`config/schemas/*.json`).
-- Thiếu field bắt buộc / sai kiểu / sai enum → **in lỗi rõ ràng** (liệt kê đúng field, module, file, dòng) và **thoát với mã lỗi ≠ 0** — KHÔNG chạy tiếp với config sai im lặng.
-- Có thể chạy trước bằng script: `npm run validate:config` (validate `config.yml`, nếu chưa có thì fallback `config.example.yml`).
+- Khi boot, core validate `config/config.yml` bằng **2 lớp**:
+  1. **JSON Schema** (`config/schemas/*.json`) — required / type / enum / pattern.
+  2. **Semantic checks** (`shared/config/semantic.ts`) — quy tắc logic giữa field: `register_commands.guild=true` thì **bắt buộc** `discord.guild_id`; `discord.token` là placeholder `PASTE_DISCORD_TOKEN_HERE` trong config thật → lỗi (file mẫu example được phép); path Windows hardcode (`D:\...`) → **cảnh báo** (dùng path tương đối).
+- Thiếu field bắt buộc / sai kiểu / sai enum / sai semantic → **in lỗi rõ ràng** (liệt kê đúng field, module, file, dòng) và **thoát với mã lỗi ≠ 0** — KHÔNG chạy tiếp với config sai im lặng.
+- Có thể chạy trước bằng script: `npm run validate:config` (validate `config.yml` với semantic nghiêm ngặt — token placeholder sẽ FAIL; nếu chưa có `config.yml` thì fallback `config.example.yml`).
+
+### 6.6 Backup config + rollback
+- Mỗi lần boot với config hợp lệ → core **tự backup** `config/config.yml` vào `config/backups/config-<timestamp>.yml`, **giữ N bản mới nhất** (mặc định 10).
+- `config/backups/` **KHÔNG track trong git** (chứa token).
+- Rollback: `npm run restore:config` → liệt kê các bản; `npm run restore:config -- --yes <file>` → khôi phục `config.yml` về bản đó (thêm `--yes` để xác nhận ghi đè).
 
 ### 6.5 Ví dụ config (`config/config.example.yml`)
 
@@ -406,6 +413,8 @@ Không có env vars — mode = tự chỉnh giá trị trong **1 file** `config/
 | Build/optimize | Off (source map bật, build nhanh) | On (bundle, minify, source map tắt) |
 | Watchdog | Bật (nhẹ) | Bật (nghiêm ngặt hơn, log đầy đủ) |
 | `discord.register_commands` | `global: true`, **`guild/user: false`** — tránh re-register mỗi lần restart | `global/guild/user: true` — sync lên Discord qua REST khi boot |
+
+**Cách `syncCommands` hoạt động** (khi boot, theo scope bật): fetch danh sách command hiện có trên Discord → **xóa stale** (command không còn tồn tại trong manifest, kể cả lệnh đã đổi scope global→guild) → đăng ký lại. Gộp slash (`scope: [global]`) + context menu (`scope: [user]`) vào **1 lần `set()`** cho target global — tránh overwrite nhau.
 
 ---
 

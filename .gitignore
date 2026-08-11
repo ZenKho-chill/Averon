@@ -16,6 +16,7 @@ crash-reports/
 # File config thật (chứa token) KHÔNG track — chỉ track config.example.yml.
 # EN: The real config file (with token) is untracked — only config.example.yml is tracked.
 config/config.yml
+config/backups/
 # Repo này PUBLIC — nếu lỡ commit token thật, hãy reset token ngay trên Discord Developer Portal.
 # EN: This repo is PUBLIC — if a real token is ever committed, revoke it immediately on the
 # Discord Developer Portal. Không còn dùng file .env / .env.example.

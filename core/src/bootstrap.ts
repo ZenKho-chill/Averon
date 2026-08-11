@@ -5,6 +5,7 @@
  * Pipeline: config.load → logger.init → anti-crash handlers → module loader → discord.login → watchdog.start
  */
 import { loadCoreConfig } from './config/index.js';
+import { backupConfig } from '../../shared/config/index.js';
 import { createLogger } from '../../shared/logger/index.js';
 import { Registry } from './registry/index.js';
 import { CrashReporter } from './crash/index.js';
@@ -15,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export async function bootstrap() {
-  // 1. Load config
+  // 1. Load config — config hợp lệ (schema + semantic) = bản ổn định
   const config = await loadCoreConfig();
 
   // 2. Khởi tạo logger
@@ -29,6 +30,10 @@ export async function bootstrap() {
     } : null,
   });
   logger.info('Averon booting', { version: config.app.version, register_commands: config.discord.register_commands });
+
+  // 2.1 Backup bản config ổn định cuối cùng — dễ rollback (§6.4)
+  const backupPath = backupConfig(join(root, 'config'));
+  logger.info(`Backup config → ${backupPath.replaceAll('\\', '/')}`);
 
   // 3. Đăng ký anti-crash handlers
   const registry = new Registry();
