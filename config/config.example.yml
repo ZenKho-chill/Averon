@@ -62,7 +62,7 @@ modules:
       - embed:
           title: "Pong!"
           description: "Latency: {latency}ms | {tag_user} | {time}"
-          color: 0x5865F2
+          color: "#5865F2"   # màu hex: "#RRGGBB" hoặc "RRGGBB"
           fields:
             - name: "Guild"
               value: "{guild}"

@@ -47,7 +47,7 @@ describe('ping command', () => {
         embed: {
           title: 'Pong!',
           description: 'Latency: {latency}ms | {tag_user}',
-          color: 0x5865F2,
+          color: '#5865F2',
           fields: [{ name: 'Guild', value: '{guild}', inline: true }],
         },
       }],
@@ -58,8 +58,18 @@ describe('ping command', () => {
     const embed = replyArg.embeds[0];
     expect(embed.data.title).toBe('Pong!');
     expect(embed.data.description).toBe('Latency: 42ms | <@123>');
-    expect(embed.data.color).toBe(0x5865F2);
+    expect(embed.data.color).toBe(0x5865F2); // #5865F2 → 5794546
     expect(embed.data.fields[0].value).toBe('My Guild');
+  });
+
+  it('color hex không có # (vd "eb4034") vẫn parse đúng', async () => {
+    const interaction = makeInteraction();
+    const ctx = makeCtx({
+      responses: [{ embed: { title: 'Pong!', description: 'x', color: 'eb4034' } }],
+    });
+    await handler(interaction as never, ctx);
+    const replyArg = interaction.reply.mock.calls[0][0];
+    expect(replyArg.embeds[0].data.color).toBe(0xeb4034);
   });
 
   it('random=true với nhiều responses → trả về 1 trong các câu', async () => {

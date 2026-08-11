@@ -10,7 +10,7 @@ responses:
   - embed:
       title: "Pong!"
       description: "Latency: {latency}ms | {tag_user} | {time}"
-      color: 0x5865F2
+      color: eb4034
       fields:
         - name: "Guild"
           value: "{guild}"

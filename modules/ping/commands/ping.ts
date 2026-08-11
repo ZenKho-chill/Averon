@@ -53,7 +53,9 @@ function buildEmbed(embed: Record<string, unknown>, vars: PlaceholderVars): Embe
   if (typeof embed.title === 'string') b.setTitle(renderPlaceholders(embed.title, vars));
   if (typeof embed.description === 'string') b.setDescription(renderPlaceholders(embed.description, vars));
   if (embed.color !== undefined) {
-    const color = typeof embed.color === 'string' ? parseInt(embed.color.replace('#', ''), 16) : Number(embed.color);
+    // Chuẩn hex: "#RRGGBB" hoặc "RRGGBB" (cả 6/8 chữ số, hỗ trợ alpha). Số decimal cũng được.
+    const hex = String(embed.color).trim().replace(/^#/, '');
+    const color = /^[0-9a-fA-F]{6}$|^[0-9a-fA-F]{8}$/.test(hex) ? parseInt(hex.slice(0, 6), 16) : Number(embed.color);
     if (!Number.isNaN(color)) b.setColor(color);
   }
   if (typeof embed.url === 'string') b.setURL(renderPlaceholders(embed.url, vars));

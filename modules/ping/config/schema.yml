@@ -26,7 +26,10 @@ properties:
               properties:
                 title: { type: string }
                 description: { type: string }
-                color: { type: [integer, string] }
+                # Màu hex: "#RRGGBB" hoặc "RRGGBB" (6 hoặc 8 chữ số, hỗ trợ alpha). Vẫn chấp nhận số decimal.
+                color:
+                  type: [integer, string]
+                  pattern: ^#?[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$
                 timestamp: { type: [boolean, string] }
                 url: { type: string }
                 image: { type: string }
