@@ -70,13 +70,18 @@ export class DiscordClient {
   }
 
   /**
-   * Sync command lên Discord qua REST — fetch hiện tại, xóa stale, rồi đăng ký lại (§8).
-   * EN: Sync commands to Discord via REST — fetch existing, delete stale, then re-register.
+   * Sync command lên Discord qua REST — `commands.set()` thay toàn bộ list trong 1 call (§8).
+   * EN: Sync commands via REST — `commands.set()` replaces the whole list in one call.
+   *
+   * `set()` tự xóa command không còn trong list (stale) + tạo mới trong 1 HTTP call —
+   * KHÔNG cần fetch + delete từng cái (chậm khi có nhiều command lạ).
    *
    * 2 target (không gọi set() nhiều lần trên cùng app — tránh overwrite):
    * - global (app-wide, không guildId): slash scope [global] + context menu scope [user]
    * - guild (cần discord.guild_id): lệnh scope [guild]
-   * Lệnh đổi scope (vd global → guild) sẽ còn sót trên global → bị xóa như stale.
+   *
+   * ⚠️ `set()` xóa TOÀN BỘ command lạ không trong manifest — đừng chạy sync trên app
+   * có command do tool/bot khác quản lý.
    */
   async syncCommands(commands: SyncCommand[]): Promise<void> {
     const app = this.client.application;
@@ -101,42 +106,24 @@ export class DiscordClient {
       }
     }
 
-    // ── Target global ──
+    // ── Target global: 1 call set() thay toàn bộ (tự xóa stale) ──
     if (this.registerCommands.global || this.registerCommands.user) {
-      const existing = await app.commands.fetch();
-      const desired = new Set(globalBuilders.map((b) => (b as { name: string }).name));
-      for (const cmd of existing.values()) {
-        if (!desired.has(cmd.name)) {
-          await app.commands.delete(cmd.id);
-          this.logger.info(`Xóa command stale global: ${cmd.name}`);
-        }
-      }
       if (globalBuilders.length) {
         await app.commands.set(globalBuilders as never);
-        this.logger.info(`Đã register ${globalBuilders.length} lệnh global lên Discord`);
+        this.logger.info(`Đã register ${globalBuilders.length} lệnh global lên Discord (set thay toàn bộ list)`);
       }
     } else {
       this.logger.info('Skip register commands (global) — discord.register_commands.global/user=false');
     }
 
-    // ── Target guild ──
+    // ── Target guild: 1 call set() theo guild ──
     if (this.registerCommands.guild) {
       const guildId = this.config.discord.guild_id;
       if (!guildId) {
         this.logger.warn('register_commands.guild=true nhưng thiếu discord.guild_id — bỏ qua guild sync');
-      } else {
-        const existing = await app.commands.fetch({ guildId });
-        const desired = new Set(guildBuilders.map((b) => (b as { name: string }).name));
-        for (const cmd of existing.values()) {
-          if (!desired.has(cmd.name)) {
-            await app.commands.delete(cmd.id, guildId);
-            this.logger.info(`Xóa command stale guild: ${cmd.name}`);
-          }
-        }
-        if (guildBuilders.length) {
-          await app.commands.set(guildBuilders as never, guildId);
-          this.logger.info(`Đã register ${guildBuilders.length} lệnh cho guild ${guildId}`);
-        }
+      } else if (guildBuilders.length) {
+        await app.commands.set(guildBuilders as never, guildId);
+        this.logger.info(`Đã register ${guildBuilders.length} lệnh cho guild ${guildId} (set thay toàn bộ list)`);
       }
     } else {
       this.logger.info('Skip register commands (guild) — discord.register_commands.guild=false');

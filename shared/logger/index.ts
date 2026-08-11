@@ -30,6 +30,15 @@ export interface LoggerOptions {
   write?: (line: string) => void;
 }
 
+/** Giờ địa phương + ms: `2026-08-11 17:35:52.169`. Đọc dễ hơn ISO-UTC, đúng múi giờ local. */
+function formatTimestamp(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}`
+  );
+}
+
 /** Format chuẩn §7.2: `[ts] [LEVEL] [source] [context] message {meta}`. */
 export function formatLine(
   level: LogLevel,
@@ -38,7 +47,7 @@ export function formatLine(
   message: string,
   meta?: LogMeta,
 ): string {
-  const timestamp = new Date().toISOString();
+  const timestamp = formatTimestamp(new Date());
   const contextPart = context ? ` [${context}]` : '';
   const metaPart = meta && Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
   return `[${timestamp}] [${level.padEnd(5)}] [${source}]${contextPart} ${message}${metaPart}`;
