@@ -1,5 +1,44 @@
 # JSON Schema cho config module ping
 # EN: JSON Schema for module ping config
 $schema: http://json-schema.org/draft-07/schema#
+title: Ping module config
 type: object
-properties: {}
+additionalProperties: false
+properties:
+  random:
+    type: boolean
+    default: true
+  responses:
+    type: array
+    items:
+      oneOf:
+        - type: object
+          required: [content]
+          additionalProperties: false
+          properties:
+            content: { type: string }
+        - type: object
+          required: [embed]
+          additionalProperties: false
+          properties:
+            embed:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                color: { type: [integer, string] }
+                timestamp: { type: [boolean, string] }
+                url: { type: string }
+                image: { type: string }
+                thumbnail: { type: string }
+                author: { type: object }
+                footer: { type: object }
+                fields:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, value]
+                    properties:
+                      name: { type: string }
+                      value: { type: string }
+                      inline: { type: boolean }

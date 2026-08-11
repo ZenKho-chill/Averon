@@ -6,6 +6,9 @@ runtime:
   version: ">=18"
   transport: in-process
 entry: src/index.ts
+config:
+  schema: config/schema.yml
+  defaults: config/defaults.yml
 commands:
   - name: ping
     description:

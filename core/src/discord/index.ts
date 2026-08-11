@@ -16,6 +16,7 @@ import {
 } from 'discord.js';
 import type { Logger } from '../../../shared/logger/index.js';
 import type { AppConfig } from '../config/index.js';
+import type { CommandContext } from '../registry/types.js';
 
 /** Lệnh cần sync lên Discord — metadata từ module.yml. */
 export interface SyncCommand {
@@ -72,13 +73,13 @@ export class DiscordClient {
     this.logger.info('Discord client đã login thành công', { intents: this.config.discord.intents });
   }
 
-  /** Đăng ký command handler (gọi từ loader). */
-  registerCommand(name: string, handler: (interaction: unknown) => Promise<void> | void): void {
+  /** Đăng ký command handler (gọi từ loader). Truyền ctx (config module + logger) cho handler. */
+  registerCommand(name: string, handler: (interaction: unknown, ctx: CommandContext) => Promise<void> | void, ctx?: CommandContext): void {
     this.client.on('interactionCreate', async (interaction) => {
       if (!interaction.isCommand()) return;
       if (interaction.commandName !== name) return;
       try {
-        await handler(interaction);
+        await handler(interaction, ctx ?? { config: {}, logger: this.logger });
       } catch (err) {
         this.logger.error(`Command '${name}' thất bại`, { error: err });
       }

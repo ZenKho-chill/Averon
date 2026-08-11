@@ -13,14 +13,21 @@ export interface CoreServices {
 
 export type ServiceKey = keyof CoreServices;
 
-/** Handler command: nhận interaction, trả promise/void. */
-export type CommandHandler = (interaction: unknown) => Promise<void> | void;
+/** Context truyền cho handler command (module) — config module + logger (§2.1). */
+export interface CommandContext {
+  config: Record<string, unknown>;
+  logger: Logger;
+}
+
+/** Handler command: nhận interaction + ctx (config module, logger), trả promise/void. */
+export type CommandHandler = (interaction: unknown, ctx: CommandContext) => Promise<void> | void;
 
 export interface ModuleRegistryEntry {
   name: string;
   version: string;
   state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'UNLOADED' | 'FAULTED';
   entry: string; // đường dẫn entry point
+  config?: Record<string, unknown>; // module config đã merge (defaults + override)
   commands: Array<{
     name: string;
     handler: string;            // path file handler (tương đối module dir)

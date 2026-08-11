@@ -1,2 +1,17 @@
-# Config mặc định cho module ping
-# EN: Default config for module ping
+# Config mặc định cho module ping — admin override trong config/config.yml → modules.ping
+# EN: Default config for module ping — admin overrides in config/config.yml → modules.ping
+#
+# random: true → chọn ngẫu nhiên 1 trong responses mỗi lần. false → luôn dùng response đầu tiên.
+# Mỗi response là content (plain text) HOẶC embed (cấu trúc EmbedBuilder).
+# Placeholder built-in: {time} {tag_user} {latency} {username} {user_id} {guild} {guild_id}
+random: true
+responses:
+  - content: "Pong! ({latency}ms)"
+  - embed:
+      title: "Pong!"
+      description: "Latency: {latency}ms | {tag_user} | {time}"
+      color: 0x5865F2
+      fields:
+        - name: "Guild"
+          value: "{guild}"
+          inline: true

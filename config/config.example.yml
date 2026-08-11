@@ -49,3 +49,21 @@ crash:
 dev:
   hot_reload: false
   show_stacktrace: true
+
+# Override config từng module theo tên — merge lên defaults của module (admin chỉnh).
+# EN: Per-module config override — merged onto the module's defaults (admin editable).
+# Ví dụ: custom phản hồi /ping — text plain hoặc embed, nhiều câu random, placeholder:
+#   {time} {tag_user} {latency} {username} {user_id} {guild} {guild_id}
+modules:
+  ping:
+    random: true
+    responses:
+      - content: "Pong! ({latency}ms)"
+      - embed:
+          title: "Pong!"
+          description: "Latency: {latency}ms | {tag_user} | {time}"
+          color: 0x5865F2
+          fields:
+            - name: "Guild"
+              value: "{guild}"
+              inline: true
