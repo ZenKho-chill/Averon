@@ -54,6 +54,7 @@ commands:
 `,
       'src/index.ts': `export const onLoad = () => console.log('ping loaded');
 export const onUnload = () => console.log('ping unloaded');`,
+      'commands/ping.ts': `export async function handler(interaction) { await interaction.reply('Pong!'); }`,
     });
     try {
       const registry = new Registry();
@@ -63,7 +64,14 @@ export const onUnload = () => console.log('ping unloaded');`,
 
       expect(moduleEntry.name).toBe('ping');
       expect(moduleEntry.version).toBe('1.0.0');
-      expect(moduleEntry.commands).toEqual([{ name: 'ping', handler: 'commands/ping.ts' }]);
+      // handlerFn được import từ file handler — gọi thử phải reply 'Pong!'
+      expect(moduleEntry.commands).toHaveLength(1);
+      expect(moduleEntry.commands[0].name).toBe('ping');
+      expect(moduleEntry.commands[0].handler).toBe('commands/ping.ts');
+      expect(moduleEntry.commands[0].handlerFn).toBeTypeOf('function');
+      const reply = vi.fn();
+      await moduleEntry.commands[0].handlerFn?.({ reply });
+      expect(reply).toHaveBeenCalledWith('Pong!');
       expect(moduleEntry.onLoad).toBeDefined();
       expect(moduleEntry.onUnload).toBeDefined();
       expect(registry.getModule('ping').state).toBe('REGISTERED');

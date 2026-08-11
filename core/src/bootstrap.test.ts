@@ -47,4 +47,11 @@ describe('bootstrap', () => {
     await bootstrap();
     // Không kiểm tra chi tiết — chỉ đảm bảo không throw
   });
+
+  it('gắn command handler từ module ping qua discord.registerCommand', async () => {
+    const result = await bootstrap();
+    // Mock DiscordClient.registerCommand là vi.fn → assert đã gọi với tên lệnh + handler function
+    const registerCommand = result.discord.registerCommand as ReturnType<typeof vi.fn>;
+    expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function));
+  });
 });

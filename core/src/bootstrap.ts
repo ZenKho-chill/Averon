@@ -75,8 +75,9 @@ export async function bootstrap() {
   const commands: Array<{ name: string; description?: { vi?: string; en?: string } | string; type?: 'chat_input' | 'user' | 'message'; scope?: Array<'global' | 'guild' | 'user'> }> = [];
   for (const module of registry.getAllModules()) {
     for (const cmd of module.commands) {
-      commands.push(cmd);
-      // TODO: nạp handler từ cmd.handler để gắn (status hiện tại chỉ giữ metadata)
+      commands.push(cmd); // dùng cho syncCommands (REST register metadata)
+      // Gắn handler đã import (loader) để phản hồi interaction — thiếu thì bỏ qua, không chặn boot
+      if (cmd.handlerFn) discord.registerCommand(cmd.name, cmd.handlerFn);
     }
     // TODO: module.events — nạp handler từ evt.handler để gắn listener
   }
