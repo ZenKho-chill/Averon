@@ -1,16 +1,13 @@
 # CI — Averon
-# Chạy trên runner SELF-HOSTED để tận dụng build native (C/C++/Rust) và tiết kiệm quota GitHub-hosted.
+# Chạy trên runner SELF-HOSTED: tận dụng build native (C/C++/Rust) và tiết kiệm quota GitHub-hosted.
 # EN: Runs on SELF-HOSTED runners to support native module builds (C/C++/Rust) and save quota.
 #
-# Phân loại runner theo LABEL (runner cần khai báo ít nhất 1 trong số này trong repo settings):
-# EN: Runners are selected by label (add these labels to your self-hosted runner in repo settings):
-#   - `self-hosted` : runner tiêu chuẩn, chạy hầu hết job (standard runner, most jobs)
-#   - `linux` | `windows` | `macos` : theo hệ điều hành của runner (per-OS, khi cần)
-#   - `native` : runner có toolchain build native (C/C++/Rust) — job build native dùng label này
-#   - `gpu`    : (tùy chọn) runner có GPU cho job ML/data nặng (optional)
-#
-# Bất kỳ job nào KHÔNG khớp runner cụ thể → chạy trên `self-hosted`.
-# EN: Any job without an OS/native/GPU label falls back to `self-hosted`.
+# PHÂN LOẠI RUNNER THEO LABEL — EN: Runner selection by label.
+# - `self-hosted` (bắt buộc) : runner tiêu chuẩn, chạy hầu hết job / standard runner
+# - `Linux` | `Windows` | `macOS` : theo hệ điều hành / per-OS
+# - `gpu`   : (tùy chọn / optional) runner có GPU cho job ML/data nặng
+# Job build native (C/C++/Rust) chỉ chạy khi bật opt-in `run_native` (workflow_dispatch).
+# EN: The native build job only runs when `run_native` opt-in is set.
 
 name: CI
 
@@ -18,21 +15,23 @@ on:
   push:
     branches: ["main"]
   pull_request:
-  workflow_dispatch: # cho phép chạy thủ công / manual trigger
+  workflow_dispatch:
+    inputs:
+      run_native:
+        description: "Chạy job build native (có runner với toolchain C/C++/Rust)? / Run native build job?"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ── Job chính: test + lint + build ─────────────────────────────
-  # EN: Main job: test + lint + build
+  # ── Job chính: install → lint → test → build → validate-config ──
+  # EN: Main job
   verify:
-    name: verify (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [self-hosted]   # mặc định runner tự-host; thêm "ubuntu-latest" nếu muốn gh-hosted
+    name: verify
+    runs-on: [self-hosted, Linux]
     steps:
       - uses: actions/checkout@v4
 
@@ -47,24 +46,23 @@ jobs:
 
       - name: Lint
         run: npm run lint
-        continue-on-error: true # lint chưa có config riêng; cho qua tạm để không chặn nhầm
 
       - name: Run tests
         run: npm test
 
-      - name: Type-check / build
+      - name: Build (type-check)
         run: npm run build
 
       - name: Validate config
         run: npm run validate:config
 
-  # ── Job build native (C/C++/Rust) cho module ngoại ngữ ─────────
-  # EN: Native build job for non-JS/TS modules — chạy trên runner có label `native`
+  # ── Job build native dành cho module ngoại ngữ (C/C++/Rust) ─────
+  # EN: Native build job for non-JS/TS modules — chỉ khi opt-in.
   native-verify:
     name: native-verify
-    runs-on: [self-hosted, linux, native]
+    runs-on: [self-hosted, Linux]
     needs: verify
-    if: github.event_name == 'pull_request' # tuỳ chỉnh; tách khỏi push để tiết kiệm
+    if: inputs.run_native == true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -73,7 +71,7 @@ jobs:
           cache: npm
       - name: Install deps
         run: npm ci
-      - name: Build native modules (C/C++/Rust nếu có)
+      - name: Build native modules
         run: |
           echo "Native build placeholder — add your C/C++/Rust build here"
-          # Ví dụ: npx cmake-js rebuild, cargo build, v.v.
+          # Ví dụ: npx cmake-js rebuild mỗi module có build native / cargo build v.v.
