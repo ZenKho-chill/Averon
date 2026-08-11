@@ -13,7 +13,11 @@ interface InteractionLike {
 }
 
 interface PingResponse {
+  /** Kiểu phản hồi: plain text hoặc embed. */
+  type: 'plain' | 'embed';
+  /** Nội dung text — dùng khi type=plain. */
   content?: string;
+  /** Cấu trúc embed — dùng khi type=embed (toàn bộ field EmbedBuilder). */
   embed?: Record<string, unknown>;
 }
 
@@ -91,8 +95,9 @@ export async function handler(interaction: InteractionLike, ctx?: CommandContext
     return 'Pong!';
   }
 
-  if (response.embed) {
-    const embed = buildEmbed(response.embed, vars);
+  // Branch theo type: plain → text; embed → { embeds: [...] }
+  if (response.type === 'embed') {
+    const embed = buildEmbed(response.embed ?? {}, vars);
     await interaction.reply({ embeds: [embed] });
     return `embed:${embed.data.title ?? ''}`;
   }

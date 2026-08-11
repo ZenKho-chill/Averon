@@ -12,30 +12,43 @@ properties:
     type: array
     items:
       oneOf:
+        # Mode plain: text thuần + placeholder
         - type: object
-          required: [content]
+          required: [type, content]
           additionalProperties: false
           properties:
+            type: { const: plain }
             content: { type: string }
+        # Mode embed: toàn bộ field EmbedBuilder
         - type: object
-          required: [embed]
+          required: [type, embed]
           additionalProperties: false
           properties:
+            type: { const: embed }
             embed:
               type: object
               properties:
                 title: { type: string }
                 description: { type: string }
-                # Màu hex: "#RRGGBB" hoặc "RRGGBB" (6 hoặc 8 chữ số, hỗ trợ alpha). Vẫn chấp nhận số decimal.
+                # Màu hex: "#RRGGBB" hoặc "RRGGBB" (6/8 chữ số, hỗ trợ alpha). Vẫn chấp nhận số decimal.
                 color:
                   type: [integer, string]
                   pattern: ^#?[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$
-                timestamp: { type: [boolean, string] }
                 url: { type: string }
                 image: { type: string }
                 thumbnail: { type: string }
-                author: { type: object }
-                footer: { type: object }
+                timestamp: { type: [boolean, string] }
+                author:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    url: { type: string }
+                    icon_url: { type: string }
+                footer:
+                  type: object
+                  properties:
+                    text: { type: string }
+                    icon_url: { type: string }
                 fields:
                   type: array
                   items:
