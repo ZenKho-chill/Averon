@@ -1,0 +1,36 @@
+# ===== Dependencies =====
+node_modules/
+
+# ===== Build output =====
+dist/
+build/
+*.tsbuildinfo
+
+# ===== Logs & crash reports =====
+logs/
+crash-reports/
+*.log
+
+# ===== Environment & secrets (KHÔNG commit secret thật / never commit real secrets) =====
+.env
+.env.*
+!.env.example
+
+# ===== Test coverage =====
+coverage/
+
+# ===== Native build artifacts (modules C/C++/Rust) =====
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Editor / IDE =====
+.vscode/
+.idea/
+*.swp

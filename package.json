@@ -1,0 +1,25 @@
+{
+  "name": "averon",
+  "version": "0.1.0",
+  "description": "A modular multi-language Discord bot / Discord bot đa chức năng theo hướng module hóa",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "tsx watch core/src/bootstrap.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/core/src/bootstrap.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "new:module": "node scripts/new-module.mjs",
+    "validate:config": "node scripts/validate-config.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
