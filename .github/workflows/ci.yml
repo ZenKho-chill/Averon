@@ -1,0 +1,79 @@
+# CI — Averon
+# Chạy trên runner SELF-HOSTED để tận dụng build native (C/C++/Rust) và tiết kiệm quota GitHub-hosted.
+# EN: Runs on SELF-HOSTED runners to support native module builds (C/C++/Rust) and save quota.
+#
+# Phân loại runner theo LABEL (runner cần khai báo ít nhất 1 trong số này trong repo settings):
+# EN: Runners are selected by label (add these labels to your self-hosted runner in repo settings):
+#   - `self-hosted` : runner tiêu chuẩn, chạy hầu hết job (standard runner, most jobs)
+#   - `linux` | `windows` | `macos` : theo hệ điều hành của runner (per-OS, khi cần)
+#   - `native` : runner có toolchain build native (C/C++/Rust) — job build native dùng label này
+#   - `gpu`    : (tùy chọn) runner có GPU cho job ML/data nặng (optional)
+#
+# Bất kỳ job nào KHÔNG khớp runner cụ thể → chạy trên `self-hosted`.
+# EN: Any job without an OS/native/GPU label falls back to `self-hosted`.
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch: # cho phép chạy thủ công / manual trigger
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Job chính: test + lint + build ─────────────────────────────
+  # EN: Main job: test + lint + build
+  verify:
+    name: verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [self-hosted]   # mặc định runner tự-host; thêm "ubuntu-latest" nếu muốn gh-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true # lint chưa có config riêng; cho qua tạm để không chặn nhầm
+
+      - name: Run tests
+        run: npm test
+
+      - name: Type-check / build
+        run: npm run build
+
+      - name: Validate config
+        run: npm run validate:config
+
+  # ── Job build native (C/C++/Rust) cho module ngoại ngữ ─────────
+  # EN: Native build job for non-JS/TS modules — chạy trên runner có label `native`
+  native-verify:
+    name: native-verify
+    runs-on: [self-hosted, linux, native]
+    needs: verify
+    if: github.event_name == 'pull_request' # tuỳ chỉnh; tách khỏi push để tiết kiệm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Build native modules (C/C++/Rust nếu có)
+        run: |
+          echo "Native build placeholder — add your C/C++/Rust build here"
+          # Ví dụ: npx cmake-js rebuild, cargo build, v.v.

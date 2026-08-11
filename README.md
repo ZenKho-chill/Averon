@@ -27,5 +27,16 @@ npm test        # chạy test / run tests
 npm run dev     # chạy dev (chưa khả dụng — chờ core skeleton) / dev mode (pending core skeleton)
 ```
 
-> ⚠️ Đang ở giai đoạn **khởi tạo nền móng (v0.1.0)** — chưa có tính năng bot thực tế.
-> EN: ⚠️ Currently in **foundation scaffold (v0.1.0)** — no bot features yet.
+> ⚠️ Đang ở giai đoạn **khởi tạo nền móng (v0.2.0)** — chưa có tính năng bot thực tế.
+> EN: ⚠️ Currently in **foundation scaffold (v0.2.0)** — no bot features yet.
+
+## CI/CD
+
+CI chạy trên **self-hosted runner** (tiết kiệm quota GitHub, hỗ trợ build native module C/C++/Rust).
+EN: CI runs on **self-hosted runners** (saves GitHub quota, supports native C/C++/Rust module builds).
+
+Phân loại runner theo **label** trong repo settings — ít nhất thêm label `self-hosted` cho runner của bạn (chi tiết xem `.github/workflows/ci.yml`).
+EN: Select runners by **label** — add at least `self-hosted` label to your runner (details in `.github/workflows/ci.yml`).
+
+**Quy tắc workflow / Workflow rule:** mọi thay đổi phải qua **Pull Request** (hoặc ít nhất 1 **Issue**) — không commit thẳng vào `main` (CLAUDE.md Golden Rule §1).
+EN: Every change must go through a **Pull Request** (or at least one **Issue**) — never commit directly to `main`.

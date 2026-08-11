@@ -1,0 +1,43 @@
+name: "🧩 Module request"
+description: "Đề xuất một module tính năng mới / Request a new feature module"
+title: "[module] "
+labels: ["module", "enhancement"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Tên module / Module name
+      description: "kebab-case, trùng tên folder sẽ tạo. EN: kebab-case."
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Mục đích / Purpose
+      description: "Module này làm gì? EN: What does it do?"
+    validations:
+      required: true
+  - type: input
+    id: commands
+    attributes:
+      label: Lệnh dự kiến / Commands
+      description: "vd: /ping, /avatar"
+  - type: dropdown
+    id: language
+    attributes:
+      label: Ngôn ngữ / Language (§2.3)
+      options:
+        - "typescript (mặc định)"
+        - "python"
+        - "c / c++ / rust"
+      default: 0
+  - type: textarea
+    id: config
+    attributes:
+      label: Config cần thiết (nếu có)
+      description: "Các field config module dự kiến."
+  - type: textarea
+    id: deps
+    attributes:
+      label: Dependencies / Integrations
+      description: "Service core dùng (database, logger...) + dịch vụ ngoài (API...)."
