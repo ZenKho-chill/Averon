@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, ConfigError, resolveEnv, deepMerge, interpolateString } from './index.js';
+import { loadConfig, ConfigError, resolveEnv, deepMerge } from './index.js';
 import type { AppConfig } from './types.js';
 
 /** Tạo fixture config trong thư mục temp (tự dọn sau test). */
@@ -40,27 +40,6 @@ describe('deepMerge', () => {
   });
 });
 
-describe('interpolateString', () => {
-  const env: Record<string, string | undefined> = { A: 'real', B: '' };
-
-  it('thay ${VAR} bằng giá trị env', () => {
-    expect(interpolateString('${A}', env)).toBe('real');
-  });
-
-  it('dùng default khi biến trống/thiếu (${VAR:-default})', () => {
-    expect(interpolateString('${B:-x}', env)).toBe('x');
-    expect(interpolateString('${C:-y}', env)).toBe('y');
-  });
-
-  it('${VAR:-} trả chuỗi rỗng cho secret tùy chọn', () => {
-    expect(interpolateString('${C:-}', env)).toBe('');
-  });
-
-  it('${VAR} thiếu biến → ném lỗi fail-fast', () => {
-    expect(() => interpolateString('${C}', env)).toThrow(/C/);
-  });
-});
-
 describe('loadConfig', () => {
   it('chỉ dùng default.yml khi file env không tồn tại', () => {
     const fx = makeFixture({ 'default.yml': 'app:\n  name: averon\n  version: 0.1.0\n' });
@@ -88,9 +67,9 @@ describe('loadConfig', () => {
     }
   });
 
-  it('interpolate ${VAR} từ envSource + schema (file path)', () => {
+  it('giá trị literal trong config được giữ nguyên + validate qua schema (file path)', () => {
     const fx = makeFixture({
-      'default.yml': 'app:\n  name: averon\n  version: 0.1.0\n  token: ${TOKEN:-}\n',
+      'default.yml': 'app:\n  name: averon\n  version: 0.1.0\n  token: my-token\n',
       'schema.json': JSON.stringify({
         type: 'object',
         required: ['app'],
@@ -112,7 +91,7 @@ describe('loadConfig', () => {
         configDir: fx.dir,
         schema: join(fx.dir, 'schema.json'),
       });
-      expect(cfg.app.token).toBe('');
+      expect(cfg.app.token).toBe('my-token');
     } finally {
       fx.cleanup();
     }

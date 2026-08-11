@@ -7,13 +7,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { ConfigError } from './errors.js';
-import { deepMerge, interpolateValue } from './merge.js';
+import { deepMerge } from './merge.js';
 import { loadSchema, validateConfig } from './validator.js';
 import type { LoadConfigOptions } from './types.js';
 
 export * from './errors.js';
 export * from './types.js';
-export { deepMerge, interpolateString, interpolateValue } from './merge.js';
+export { deepMerge } from './merge.js';
 
 /** Tìm project root (nơi có package.json) — hoạt động cả khi chạy từ src lẫn từ dist. */
 function findProjectRoot(startDir: string): string {
@@ -40,8 +40,8 @@ export function resolveEnv(options: LoadConfigOptions = {}): string {
 }
 
 /**
- * Load + merge + interpolate + (tuỳ chọn) validate config.
- * EN: Load, merge, interpolate, and optionally validate config.
+ * Load + merge + (tuỳ chọn) validate config.
+ * EN: Load, merge, and optionally validate config.
  */
 export function loadConfig<T>(options: LoadConfigOptions = {}): T {
   const configDir = options.configDir ?? defaultConfigDir();
@@ -59,8 +59,6 @@ export function loadConfig<T>(options: LoadConfigOptions = {}): T {
     const doc = YAML.parse(readFileSync(file, 'utf8')) ?? {};
     merged = deepMerge(merged, doc);
   }
-
-  merged = interpolateValue(merged, options.envSource ?? process.env);
 
   if (options.schema) {
     const schema = typeof options.schema === 'string' ? loadSchema(options.schema) : options.schema;

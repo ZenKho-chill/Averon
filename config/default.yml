@@ -9,7 +9,6 @@ app:
   version: 0.3.0          # tuân theo quy tắc version §10
 
 discord:
-  token: ${DISCORD_TOKEN:-}            # secret — từ .env; rỗng khi chưa đặt (§6.3)
   intents: [Guilds, GuildMessages, MessageContent]
 
 logging:

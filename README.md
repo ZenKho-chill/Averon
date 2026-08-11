@@ -32,10 +32,10 @@ npm run dev     # chạy dev (chưa khả dụng — chờ core skeleton) / dev 
 
 ## Shared services
 
-- **`shared/config`** — load YAML, merge theo môi trường, interpolate biến, validate fail-fast bằng JSON Schema (`config/schemas/`).
+- **`shared/config`** — load YAML, merge theo môi trường, validate fail-fast bằng JSON Schema (`config/schemas/`).
 - **`shared/logger`** — 5 cấp độ (DEBUG→FATAL), console màu ở dev, file rotate theo dung lượng ở prod, che bí mật khi log.
 
-EN: **`shared/config`** — YAML loading, env merge, variable interpolation, fail-fast JSON-Schema validation (`config/schemas/`). **`shared/logger`** — 5 levels (DEBUG→FATAL), colored console in dev, size-based file rotation in prod, secret masking.
+EN: **`shared/config`** — YAML loading, env merge, fail-fast JSON-Schema validation (`config/schemas/`). **`shared/logger`** — 5 levels (DEBUG→FATAL), colored console in dev, size-based file rotation in prod, secret masking.
 
 ## CI/CD
 

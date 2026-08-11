@@ -11,10 +11,12 @@ logs/
 crash-reports/
 *.log
 
-# ===== Environment & secrets (KHÔNG commit secret thật / never commit real secrets) =====
-.env
-.env.*
-!.env.example
+# ===== Secrets (KHÔNG commit token thật / never commit real tokens) =====
+# Token đặt trực tiếp trong config/dev.yml + config/prod.yml (CLAUDE.md §6.3).
+# Repo này PUBLIC — nếu lỡ commit token thật, hãy reset token ngay trên Discord Developer Portal.
+# EN: Tokens live in config/dev.yml + config/prod.yml. This repo is PUBLIC — if a real
+# token is ever committed, revoke it immediately in the Discord Developer Portal.
+# Không còn dùng file .env / .env.example.
 
 # ===== Test coverage =====
 coverage/

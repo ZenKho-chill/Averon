@@ -4,6 +4,11 @@
 # Log chi tiết hơn, console có màu, hot-reload bật.
 # ==================================================
 
+# ⚠️ KHÔNG commit token thật lên repo public! Thay placeholder bằng token của bot khi chạy dev.
+# EN: NEVER commit a real token to this public repo! Replace the placeholder locally.
+discord:
+  token: "PASTE_DISCORD_TOKEN_HERE"
+
 logging:
   level: DEBUG
   console_color: true
