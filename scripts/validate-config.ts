@@ -5,6 +5,7 @@
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import { loadConfig } from '../shared/config/index.js';
 import type { AppConfig } from '../shared/config/index.js';
 
@@ -12,12 +13,19 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const configDir = join(root, 'config');
 const schemaFile = join(configDir, 'schemas', 'core.schema.json');
 
+// Ưu tiên config.yml (file thật). Nếu chưa có (chưa copy từ example) → validate example,
+// để CI chạy được trên repo không track config.yml.
+// EN: Prefer config.yml (real). If missing, validate config.example.yml so CI works.
+const file = existsSync(join(configDir, 'config.yml')) ? 'config.yml' : 'config.example.yml';
+
 try {
-  const config = loadConfig<AppConfig>({ configDir, schema: schemaFile });
-  const env = process.env.AVERON_ENV ?? process.env.NODE_ENV ?? 'dev';
+  const config = loadConfig<AppConfig>({ configDir, file, schema: schemaFile });
   console.log(
-    `[validate-config] OK — env=${env} app=${config.app.name} v${config.app.version} ` +
-      `logging.level=${config.logging.level}`,
+    `[validate-config] OK — file=${file} app=${config.app.name} v${config.app.version} ` +
+      `logging.level=${config.logging.level} ` +
+      `register_commands=global:${config.discord.register_commands.global}` +
+      `,guild:${config.discord.register_commands.guild}` +
+      `,user:${config.discord.register_commands.user}`,
   );
   process.exit(0);
 } catch (err) {

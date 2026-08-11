@@ -1,0 +1,5 @@
+# JSON Schema cho config module ping
+# EN: JSON Schema for module ping config
+$schema: http://json-schema.org/draft-07/schema#
+type: object
+properties: {}

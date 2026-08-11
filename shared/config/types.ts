@@ -13,6 +13,20 @@ export interface AppConfig {
   discord: {
     token?: string;
     intents: string[];
+    /** Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true (§8). */
+    guild_id?: string;
+    /**
+     * Bật/tắt sync command lên Discord qua REST khi boot, theo 3 scope (§8).
+     * - global: slash command toàn app (cache ~1h)
+     * - guild:  slash command cho guild cụ thể (tức thời — dev)
+     * - user:   context menu (chuột phải vào user/message)
+     * Module khai báo scope của từng lệnh trong module.yml; cờ này là toggle tổng.
+     */
+    register_commands: {
+      global: boolean;
+      guild: boolean;
+      user: boolean;
+    };
   };
   logging: {
     level: LogLevel;
@@ -41,12 +55,10 @@ export interface AppConfig {
 
 /** Tuỳ chọn khi load config. */
 export interface LoadConfigOptions {
-  /** Thư mục chứa default.yml + <env>.yml (mặc định: config/ của dự án). */
+  /** Thư mục chứa config.yml (mặc định: config/ của dự án). */
   configDir?: string;
-  /** Env đích (mặc định: AVERON_ENV || NODE_ENV || 'dev'). */
-  env?: string;
+  /** Tên file config (mặc định: config.yml). */
+  file?: string;
   /** JSON Schema (object) hoặc đường dẫn tới file schema (JSON/YAML). */
   schema?: object | string;
-  /** Nguồn biến môi trường — cho phép test inject (mặc định: process.env). */
-  envSource?: Record<string, string | undefined>;
 }

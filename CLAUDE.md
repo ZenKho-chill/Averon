@@ -114,7 +114,7 @@ Core cung cấp lớp **IPC** thống nhất (`core/src/ipc/`). Module chỉ kha
 
 ## 3. Cấu trúc thư mục (Folder Structure)
 
-> Cấu trúc được tinh chỉnh so với đề xuất ban đầu: thêm `crash-reports/`, `config/schemas/`, `.env.example`, tách `scripts/` theo nhóm, và `core/` chia theo trách nhiệm.
+> Cấu trúc được tinh chỉnh so với đề xuất ban đầu: thêm `crash-reports/`, `config/schemas/`, tách `scripts/` theo nhóm, và `core/` chia theo trách nhiệm.
 
 ```
 averon/
@@ -129,8 +129,8 @@ averon/
 │
 ├── core/                          # ⚙️ ENGINE — hạn chế tối đa việc sửa đổi
 │   ├── src/
-│   │   ├── bootstrap.ts           # entry point: config → logger → anti-crash → loader → discord
-│   │   ├── config/                # load + merge + validate config YAML (dùng shared/config)
+│   │   ├── bootstrap.ts           # entry point: config → logger → anti-crash → loader → discord → sync commands
+│   │   ├── config/                # load + validate 1 file config.yml (dùng shared/config)
 │   │   ├── loader/                # module loader: parse module.yml, import entry, attach commands/events
 │   │   ├── lifecycle/             # pipeline start / stop / reload, trạng thái module
 │   │   ├── registry/              # service registry (DI) + module registry
@@ -158,15 +158,14 @@ averon/
 │
 ├── shared/                        # 🔧 DÙNG CHUNG cho core + module (không phụ thuộc feature nào)
 │   ├── logger/                    # logger đa cấp độ: console màu (dev) + file rotate (prod)
-│   ├── config/                    # config loader, merge theo env, JSON-Schema validator
+│   ├── config/                    # config loader 1 file (config.yml), JSON-Schema validator
 │   ├── db/                        # database client / connection pool / migration
 │   ├── i18n/                      # (tuỳ chọn) đa ngôn ngữ hiển thị
 │   └── utils/                     # hàm tiện ích thuần, không state, không phụ thuộc module
 │
 ├── config/                        # 🧾 CONFIG TỔNG (core-level)
-│   ├── default.yml                # giá trị mặc định cho mọi môi trường
-│   ├── dev.yml                    # override khi chạy dev
-│   ├── prod.yml                   # override khi chạy prod
+│   ├── config.yml                 # (gitignored) file config THẬT bot đọc — copy từ example
+│   ├── config.example.yml         # file config MẪU — TRACKED, luôn đồng bộ schema §6
 │   └── schemas/                   # JSON Schema để validate config lúc khởi động
 │       ├── core.schema.json       #   schema cho config tổng
 │       └── module.schema.json     #   schema cho module.yml (manifest)
@@ -192,7 +191,7 @@ averon/
 - `core/src/*` chia theo trách nhiệm rõ ràng (loader / lifecycle / registry / ipc / discord / crash) — tránh "core" thành túi rác.
 - `crash-reports/` — lưu crash dump riêng, tách khỏi logs.
 - `config/schemas/*.json` — validate config bằng schema, "fail-fast" thay vì crash im lặng.
-- Secret (token) đặt trực tiếp trong config/dev.yml + config/prod.yml (xem §6.3).
+- Secret (token) đặt trực tiếp trong `discord.token` của `config/config.yml` (gitignored; xem §6.3).
 - `scripts/new-module.mjs` — scaffold module để mọi module sinh ra đều chuẩn cấu trúc.
 - `shared/` tách logger/config/db/utils — đây là nơi duy nhất chứa "tiện ích dùng chung".
 
@@ -231,6 +230,8 @@ commands:                          # core tự đăng ký lệnh
       en: "Example command"
     handler: commands/example.ts
     enabled: true
+    type: chat_input               # chat_input (slash) | user | message (context menu) — mặc định chat_input
+    scope: [global]                # global | guild | user — mặc định ['global']; khớp toggle register_commands ở core (§8)
 
 events:                            # core tự attach listener
   - name: messageCreate            # tên event Discord (hoặc event nội bộ core)
@@ -258,6 +259,7 @@ tests:
 - Field bắt buộc: `name`, `version`, `runtime.*`, `entry`. Thiếu → core **từ chối load** và log ERROR với lý do cụ thể.
 - `name` phải trùng tên folder module, kebab-case, không trùng module khác.
 - Core validate manifest bằng `config/schemas/module.schema.json` ngay ở giai đoạn REGISTERED.
+- Mỗi command khai báo `type` (loại lệnh Discord) và `scope` (đăng ký ở đâu). Core chỉ đăng ký lệnh vào scope được bật trong `discord.register_commands` (§8) — lệnh `scope: [guild]` không bao giờ được gửi lên global.
 
 ---
 
@@ -288,40 +290,48 @@ tests:
 ## 6. Quy tắc config (Config Rules)
 
 ### 6.1 Nguyên tắc chung
-- **Toàn bộ config ở dạng YAML** (`.yml`). Config core nằm trong `config/`, config module nằm trong `config/` của chính folder module.
-- Mọi config có: **defaults + schema**, validate khi khởi động (§6.4).
+- **Toàn bộ config ở dạng YAML** (`.yml`). Config core nằm trong **1 file duy nhất** `config/config.yml`, config module nằm trong `config/` của chính folder module.
+- **KHÔNG dùng biến môi trường** (`process.env`) cho config — không còn `.env`, không còn `AVERON_ENV`/`NODE_ENV`. User tự sửa trực tiếp `config/config.yml`.
+- `config/config.yml` chứa secret → **KHÔNG track trong git**. Chỉ track `config/config.example.yml` (file mẫu).
+- Mọi config có: **schema**, validate khi khởi động (§6.4).
 - Key dùng kebab-case (`max_failures`), có comment tiếng Anh giải thích từng field.
+- **Cross-platform path**: KHÔNG dùng `process.cwd()` hay path tuyệt đối hard-code (vd `D:\...`) — path luôn tính từ `import.meta.url`/`__dirname` → `findProjectRoot`. Dev trên Windows, run trên Linux đều phải chạy đúng.
 
-### 6.2 Thứ tự merge (Merge order)
-Config tổng được merge theo thứ tự — giá trị sau đè giá trị trước:
-
-```
-config/default.yml
-      + config/<env>.yml          # env = AVARON_ENV | NODE_ENV (dev | prod | staging...)
-      # + biến môi trường (bỏ — không còn dùng env vars)
-      + config/module/defaults.yml (riêng từng module, do core merge)
-```
+### 6.2 1 file duy nhất (Single file)
+- Bot đọc **đúng 1 file**: `config/config.yml`. Không merge, không có override theo môi trường.
+- File mới: `cp config/config.example.yml config/config.yml` rồi chỉnh sửa.
+- Thay đổi mode dev/prod = sửa giá trị trong chính 1 file đó (xem §8).
+- Config module (`config/defaults.yml` riêng) do core merge khi load — không thay đổi gì.
 
 ### 6.3 Secret (bí mật) — token đặt trực tiếp trong config
-- Token bot đặt trực tiếp trong `config/dev.yml` và `config/prod.yml` (không dùng `.env`).
-- **Repo này PUBLIC** — nếu lỡ commit token thật, hãy **reset token ngay trên Discord Developer Portal** và thay placeholder.
+- Token bot đặt trực tiếp trong `discord.token` của `config/config.yml` (đã gitignored).
+- **Repo này PUBLIC** — nếu lỡ commit token thật (vd trong `config.example.yml`), hãy **reset token ngay trên Discord Developer Portal** và thay placeholder `PASTE_DISCORD_TOKEN_HERE`.
 - Logging phải che secret khi ghi log (xem §7.4).
 
 ### 6.4 Validate khi khởi động (Fail-fast)
-- Khi boot, core validate toàn bộ config bằng JSON Schema (`config/schemas/*.json`).
+- Khi boot, core validate `config/config.yml` bằng JSON Schema (`config/schemas/*.json`).
 - Thiếu field bắt buộc / sai kiểu / sai enum → **in lỗi rõ ràng** (liệt kê đúng field, module, file, dòng) và **thoát với mã lỗi ≠ 0** — KHÔNG chạy tiếp với config sai im lặng.
-- Có thể chạy trước bằng script: `node scripts/validate-config.mjs`.
+- Có thể chạy trước bằng script: `npm run validate:config` (validate `config.yml`, nếu chưa có thì fallback `config.example.yml`).
 
-### 6.5 Ví dụ config tổng (`config/default.yml`)
+### 6.5 Ví dụ config (`config/config.example.yml`)
 
 ```yaml
 app:
   name: averon
-  version: 0.2.0          # tuân theo quy tắc version §10
+  version: 0.4.0          # tuân theo quy tắc version §10
 
 discord:
-  # token: bỏ — đặt trực tiếp trong config/dev.yml + config/prod.yml
+  # ⚠️ REPO PUBLIC — KHÔNG commit token thật! Chỉ sửa trong config.yml (gitignored).
+  token: "PASTE_DISCORD_TOKEN_HERE"
   intents: [Guilds, GuildMessages, MessageContent]
+  # Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true.
+  guild_id: "123456789012345678"    # (tùy chọn / optional)
+  # Bật/tắt sync command qua REST khi boot, theo 3 scope (§8).
+  # global: slash toàn app (~1h cache) | guild: slash cho guild cụ thể (tức thời, dev) | user: context menu.
+  register_commands:
+    global: true
+    guild: false
+    user: false
 
 logging:
   level: INFO             # DEBUG | INFO | WARN | ERROR | FATAL
@@ -384,7 +394,7 @@ Tối thiểu 5 cấp, dùng chung cho core + module:
 
 ## 8. Dev / Prod mode
 
-Chuyển đổi qua biến môi trường `AVARON_ENV` (ưu tiên) hoặc `NODE_ENV` (fallback) → core tự nạp `config/<env>.yml`.
+Không có env vars — mode = tự chỉnh giá trị trong **1 file** `config/config.yml` (§6.2).
 
 | | **Dev** | **Prod** |
 |---|---|---|
@@ -395,6 +405,7 @@ Chuyển đổi qua biến môi trường `AVARON_ENV` (ưu tiên) hoặc `NODE_
 | Message lỗi cho user | Chi tiết | Ngắn gọn, an toàn (không lộ cấu trúc nội bộ) |
 | Build/optimize | Off (source map bật, build nhanh) | On (bundle, minify, source map tắt) |
 | Watchdog | Bật (nhẹ) | Bật (nghiêm ngặt hơn, log đầy đủ) |
+| `discord.register_commands` | `global: true`, **`guild/user: false`** — tránh re-register mỗi lần restart | `global/guild/user: true` — sync lên Discord qua REST khi boot |
 
 ---
 
@@ -431,7 +442,7 @@ Version dạng `<MAJOR>.<MINOR>.<PATCH>`. Chỉ **một** vị trí tăng trong 
 | **MINOR** (số giữa) | `x.0.x` → tăng số giữa | **Thêm tính năng mới** (backward-compatible) | `1.2.4 → 1.3.0` |
 | **MAJOR** (số đầu) | `0.x.x` → tăng số đầu | **Breaking change / cập nhật lớn** | `1.3.0 → 2.0.0` |
 
-> Ghi chú: quy tắc này khớp ngữ nghĩa SemVer chuẩn, được quy định rõ cho từng trường hợp để tránh tranh cãi khi bump. **Mỗi module có version riêng** trong `module.yml`; bot tổng có version riêng trong `config/default.yml` → `app.version`.
+> Ghi chú: quy tắc này khớp ngữ nghĩa SemVer chuẩn, được quy định rõ cho từng trường hợp để tránh tranh cãi khi bump. **Mỗi module có version riêng** trong `module.yml`; bot tổng có version riêng trong `config/config.yml` → `app.version`.
 
 ### 10.2 CHANGELOG — format & quy tắc
 - File `CHANGELOG.md` **song ngữ**, mỗi mục version gồm: **ngày, loại thay đổi, module liên quan**.

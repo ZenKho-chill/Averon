@@ -1,0 +1,137 @@
+#!/usr/bin/env node
+/**
+ * scripts/new-module.mjs — scaffold module mới theo template chuẩn (CLAUDE.md §5.1).
+ * EN: Creates a new module with standard structure: module.yml, commands/, events/, src/, config/, tests/, README.md.
+ */
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = join(__dirname, '..');
+
+function kebabToPascal(name) {
+  return name.split('-').map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+}
+
+function createModule(name) {
+  if (!/^[a-z][a-z0-9-]*$/.test(name)) {
+    console.error('Tên module phải là kebab-case (vd: ping, fun-avatar). EN: Module name must be kebab-case.');
+    process.exit(1);
+  }
+  const moduleDir = join(root, 'modules', name);
+  if (existsSync(moduleDir)) {
+    console.error(`Module '${name}' đã tồn tại. EN: Module '${name}' already exists.`);
+    process.exit(1);
+  }
+
+  mkdirSync(moduleDir, { recursive: true });
+  mkdirSync(join(moduleDir, 'commands'));
+  mkdirSync(join(moduleDir, 'events'));
+  mkdirSync(join(moduleDir, 'src'));
+  mkdirSync(join(moduleDir, 'config'));
+  mkdirSync(join(moduleDir, 'tests'));
+
+  // module.yml
+  const moduleYml = `
+name: ${name}
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: ">=18"
+  transport: in-process
+entry: src/index.ts
+commands:
+  - name: ${name}
+    description:
+      vi: "Lệnh ${name}"
+      en: "${kebabToPascal(name)} command"
+    handler: commands/${name}.ts
+`;
+  writeFileSync(join(moduleDir, 'module.yml'), moduleYml.trim());
+
+  // src/index.ts
+  const indexTs = `// Entry point cho module ${name}
+
+export const onLoad = () => {
+  console.log('Module ${name} loaded');
+};
+
+export const onUnload = () => {
+  console.log('Module ${name} unloaded');
+};
+`;
+  writeFileSync(join(moduleDir, 'src', 'index.ts'), indexTs);
+
+  // commands/<name>.ts
+  const commandTs = `// Handler cho lệnh /${name}
+
+export async function handler(interaction) {
+  await interaction.reply('Pong!');
+}
+`;
+  writeFileSync(join(moduleDir, 'commands', `${name}.ts`), commandTs);
+
+  // config/defaults.yml
+  const defaultsYml = `# Config mặc định cho module ${name}
+# EN: Default config for module ${name}
+`;
+  writeFileSync(join(moduleDir, 'config', 'defaults.yml'), defaultsYml);
+
+  // config/schema.yml
+  const schemaYml = `# JSON Schema cho config module ${name}
+# EN: JSON Schema for module ${name} config
+$schema: http://json-schema.org/draft-07/schema#
+type: object
+properties: {}
+`;
+  writeFileSync(join(moduleDir, 'config', 'schema.yml'), schemaYml);
+
+  // tests/<name>.test.ts
+  const testTs = `import { describe, it, expect } from 'vitest';
+import { handler } from '../commands/${name}';
+
+describe('${name} command', () => {
+  it('handler trả lời Pong!', async () => {
+    const interaction = { reply: (msg) => msg };
+    const result = await handler(interaction);
+    expect(result).toBe('Pong!');
+  });
+});
+`;
+  writeFileSync(join(moduleDir, 'tests', `${name}.test.ts`), testTs);
+
+  // README.md
+  const readmeMd = `# Module ${kebabToPascal(name)}
+
+> Lệnh /${name} — trả lời Pong!
+
+## Cấu trúc
+
+- [36mcommands/${name}.ts[0m — handler cho lệnh /${name}
+- [36msrc/index.ts[0m — entry point
+- [36mconfig/[0m — config module
+- [36mtests/[0m — test module
+
+## Cách dùng
+
+1. Chạy bot: [32mnpm run dev[0m
+2. Gõ [33m/${name}[0m trong Discord
+
+## Test
+
+[32mnpm test[0m
+`;
+  writeFileSync(join(moduleDir, 'README.md'), readmeMd);
+
+  console.log(`✅ Module '${name}' đã được tạo tại modules/${name}/`);
+}
+
+// CLI
+if (process.argv[2]) {
+  createModule(process.argv[2]);
+} else {
+  console.log('Dùng: node scripts/new-module.mjs <module-name>');
+  console.log('Ví dụ: node scripts/new-module.mjs ping');
+}

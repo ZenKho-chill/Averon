@@ -1,0 +1,148 @@
+import { describe, it, expect, vi } from 'vitest';
+import { DiscordClient } from './index.js';
+import type { Logger } from '../../../shared/logger/index.js';
+import type { AppConfig } from '../../config/index.js';
+
+function makeLogger(): Logger {
+  return {
+    fatal: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  };
+}
+
+function makeConfig(registerCommands: Partial<Record<'global' | 'guild' | 'user', boolean>> = { global: false, guild: false, user: false }): AppConfig {
+  return {
+    app: { name: 'averon', version: '0.4.0' },
+    discord: {
+      token: 'test-token',
+      intents: ['Guilds'],
+      register_commands: { global: registerCommands.global ?? false, guild: registerCommands.guild ?? false, user: registerCommands.user ?? false },
+    },
+    logging: { level: 'INFO', console_color: false },
+    crash: { max_failures: 5, fail_window_ms: 300000 },
+    dev: { hot_reload: false, show_stacktrace: false },
+  };
+}
+
+describe('DiscordClient', () => {
+  it('constructor tạo client với intents từ config', () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    const discord = new DiscordClient(config, logger);
+    // @ts-expect-error — private field
+    expect(discord.client).toBeDefined();
+  });
+
+  it('login gọi client.login với token từ config', async () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    const discord = new DiscordClient(config, logger);
+    // @ts-expect-error — private field
+    discord.client.login = vi.fn().mockResolvedValue(undefined);
+    await discord.login();
+    // @ts-expect-error — private field
+    expect(discord.client.login).toHaveBeenCalledWith('test-token');
+    expect(logger.info).toHaveBeenCalledWith('Discord client đã login thành công', expect.anything());
+  });
+
+  it('login thiếu token → lỗi', async () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    config.discord.token = '';
+    const discord = new DiscordClient(config, logger);
+    await expect(discord.login()).rejects.toThrow(/thiếu token/i);
+  });
+
+  it('registerCommand đăng ký interactionCreate handler', () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    const discord = new DiscordClient(config, logger);
+    const handler = vi.fn();
+    discord.registerCommand('ping', handler);
+    // @ts-expect-error — private field
+    expect(discord.client.listeners('interactionCreate').length).toBe(1);
+  });
+
+  it('registerEvent đăng ký event handler', () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    const discord = new DiscordClient(config, logger);
+    const handler = vi.fn();
+    discord.registerEvent('messageCreate', handler);
+    // @ts-expect-error — private field
+    expect(discord.client.listeners('messageCreate').length).toBe(1);
+  });
+
+  it('syncCommands mọi scope=false → skip REST hết, log rõ', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig({ global: false, guild: false, user: false }), logger);
+    const set = vi.fn();
+    // @ts-expect-error — private field
+    discord.client.application = { commands: { set } };
+    await discord.syncCommands([{ name: 'ping', description: { en: 'Ping command' } }]);
+    expect(set).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Skip register commands (global)'));
+  });
+
+  it('syncCommands global=true → slash command đăng ký toàn app', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig({ global: true }), logger);
+    const set = vi.fn().mockResolvedValue(undefined);
+    // @ts-expect-error — private field
+    discord.client.application = { commands: { set } };
+    await discord.syncCommands([
+      { name: 'ping', description: { en: 'Ping command' }, scope: ['global'] },
+      { name: 'meo', description: 'Meo command', scope: ['global'] },
+    ]);
+    // global set được gọi 1 lần (args 1 = list, không có guildId)
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls[0][1]).toBeUndefined();
+    // @ts-expect-error — toJSON là method của builder
+    expect(set.mock.calls[0][0].map((b) => ({ name: b.name, description: b.description }))).toEqual([
+      { name: 'ping', description: 'Ping command' },
+      { name: 'meo', description: 'Meo command' },
+    ]);
+  });
+
+  it('syncCommands guild=true + guild_id → gọi set với guildId', async () => {
+    const logger = makeLogger();
+    const config = makeConfig({ guild: true });
+    config.discord.guild_id = '123456789';
+    const discord = new DiscordClient(config, logger);
+    const set = vi.fn().mockResolvedValue(undefined);
+    // @ts-expect-error — private field
+    discord.client.application = { commands: { set } };
+    await discord.syncCommands([{ name: 'ping', description: { en: 'Ping command' }, scope: ['guild'] }]);
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls[0][1]).toBe('123456789');
+  });
+
+  it('syncCommands guild=true nhưng thiếu guild_id → warn, không gọi REST', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig({ guild: true }), logger);
+    const set = vi.fn();
+    // @ts-expect-error — private field
+    discord.client.application = { commands: { set } };
+    await discord.syncCommands([{ name: 'ping', scope: ['guild'] }]);
+    expect(set).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('guild_id'));
+  });
+
+  it('syncCommands user=true → context menu (type user/message) đăng ký', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig({ user: true }), logger);
+    const set = vi.fn().mockResolvedValue(undefined);
+    // @ts-expect-error — private field
+    discord.client.application = { commands: { set } };
+    await discord.syncCommands([
+      { name: 'Avatar', type: 'user', scope: ['user'] },
+      { name: 'Copy', type: 'message', scope: ['user'] },
+    ]);
+    expect(set).toHaveBeenCalledTimes(1);
+    // @ts-expect-error — builder có toJSON
+    expect(set.mock.calls[0][0].map((b) => b.type)).toEqual([2, 3]); // User=2, Message=3
+  });
+});

@@ -13,11 +13,12 @@ crash-reports/
 *.log
 
 # ===== Secrets (KHÔNG commit token thật / never commit real tokens) =====
-# Token đặt trực tiếp trong config/dev.yml + config/prod.yml (CLAUDE.md §6.3).
+# File config thật (chứa token) KHÔNG track — chỉ track config.example.yml.
+# EN: The real config file (with token) is untracked — only config.example.yml is tracked.
+config/config.yml
 # Repo này PUBLIC — nếu lỡ commit token thật, hãy reset token ngay trên Discord Developer Portal.
-# EN: Tokens live in config/dev.yml + config/prod.yml. This repo is PUBLIC — if a real
-# token is ever committed, revoke it immediately in the Discord Developer Portal.
-# Không còn dùng file .env / .env.example.
+# EN: This repo is PUBLIC — if a real token is ever committed, revoke it immediately on the
+# Discord Developer Portal. Không còn dùng file .env / .env.example.
 
 # ===== Test coverage =====
 coverage/

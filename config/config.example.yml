@@ -1,0 +1,51 @@
+# ==================================================
+# Averon — config mẫu (EXAMPLE) — TRACKED trong git
+# EN: Averon — sample config — TRACKED in git.
+#
+# Cách dùng / Usage:
+#   cp config/config.example.yml config/config.yml   # rồi chỉnh sửa
+# config.yml (KHÔNG track trong git) là file thật bot đọc lúc boot.
+# EN: config.yml (untracked) is the real file the bot reads at boot.
+# ==================================================
+
+app:
+  name: averon
+  version: 0.5.0          # tuân theo quy tắc version §10
+
+discord:
+  # ⚠️ Repo này PUBLIC — KHÔNG commit token thật! Thay placeholder cục bộ.
+  # EN: This repo is PUBLIC — never commit a real token! Replace the placeholder locally.
+  token: "PASTE_DISCORD_TOKEN_HERE"
+  intents: [Guilds, GuildMessages, MessageContent]
+  # Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true.
+  # EN: Guild ID for guild-scoped command sync — required when register_commands.guild=true.
+  # guild_id: "123456789012345678"
+  # Bật/tắt sync command lên Discord qua REST (khi boot), theo 3 scope (§8).
+  # EN: Toggle REST slash-command sync at boot, per scope (§8).
+  # global: slash toàn app (cache ~1h) | guild: slash cho guild cụ thể (tức thời, dev) | user: context menu.
+  # TẮT guild/user ở dev để tránh re-register mỗi lần khởi động lại.
+  register_commands:
+    global: true
+    guild: false
+    user: false
+
+logging:
+  level: INFO             # DEBUG | INFO | WARN | ERROR | FATAL
+  console_color: false
+  file:
+    enabled: true
+    dir: logs/
+    max_size_mb: 20
+    keep_files: 7
+
+crash:
+  max_failures: 5         # số lần lỗi trước khi quarantine module (§9.2)
+  fail_window_ms: 300000  # cửa sổ 5 phút
+  watchdog:
+    enabled: true
+    max_restarts: 5       # giới hạn restart trong cửa sổ (§9.3)
+    window_min: 5
+
+dev:
+  hot_reload: false
+  show_stacktrace: true

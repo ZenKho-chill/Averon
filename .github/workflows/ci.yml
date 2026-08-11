@@ -39,10 +39,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          # Không cache npm — package-lock.json không track trong git (khoản thời gian này)
+          # EN: No npm cache — package-lock.json is untracked in git for now.
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Lint
         run: npm run lint
@@ -68,9 +69,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          # Không cache npm — package-lock.json không track trong git
       - name: Install deps
-        run: npm ci
+        run: npm install
       - name: Build native modules
         run: |
           echo "Native build placeholder — add your C/C++/Rust build here"
