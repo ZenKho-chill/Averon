@@ -103,11 +103,23 @@ describe('OperatorConsole', () => {
     const console = new OperatorConsole({ ...makeDeps(), input, output });
     console.start();
 
-    const pending = readUntil(output, '-help');
+    const pending = readUntil(output, '-help / -h');
     input.write('-help\n');
     const out = await pending;
     expect(out).toContain('averon status');
-    expect(out).toContain('-help');
+    expect(out).toContain('-h');
+  });
+
+  it('-h (quick command) hiện help', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const console = new OperatorConsole({ ...makeDeps(), input, output });
+    console.start();
+
+    const pending = readUntil(output, 'averon status');
+    input.write('-h\n');
+    const out = await pending;
+    expect(out).toContain('-help / -h');
   });
 
   it('EOF (piped input) → stop() gọi logger, không throw', async () => {

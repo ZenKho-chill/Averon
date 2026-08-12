@@ -55,11 +55,14 @@ commands:
   const indexTs = `// Entry point cho module ${name}
 
 export const onLoad = () => {
-  console.log('Module ${name} loaded');
+  // Hook khi module được load — khởi tạo state ở đây nếu cần.
+  // KHÔNG dùng console.log: nó bypass logger (CLAUDE.md §7) và lẫn vào output operator console.
+  // EN: Called when the module is loaded — init state here if needed. Do NOT console.log here.
 };
 
 export const onUnload = () => {
-  console.log('Module ${name} unloaded');
+  // Hook khi module unload/hot-reload — cleanup ở đây (đóng handle, clear interval...).
+  // EN: Called on unload/hot-reload — cleanup here (close handles, clear intervals...).
 };
 `;
   writeFileSync(join(moduleDir, 'src', 'index.ts'), indexTs);

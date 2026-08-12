@@ -20,12 +20,14 @@ EN: new core subsystem `core/console` — deliberate core decision (lifecycle co
   EN: New `console:` config section (`enabled`/`prompt`/`soft_stop_timeout_ms`) — optional, defaults in code.
 - **`CommandContext.moduleName`** (additive) — để đếm in-flight handler theo module (VI)
   EN: `CommandContext.moduleName` (additive) — enables per-module in-flight tracking.
-- **Quick command `-help`**: gõ thẳng `-help` không cần prefix `averon` để xem help (VI)
-  EN: Quick command `-help`: type bare `-help` (no `averon` prefix) to show help.
+- **Quick command `-help` / `-h`**: gõ thẳng `-help` hoặc `-h` không cần prefix `averon` để xem help (VI)
+  EN: Quick commands `-help` / `-h`: type bare `-help` or `-h` (no `averon` prefix) to show help.
 
 ### Fixed
 - **Console không nhận lệnh khi `npm run dev`**: `tsx watch` nuốt stdin cho phím restart "rs" → `averon> ` không đọc được input. Đổi dev script sang `node --watch --import tsx` (vẫn tự restart khi sửa file, stdin forward đầy đủ). Có regression test `core/src/console/dev-stdin.test.ts` (VI)
   EN: Console unresponsive under `npm run dev`: `tsx watch` swallows stdin for the "rs" restart key, so `averon> ` never reads input. Switched the dev script to `node --watch --import tsx` (still auto-restarts on file change, stdin fully forwarded). Regression test in `core/src/console/dev-stdin.test.ts`.
+- **Output trùng khi unload/reload module**: `modules/ping` in `Module ping unloaded` qua `console.log` (bypass logger, lẫn vào output của operator console `Unloaded module 'ping'`). Bỏ console.log trong `onLoad`/`onUnload` của module mẫu + sửa scaffold `scripts/new-module.mjs` để module mới không tái phạm (VI)
+  EN: Duplicate output on unload/reload: `modules/ping` printed `Module ping unloaded` via `console.log` (bypassing the logger, mixing into the operator console's own `Unloaded module 'ping'`). Removed console.log from the sample module's `onLoad`/`onUnload` + fixed the `scripts/new-module.mjs` scaffold so new modules don't repeat it.
 
 ## [0.7.0] — 2026-08-12
 **Loại / Type:** MINOR — tính năng mới / new feature
