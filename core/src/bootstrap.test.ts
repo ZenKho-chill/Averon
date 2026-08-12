@@ -26,10 +26,17 @@ vi.mock('./discord/index.js', () => ({
   },
 }));
 
-// Mock backupConfig để không copy file config thật trong test
-vi.mock('../../shared/config/index.js', () => ({
-  backupConfig: vi.fn(() => 'config/backups/config-test.yml'),
-}));
+// Mock backupConfig để không copy file config thật trong test.
+// findProjectRoot giữ hàm thật — bootstrap dùng nó để resolve project root (modules/*, config).
+// EN: Mock backupConfig to avoid copying the real config file; keep the real findProjectRoot —
+// bootstrap resolves the project root through it (modules/*, config).
+vi.mock('../../shared/config/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../shared/config/index.js')>();
+  return {
+    backupConfig: vi.fn(() => 'config/backups/config-test.yml'),
+    findProjectRoot: actual.findProjectRoot,
+  };
+});
 
 afterEach(() => {
   vi.restoreAllMocks();

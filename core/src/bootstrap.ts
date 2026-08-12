@@ -5,7 +5,7 @@
  * Pipeline: config.load → logger.init → anti-crash handlers → module loader → discord.login → watchdog.start
  */
 import { loadCoreConfig, getConsoleConfig } from './config/index.js';
-import { backupConfig } from '../../shared/config/index.js';
+import { backupConfig, findProjectRoot } from '../../shared/config/index.js';
 import { createLogger } from '../../shared/logger/index.js';
 import { Registry } from './registry/index.js';
 import { UsageTracker } from './registry/usage.js';
@@ -15,7 +15,7 @@ import { Lifecycle } from './lifecycle/index.js';
 import { DiscordClient } from './discord/index.js';
 import { ModuleManager } from './console/manager.js';
 import { OperatorConsole } from './console/index.js';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export async function bootstrap() {
@@ -117,7 +117,9 @@ export async function bootstrap() {
   return { config, logger, registry, discord, crashReporter, lifecycle, usage, manager, console: operatorConsole };
 }
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// Project root — dùng findProjectRoot để chạy đúng cả từ src (tsx/tsx watch) lẫn dist (npm start).
+// EN: Project root — resolved via findProjectRoot so it works from both src (tsx) and dist (npm start).
+const root = findProjectRoot(dirname(fileURLToPath(import.meta.url)));
 
 // Gọi bootstrap khi chạy trực tiếp
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

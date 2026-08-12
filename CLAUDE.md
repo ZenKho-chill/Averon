@@ -327,7 +327,7 @@ tests:
 ```yaml
 app:
   name: averon
-  version: 0.4.0          # tuân theo quy tắc version §10
+  # version tự lấy từ package.json (§10) — không cần khai báo ở đây
 
 discord:
   # ⚠️ REPO PUBLIC — KHÔNG commit token thật! Chỉ sửa trong config.yml (gitignored).
@@ -455,7 +455,7 @@ Version dạng `<MAJOR>.<MINOR>.<PATCH>`. Chỉ **một** vị trí tăng trong 
 | **MINOR** (số giữa) | `x.0.x` → tăng số giữa | **Thêm tính năng mới** (backward-compatible) | `1.2.4 → 1.3.0` |
 | **MAJOR** (số đầu) | `0.x.x` → tăng số đầu | **Breaking change / cập nhật lớn** | `1.3.0 → 2.0.0` |
 
-> Ghi chú: quy tắc này khớp ngữ nghĩa SemVer chuẩn, được quy định rõ cho từng trường hợp để tránh tranh cãi khi bump. **Mỗi module có version riêng** trong `module.yml`; bot tổng có version riêng trong `config/config.yml` → `app.version`.
+> Ghi chú: quy tắc này khớp ngữ nghĩa SemVer chuẩn, được quy định rõ cho từng trường hợp để tránh tranh cãi khi bump. **Mỗi module có version riêng** trong `module.yml`; **bot tổng có version trong `package.json`** — `app.version` khi boot tự lấy từ đó (không khai báo trong `config.yml`), nguồn sự thật duy nhất để tránh drift.
 
 ### 10.2 CHANGELOG — format & quy tắc
 - File `CHANGELOG.md` **song ngữ**, mỗi mục version gồm: **ngày, loại thay đổi, module liên quan**.

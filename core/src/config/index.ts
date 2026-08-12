@@ -2,7 +2,7 @@
  * core/config — wrapper shared/config để load config tổng + validate (CLAUDE.md §6).
  * EN: core/config — wraps shared/config to load and validate core config.
  */
-import { loadConfig, ConfigError, findProjectRoot, validateSemantics } from '../../../shared/config/index.js';
+import { loadConfig, ConfigError, findProjectRoot, validateSemantics, readPackageVersion } from '../../../shared/config/index.js';
 import type { AppConfig, ConsoleConfig } from '../../../shared/config/types.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +40,9 @@ export async function loadCoreConfig(configDir?: string, file?: string, allowPla
 
   const config = loadConfig<AppConfig>({ configDir: finalConfigDir, file: finalFile, schema: schemaFile });
   validateSemantics(config, { file: finalFile, allowPlaceholderToken });
+  // app.version lấy từ package.json (nguồn sự thật duy nhất §10) — config.yml không khai báo version nữa.
+  // EN: app.version is derived from package.json (single source of truth §10) — config.yml no longer declares it.
+  config.app = { ...config.app, version: readPackageVersion(root) };
   return config;
 }
 
