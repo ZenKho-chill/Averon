@@ -73,13 +73,14 @@ Averon là hệ thống **Discord bot đa chức năng**, thiết kế theo hư�
 
 ### 2.2 Vòng đời module (Module Lifecycle)
 
-Core quản lý theo 5 trạng thái: `REGISTERED → LOADING → LOADED → RUNNING → UNLOADED`
+Core quản lý theo 7 trạng thái: `REGISTERED → LOADING → LOADED → RUNNING → DRAINING → UNLOADED` (+ `FAULTED` khi lỗi)
 
 1. **REGISTERED** — `loader` đọc `module.yml`, validate manifest (bắt buộc có `name`, `version`, `entry`, `runtime`).
 2. **LOADING** — resolve dependencies (`load.after`, `requires`), import entry point, attach commands/events.
 3. **LOADED** — gọi hook `onLoad()` của module (nếu có).
 4. **RUNNING** — module đã nhận và xử lý event/command.
-5. **UNLOADED** — gọi hook `onUnload()` (cleanup: đóng handle, clear interval, unsubscribe), rồi gỡ khỏi registry.
+5. **DRAINING** — đang soft-unload (qua operator console): đã detach listener (không nhận command mới), chờ in-flight handler xong rồi mới `onUnload`. `--force` bỏ qua bước chờ.
+6. **UNLOADED** — gọi hook `onUnload()` (cleanup: đóng handle, clear interval, unsubscribe), rồi gỡ khỏi registry.
 
 Lỗi ở bất kỳ bước nào → module chuyển sang trạng thái **FAULTED** (bị cô lập, xem §9.2) chứ **không** làm sập core.
 
@@ -136,7 +137,8 @@ averon/
 │   │   ├── registry/              # service registry (DI) + module registry
 │   │   ├── ipc/                   # lớp giao tiếp đa ngôn ngữ: in-process / subprocess / socket / ffi
 │   │   ├── discord/               # client Discord gateway wrapper (login, middleware, rate-limit)
-│   │   └── crash/                 # global error handlers, quarantine logic, crash report writer
+│   │   ├── crash/                 # global error handlers, quarantine logic, crash report writer
+│   │   └── console/               # operator console: stdin REPL + ModuleManager (status, modules load/unload/reload)
 │   ├── tests/
 │   └── tsconfig.json
 │

@@ -51,6 +51,16 @@ export interface AppConfig {
     hot_reload: boolean;
     show_stacktrace: boolean;
   };
+  /** Operator console (§ console) — optional, mặc định trong code (AJV không materialize schema default). */
+  console?: ConsoleConfig;
+}
+
+/** Cấu hình operator console — nhập lệnh `averon ...` từ stdin (CLAUDE.md § console). */
+export interface ConsoleConfig {
+  enabled: boolean;
+  prompt: string;
+  /** Thời gian chờ soft-stop đợi in-flight handler (ms) trước khi báo timeout. */
+  soft_stop_timeout_ms: number;
 }
 
 /** Tuỳ chọn khi load config. */

@@ -13,10 +13,12 @@ import {
   ContextMenuCommandBuilder,
   ApplicationCommandType,
   type ClientOptions,
+  type Interaction,
 } from 'discord.js';
 import type { Logger } from '../../../shared/logger/index.js';
 import type { AppConfig } from '../config/index.js';
 import type { CommandContext } from '../registry/types.js';
+import type { UsageTracker } from '../registry/usage.js';
 
 /** Lệnh cần sync lên Discord — metadata từ module.yml. */
 export interface SyncCommand {
@@ -49,9 +51,13 @@ export class DiscordClient {
 
   private readonly registerCommands: Record<RegisterScope, boolean>;
 
+  /** Listener của từng command (lưu ref để removeCommand có thể `client.off` khi unload). */
+  private readonly commandListeners = new Map<string, (interaction: Interaction) => Promise<void> | void>();
+
   constructor(
     private readonly config: AppConfig,
     private readonly logger: Logger,
+    private readonly usage?: UsageTracker,
   ) {
     const intents = config.discord.intents.map((intent: string) => GatewayIntentBits[intent as keyof typeof GatewayIntentBits]);
     const options: ClientOptions = { intents };
@@ -75,15 +81,32 @@ export class DiscordClient {
 
   /** Đăng ký command handler (gọi từ loader). Truyền ctx (config module + logger) cho handler. */
   registerCommand(name: string, handler: (interaction: unknown, ctx: CommandContext) => Promise<void> | void, ctx?: CommandContext): void {
-    this.client.on('interactionCreate', async (interaction) => {
+    const listener = async (interaction: Interaction): Promise<void> => {
       if (!interaction.isCommand()) return;
       if (interaction.commandName !== name) return;
+
+      const moduleName = ctx?.moduleName;
+      if (moduleName && this.usage) this.usage.begin(moduleName);
       try {
         await handler(interaction, ctx ?? { config: {}, logger: this.logger });
       } catch (err) {
         this.logger.error(`Command '${name}' thất bại`, { error: err });
+      } finally {
+        // Luôn trừ trong-flight — kể cả khi handler throw (soft-stop không kẹt).
+        if (moduleName && this.usage) this.usage.end(moduleName);
       }
-    });
+    };
+
+    this.commandListeners.set(name, listener);
+    this.client.on('interactionCreate', listener);
+  }
+
+  /** Gỡ command handler — bỏ listener (dùng khi soft/force-unload: không nhận command mới). */
+  removeCommand(name: string): void {
+    const listener = this.commandListeners.get(name);
+    if (!listener) return;
+    this.client.off('interactionCreate', listener as never);
+    this.commandListeners.delete(name);
   }
 
   /**

@@ -3,12 +3,24 @@
  * EN: core/config — wraps shared/config to load and validate core config.
  */
 import { loadConfig, ConfigError, findProjectRoot, validateSemantics } from '../../../shared/config/index.js';
-import type { AppConfig } from '../../../shared/config/types.js';
+import type { AppConfig, ConsoleConfig } from '../../../shared/config/types.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export { ConfigError };
-export type { AppConfig };
+export type { AppConfig, ConsoleConfig };
+
+/** Giá trị mặc định config console — dùng khi config.yml không có section console (AJV không `useDefaults`). */
+export const DEFAULT_CONSOLE_CONFIG: ConsoleConfig = {
+  enabled: true,
+  prompt: 'averon> ',
+  soft_stop_timeout_ms: 15000,
+};
+
+/** Lấy config console: merge default trong code + override từ config.yml (`config.console`). */
+export function getConsoleConfig(config: AppConfig): ConsoleConfig {
+  return { ...DEFAULT_CONSOLE_CONFIG, ...config.console };
+}
 
 /**
  * Load config tổng từ config/config.yml, validate bằng core.schema.json + semantic checks.

@@ -3,6 +3,24 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.8.0] — 2026-08-12
+**Loại / Type:** MINOR — tính năng mới / new feature (core/console — quyết định core subsystem, có nêu rõ lý do theo §13.3: điều khiển lifecycle là control-plane của core, và §5.3 cấm module điều khiển module khác)
+EN: new core subsystem `core/console` — deliberate core decision (lifecycle control is core's control-plane; §5.3 forbids modules controlling other modules).
+
+### Added
+- **Operator console** (`core/console/`, stdin REPL prompt `averon> `): lệnh `averon status`, `averon modules list` (module trên đĩa) / `status` (registry), `averon modules load <name>`, `averon modules unload|reload <name> [--force]`, `averon help` (VI)
+  EN: Operator console (`core/console/`, stdin REPL): `averon status`, `averon modules list` (on-disk) / `status` (registry), `averon modules load <name>`, `averon modules unload|reload <name> [--force]`, `averon help`.
+- **Soft-stop unload/reload**: state `DRAINING` mới — unload/reload không `--force` sẽ detach Discord listener (ngừng nhận command mới), đợi in-flight handler xong (`UsageTracker.waitIdle`) rồi mới `onUnload`; timeout → giữ DRAINING + hướng dẫn `--force` (VI)
+  EN: Soft-stop unload/reload — new `DRAINING` state: non-`--force` detaches Discord listeners, waits for in-flight handlers (`UsageTracker.waitIdle`), then `onUnload`; timeout keeps DRAINING and suggests `--force`.
+- **Module discovery theo đĩa**: `core/loader/discover.ts` (glob `modules/*`) thay danh sách hardcode `modules/ping` trong bootstrap (VI)
+  EN: Disk-based module discovery (`core/loader/discover.ts`, glob `modules/*`) replaces the hardcoded `modules/ping` list in bootstrap.
+- **`DiscordClient.removeCommand` + lưu listener ref**: gỡ được command khỏi client khi unload (VI)
+  EN: `DiscordClient.removeCommand` + stored listener refs — commands can now be detached on unload.
+- **Config `console:`** (`enabled`/`prompt`/`soft_stop_timeout_ms`) — optional, mặc định trong code (VI)
+  EN: New `console:` config section (`enabled`/`prompt`/`soft_stop_timeout_ms`) — optional, defaults in code.
+- **`CommandContext.moduleName`** (additive) — để đếm in-flight handler theo module (VI)
+  EN: `CommandContext.moduleName` (additive) — enables per-module in-flight tracking.
+
 ## [0.7.0] — 2026-08-12
 **Loại / Type:** MINOR — tính năng mới / new feature
 

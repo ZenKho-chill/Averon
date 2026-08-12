@@ -11,6 +11,8 @@ vi.mock('./config/index.js', () => ({
     crash: { max_failures: 5, fail_window_ms: 300000, watchdog: { enabled: false } },
     dev: { hot_reload: false, show_stacktrace: false },
   } satisfies AppConfig)),
+  // Console tắt trong test — tránh tạo readline trên stdin thật.
+  getConsoleConfig: vi.fn(() => ({ enabled: false, prompt: 'x> ', soft_stop_timeout_ms: 100 })),
 }));
 
 // Mock DiscordClient để không gọi login thật
@@ -43,6 +45,16 @@ describe('bootstrap', () => {
     expect(result.crashReporter).toBeDefined();
   });
 
+  it('expose lifecycle/usage/manager/console sau khi bootstrap', async () => {
+    const result = await bootstrap();
+    expect(result.lifecycle).toBeDefined();
+    expect(result.usage).toBeDefined();
+    expect(result.manager).toBeDefined();
+    expect(result.console).toBeDefined();
+    // Console disabled trong mock → không start (không tạo readline).
+    expect(result.console.isClosed).toBe(false);
+  });
+
   it('pipeline chạy qua module loader', async () => {
     await bootstrap();
     // Không kiểm tra chi tiết — chỉ đảm bảo không throw
@@ -52,6 +64,6 @@ describe('bootstrap', () => {
     const result = await bootstrap();
     // Mock DiscordClient.registerCommand là vi.fn → assert đã gọi với tên lệnh + handler function + ctx
     const registerCommand = result.discord.registerCommand as ReturnType<typeof vi.fn>;
-    expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function), expect.objectContaining({ config: expect.any(Object) }));
+    expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function), expect.objectContaining({ config: expect.any(Object), moduleName: 'ping' }));
   });
 });

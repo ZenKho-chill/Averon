@@ -15,7 +15,7 @@ export interface CrashReport {
     nodeVersion: string;
     modules: {
       name: string;
-      state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'UNLOADED' | 'FAULTED';
+      state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'DRAINING' | 'UNLOADED' | 'FAULTED';
     }[];
   };
   quarantine?: QuarantineModule;

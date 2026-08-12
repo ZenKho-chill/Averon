@@ -72,6 +72,15 @@
         "show_stacktrace": { "type": "boolean" }
       }
     },
+    "console": {
+      "type": "object",
+      "description": "Operator console — nhập lệnh averon ... từ stdin. Optional, mặc định trong code.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "prompt": { "type": "string", "minLength": 1 },
+        "soft_stop_timeout_ms": { "type": "number", "minimum": 0 }
+      }
+    },
     "modules": {
       "type": "object",
       "description": "Override config của từng module theo tên: { ping: {...} }. Loader merge lên defaults của module."

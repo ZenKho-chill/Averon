@@ -65,6 +65,11 @@ export class Registry {
   hasModule(name: string): boolean {
     return this.modules.has(name);
   }
+
+  /** Gỡ module khỏi registry (dùng khi unload/reload gỡ collision hoặc thay entry). */
+  unregisterModule(name: string): void {
+    this.modules.delete(name);
+  }
 }
 
 export * from './types.js';

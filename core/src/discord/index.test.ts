@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { DiscordClient } from './index.js';
+import { UsageTracker } from '../registry/usage.js';
 import type { Logger } from '../../../shared/logger/index.js';
 import type { AppConfig } from '../../config/index.js';
 
@@ -74,6 +75,74 @@ describe('DiscordClient', () => {
     discord.registerEvent('messageCreate', handler);
     // @ts-expect-error — private field
     expect(discord.client.listeners('messageCreate').length).toBe(1);
+  });
+
+  it('removeCommand gỡ interactionCreate handler', () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    discord.registerCommand('ping', vi.fn());
+    // @ts-expect-error — private field
+    expect(discord.client.listeners('interactionCreate').length).toBe(1);
+
+    discord.removeCommand('ping');
+    // @ts-expect-error — private field
+    expect(discord.client.listeners('interactionCreate').length).toBe(0);
+  });
+
+  it('removeCommand tên chưa đăng ký → no-op, không throw', () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    expect(() => discord.removeCommand('nonexistent')).not.toThrow();
+  });
+
+  it('registerCommand có ctx.moduleName → usage begin/end quanh handler (kết thúc count 0)', async () => {
+    const logger = makeLogger();
+    const usage = new UsageTracker();
+    const discord = new DiscordClient(makeConfig(), logger, usage);
+    const handler = vi.fn(async () => {});
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = { isCommand: () => true, commandName: 'ping' };
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(handler).toHaveBeenCalled();
+    expect(usage.activeCount('ping')).toBe(0);
+  });
+
+  it('handler throw vẫn end qua finally — usage không kẹt', async () => {
+    const logger = makeLogger();
+    const usage = new UsageTracker();
+    const discord = new DiscordClient(makeConfig(), logger, usage);
+    const handler = vi.fn(async () => {
+      throw new Error('boom');
+    });
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = { isCommand: () => true, commandName: 'ping' };
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(logger.error).toHaveBeenCalled();
+    expect(usage.activeCount('ping')).toBe(0);
+  });
+
+  it('interaction khác tên command → handler không được gọi', async () => {
+    const logger = makeLogger();
+    const usage = new UsageTracker();
+    const discord = new DiscordClient(makeConfig(), logger, usage);
+    const handler = vi.fn();
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = { isCommand: () => true, commandName: 'other' };
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(handler).not.toHaveBeenCalled();
+    expect(usage.activeCount('ping')).toBe(0);
   });
 
   /** Mock application.commands: chỉ có set() (bulk replace). */

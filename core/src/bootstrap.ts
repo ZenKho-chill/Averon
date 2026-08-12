@@ -4,14 +4,17 @@
  *
  * Pipeline: config.load → logger.init → anti-crash handlers → module loader → discord.login → watchdog.start
  */
-import { loadCoreConfig } from './config/index.js';
+import { loadCoreConfig, getConsoleConfig } from './config/index.js';
 import { backupConfig } from '../../shared/config/index.js';
 import { createLogger } from '../../shared/logger/index.js';
 import { Registry } from './registry/index.js';
+import { UsageTracker } from './registry/usage.js';
 import { CrashReporter } from './crash/index.js';
 import { ModuleLoader } from './loader/index.js';
 import { Lifecycle } from './lifecycle/index.js';
 import { DiscordClient } from './discord/index.js';
+import { ModuleManager } from './console/manager.js';
+import { OperatorConsole } from './console/index.js';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -57,31 +60,29 @@ export async function bootstrap() {
   const loader = new ModuleLoader(registry, crashReporter, moduleConfigOverrides);
   const lifecycle = new Lifecycle(registry, crashReporter);
 
-  // Quét thư mục modules/ và load từng module
-  const moduleDirs = [join(root, 'modules', 'ping')]; // TODO: dùng glob('modules/*')
-  for (const moduleDir of moduleDirs) {
-    try {
-      const moduleEntry = await loader.loadModule(moduleDir);
-      await lifecycle.loadModule(moduleEntry);
-      logger.info(`Module '${moduleEntry.name}' đã load thành công`, { state: moduleEntry.state });
-    } catch (err) {
-      logger.error(`Load module thất bại tại ${moduleDir}`, { error: err });
-      crashReporter.handleModuleFailure(moduleDir.split(/[\\/]/).pop()!, `load failed: ${err}`);
-    }
-  }
+  // In-flight handler counter (soft-stop) + Discord client — cần trước khi attach command
+  const usage = new UsageTracker();
+  const discord = new DiscordClient(config, logger, usage);
 
-  // 6. Khởi tạo Discord client
-  const discord = new DiscordClient(config, logger);
+  // ModuleManager: load toàn bộ module trên đĩa (discover modules/*) + gắn command listener
+  const manager = new ModuleManager({
+    registry,
+    lifecycle,
+    loader,
+    discord,
+    usage,
+    crashReporter,
+    root,
+    logger,
+    softStopTimeoutMs: getConsoleConfig(config).soft_stop_timeout_ms,
+  });
+  await manager.loadAll();
 
-  // 6.1 Attach commands/events từ registry (listener xử lý — luôn gắn)
+  // 6. Sync command lên Discord — metadata từ registry (handler đã được Manager gắn)
   const commands: Array<{ name: string; description?: { vi?: string; en?: string } | string; type?: 'chat_input' | 'user' | 'message'; scope?: Array<'global' | 'guild' | 'user'> }> = [];
   for (const module of registry.getAllModules()) {
     for (const cmd of module.commands) {
       commands.push(cmd); // dùng cho syncCommands (REST register metadata)
-      // Gắn handler đã import (loader) để phản hồi interaction — truyền ctx (config module + logger)
-      if (cmd.handlerFn) {
-        discord.registerCommand(cmd.name, cmd.handlerFn, { config: module.config ?? {}, logger });
-      }
     }
     // TODO: module.events — nạp handler từ evt.handler để gắn listener
   }
@@ -98,7 +99,22 @@ export async function bootstrap() {
   }
 
   logger.info('Averon đã sẵn sàng');
-  return { config, logger, registry, discord, crashReporter };
+
+  // 7. Operator console — stdin REPL (status / modules management)
+  const consoleConfig = getConsoleConfig(config);
+  const operatorConsole = new OperatorConsole({
+    config,
+    logger,
+    manager,
+    discord,
+    registry,
+    usage,
+    root,
+    bootTimestamp: Date.now(),
+  });
+  if (consoleConfig.enabled) operatorConsole.start();
+
+  return { config, logger, registry, discord, crashReporter, lifecycle, usage, manager, console: operatorConsole };
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
