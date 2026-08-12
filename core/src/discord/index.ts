@@ -46,6 +46,31 @@ function buildLocalizations(description: Record<string, string>): Record<string,
 
 type RegisterScope = 'global' | 'guild' | 'user';
 
+/** Timeout mặc định chờ login + gateway ready (ms) — boot fail-fast thay vì treo vô hạn (§9.1). */
+const DEFAULT_LOGIN_TIMEOUT_MS = 30_000;
+
+/** Race 1 promise với timeout — timeout → gọi cleanup (best-effort) rồi reject để boot fail-fast. */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string, onTimeout?: () => void | Promise<void>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return new Promise<T>((resolve, reject) => {
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (onTimeout) void Promise.resolve(onTimeout()).catch(() => undefined);
+      reject(new Error(message));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 export class DiscordClient {
   private readonly client: Client;
 
@@ -69,14 +94,35 @@ export class DiscordClient {
     };
   }
 
-  /** Login với token từ config. */
-  async login(): Promise<void> {
+  /** Login + đợi gateway ready. Timeout (config `discord.login_timeout_ms`, mặc định 30s) → boot fail-fast. */
+  async login(timeoutMs: number = this.config.discord.login_timeout_ms ?? DEFAULT_LOGIN_TIMEOUT_MS): Promise<void> {
     const token = this.config.discord.token;
     if (!token) {
       throw new Error('Thiếu token Discord trong config. EN: Missing Discord token in config');
     }
-    await this.client.login(token);
+    await withTimeout(
+      this.connectAndWaitReady(token),
+      timeoutMs,
+      `Discord login không hoàn thành trong ${timeoutMs}ms (gateway chưa ready). EN: Discord login did not complete within ${timeoutMs}ms`,
+      () => this.client.destroy(),
+    );
     this.logger.info('Discord client đã login thành công', { intents: this.config.discord.intents });
+  }
+
+  /** Login + đợi client ready trước khi attach command (fix latency -1ms khi khởi động). */
+  private async connectAndWaitReady(token: string): Promise<void> {
+    await this.client.login(token);
+    if (this.client.isReady()) return;
+    // Client.login() thường resolve sau ready (shard race 'ready'/'resumed') — nhưng phòng trường
+    // hợp resolve sớm hơn, chờ ready event nốt để chắc chắn trước khi attach command.
+    // EN: client.login() usually resolves after ready — but wait for the ready event just in case
+    // it resolves earlier, so we never attach commands before the gateway is ready.
+    await new Promise<void>((resolve) => {
+      this.client.once('ready', () => {
+        this.logger.debug('Discord client đã sẵn sàng (ready event)');
+        resolve();
+      });
+    });
   }
 
   /** Đăng ký command handler (gọi từ loader). Truyền ctx (config module + logger) cho handler. */

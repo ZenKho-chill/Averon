@@ -30,10 +30,13 @@ interface PingConfig {
 function buildVars(interaction: InteractionLike): PlaceholderVars {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
+  // ws.ping = -1 cho tới khi heartbeat đầu tiên được ACK — hiển thị '...' thay vì -1 gây hiểu nhầm.
+  // EN: ws.ping is -1 until the first heartbeat is ACKed — show '...' instead of a misleading -1.
+  const ping = interaction.client?.ws?.ping ?? -1;
   return {
     time: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
     tag_user: interaction.user?.id ? `<@${interaction.user.id}>` : '',
-    latency: String(interaction.client?.ws?.ping ?? '?'),
+    latency: ping >= 0 ? String(ping) : '...',
     username: interaction.user?.username ?? '',
     user_id: interaction.user?.id ?? '',
     guild: interaction.guild?.name ?? '',
@@ -86,7 +89,15 @@ function buildEmbed(embed: Record<string, unknown>, vars: PlaceholderVars): Embe
 }
 
 export async function handler(interaction: InteractionLike, ctx?: CommandContext) {
-  const cfg = (ctx?.config ?? {}) as PingConfig;
+  // Lấy config MỚI NHẤT từ registry thay vì closure (config capture lúc attach) — sau reload
+  // entry trong registry đã được thay bằng config mới. hasModule() để tránh throw trong khoảng
+  // trống khi force-reload (getModule ném nếu module chưa đăng ký lại).
+  // EN: Read the LATEST config from the registry instead of the closure captured at attach time —
+  // after reload the registry entry is replaced with the new config. Use hasModule() to avoid a
+  // throw during the force-reload gap (getModule throws when the module is not re-registered yet).
+  const registry = ctx?.registry;
+  const moduleEntry = registry && registry.hasModule('ping') ? registry.getModule('ping') : undefined;
+  const cfg = (moduleEntry?.getConfig?.() ?? ctx?.config ?? {}) as PingConfig;
   const response = pickResponse(cfg);
   const vars = buildVars(interaction);
 

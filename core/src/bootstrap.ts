@@ -63,6 +63,7 @@ export async function bootstrap() {
   // In-flight handler counter (soft-stop) + Discord client — cần trước khi attach command
   const usage = new UsageTracker();
   const discord = new DiscordClient(config, logger, usage);
+  await discord.login(); // Đợi login + ready trước khi load module (fix latency -1ms)
 
   // ModuleManager: load toàn bộ module trên đĩa (discover modules/*) + gắn command listener
   const manager = new ModuleManager({
@@ -86,8 +87,6 @@ export async function bootstrap() {
     }
     // TODO: module.events — nạp handler từ evt.handler để gắn listener
   }
-
-  await discord.login();
 
   // 6.2 Sync command lên Discord qua REST — theo 3 scope (global/guild/user) trong register_commands
   await discord.syncCommands(commands);
