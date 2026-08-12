@@ -42,16 +42,12 @@ describe('DiscordClient', () => {
     const config = makeConfig();
     const discord = new DiscordClient(config, logger);
     // @ts-expect-error — private field
-    discord.client.login = vi.fn().mockImplementation(() => {
-      // @ts-expect-error — private field
-      discord.client.emit('ready'); // mock login emit ready → connectAndWaitReady resolve ngay
-      return Promise.resolve();
-    });
-    await discord.login();
+    discord.client.login = vi.fn().mockResolvedValue(undefined);
+    await expect(discord.login()).resolves.toBeUndefined();
     // @ts-expect-error — private field
     expect(discord.client.login).toHaveBeenCalledWith('test-token');
     expect(logger.info).toHaveBeenCalledWith('Discord client đã login thành công', expect.anything());
-  });
+  }, 100); // timeout ngắn — test này không cần chờ ready
 
   it('login thiếu token → lỗi', async () => {
     const logger = makeLogger();
