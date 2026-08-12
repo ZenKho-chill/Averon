@@ -11,6 +11,8 @@ vi.mock('./config/index.js', () => ({
     crash: { max_failures: 5, fail_window_ms: 300000, watchdog: { enabled: false } },
     dev: { hot_reload: false, show_stacktrace: false },
   } satisfies AppConfig)),
+  // Console tắt trong test — tránh tạo readline trên stdin thật.
+  getConsoleConfig: vi.fn(() => ({ enabled: false, prompt: 'x> ', soft_stop_timeout_ms: 100 })),
 }));
 
 // Mock DiscordClient để không gọi login thật
@@ -24,10 +26,17 @@ vi.mock('./discord/index.js', () => ({
   },
 }));
 
-// Mock backupConfig để không copy file config thật trong test
-vi.mock('../../shared/config/index.js', () => ({
-  backupConfig: vi.fn(() => 'config/backups/config-test.yml'),
-}));
+// Mock backupConfig để không copy file config thật trong test.
+// findProjectRoot giữ hàm thật — bootstrap dùng nó để resolve project root (modules/*, config).
+// EN: Mock backupConfig to avoid copying the real config file; keep the real findProjectRoot —
+// bootstrap resolves the project root through it (modules/*, config).
+vi.mock('../../shared/config/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../shared/config/index.js')>();
+  return {
+    backupConfig: vi.fn(() => 'config/backups/config-test.yml'),
+    findProjectRoot: actual.findProjectRoot,
+  };
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -43,6 +52,16 @@ describe('bootstrap', () => {
     expect(result.crashReporter).toBeDefined();
   });
 
+  it('expose lifecycle/usage/manager/console sau khi bootstrap', async () => {
+    const result = await bootstrap();
+    expect(result.lifecycle).toBeDefined();
+    expect(result.usage).toBeDefined();
+    expect(result.manager).toBeDefined();
+    expect(result.console).toBeDefined();
+    // Console disabled trong mock → không start (không tạo readline).
+    expect(result.console.isClosed).toBe(false);
+  });
+
   it('pipeline chạy qua module loader', async () => {
     await bootstrap();
     // Không kiểm tra chi tiết — chỉ đảm bảo không throw
@@ -52,6 +71,6 @@ describe('bootstrap', () => {
     const result = await bootstrap();
     // Mock DiscordClient.registerCommand là vi.fn → assert đã gọi với tên lệnh + handler function + ctx
     const registerCommand = result.discord.registerCommand as ReturnType<typeof vi.fn>;
-    expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function), expect.objectContaining({ config: expect.any(Object) }));
+    expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function), expect.objectContaining({ config: expect.any(Object), moduleName: 'ping' }));
   });
 });

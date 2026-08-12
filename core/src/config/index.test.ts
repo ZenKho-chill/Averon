@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { loadCoreConfig, ConfigError, getDiscordToken } from './index.js';
 import type { AppConfig } from './index.js';
@@ -26,6 +26,49 @@ describe('loadCoreConfig', () => {
     expect(cfg.discord.intents).toContain('Guilds');
     expect(cfg.discord.register_commands.global).toBe(true);
     expect(cfg.discord.register_commands.guild).toBe(false);
+  });
+
+  it('app.version lấy từ package.json (không khai báo trong config.yml)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'averon-ver-'));
+    try {
+      const cfgDir = join(root, 'config');
+      mkdirSync(join(cfgDir, 'schemas'), { recursive: true });
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '9.9.9' }));
+      // Copy schema thật để validate config tối thiểu (app.version giờ optional — §10).
+      const realSchema = readFileSync(
+        join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'config', 'schemas', 'core.schema.json'),
+        'utf8',
+      );
+      writeFileSync(join(cfgDir, 'schemas', 'core.schema.json'), realSchema);
+      writeFileSync(
+        join(cfgDir, 'config.yml'),
+        [
+          'app:',
+          '  name: averon',
+          'discord:',
+          '  token: test',
+          '  intents: [Guilds]',
+          '  register_commands:',
+          '    global: false',
+          'logging:',
+          '  level: INFO',
+          'crash:',
+          '  max_failures: 5',
+          '  fail_window_ms: 300000',
+          '  watchdog:',
+          '    enabled: false',
+          'dev:',
+          '  hot_reload: false',
+          '  show_stacktrace: true',
+          '',
+        ].join('\n'),
+      );
+      const cfg = await loadCoreConfig(cfgDir);
+      expect(cfg.app.name).toBe('averon');
+      expect(cfg.app.version).toBe('9.9.9'); // từ package.json, KHÔNG phải yaml
+    } finally {
+      try { rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
   });
 
   it('thiếu config.yml → ConfigError kèm gợi ý copy example', async () => {

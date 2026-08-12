@@ -3,6 +3,36 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.8.0] — 2026-08-12
+**Loại / Type:** MINOR — tính năng mới / new feature (core/console — quyết định core subsystem, có nêu rõ lý do theo §13.3: điều khiển lifecycle là control-plane của core, và §5.3 cấm module điều khiển module khác)
+EN: new core subsystem `core/console` — deliberate core decision (lifecycle control is core's control-plane; §5.3 forbids modules controlling other modules).
+
+### Added
+- **Operator console** (`core/console/`, stdin REPL prompt `averon> `): lệnh `averon status`, `averon modules list` (module trên đĩa) / `status` (registry), `averon modules load <name>`, `averon modules unload|reload <name> [--force]`, `averon help` (VI)
+  EN: Operator console (`core/console/`, stdin REPL): `averon status`, `averon modules list` (on-disk) / `status` (registry), `averon modules load <name>`, `averon modules unload|reload <name> [--force]`, `averon help`.
+- **Soft-stop unload/reload**: state `DRAINING` mới — unload/reload không `--force` sẽ detach Discord listener (ngừng nhận command mới), đợi in-flight handler xong (`UsageTracker.waitIdle`) rồi mới `onUnload`; timeout → giữ DRAINING + hướng dẫn `--force` (VI)
+  EN: Soft-stop unload/reload — new `DRAINING` state: non-`--force` detaches Discord listeners, waits for in-flight handlers (`UsageTracker.waitIdle`), then `onUnload`; timeout keeps DRAINING and suggests `--force`.
+- **Module discovery theo đĩa**: `core/loader/discover.ts` (glob `modules/*`) thay danh sách hardcode `modules/ping` trong bootstrap (VI)
+  EN: Disk-based module discovery (`core/loader/discover.ts`, glob `modules/*`) replaces the hardcoded `modules/ping` list in bootstrap.
+- **`DiscordClient.removeCommand` + lưu listener ref**: gỡ được command khỏi client khi unload (VI)
+  EN: `DiscordClient.removeCommand` + stored listener refs — commands can now be detached on unload.
+- **Config `console:`** (`enabled`/`prompt`/`soft_stop_timeout_ms`) — optional, mặc định trong code (VI)
+  EN: New `console:` config section (`enabled`/`prompt`/`soft_stop_timeout_ms`) — optional, defaults in code.
+- **`CommandContext.moduleName`** (additive) — để đếm in-flight handler theo module (VI)
+  EN: `CommandContext.moduleName` (additive) — enables per-module in-flight tracking.
+- **Quick command `-help` / `-h`**: gõ thẳng `-help` hoặc `-h` không cần prefix `averon` để xem help (VI)
+  EN: Quick commands `-help` / `-h`: type bare `-help` or `-h` (no `averon` prefix) to show help.
+- **`app.version` lấy từ `package.json`**: config.yml không khai báo version nữa — boot tự đọc từ package.json (nguồn sự thật duy nhất, chống drift §10). Thêm `shared/config.readPackageVersion`; `loadCoreConfig` ghi đè `app.version` (VI)
+  EN: `app.version` is now derived from `package.json` — config.yml no longer declares a version; boot reads it from package.json (single source of truth, prevents drift §10). Added `shared/config.readPackageVersion`; `loadCoreConfig` overrides `app.version`.
+
+### Fixed
+- **Console không nhận lệnh khi `npm run dev`**: `tsx watch` nuốt stdin cho phím restart "rs" → `averon> ` không đọc được input. Đổi dev script sang `node --watch --import tsx` (vẫn tự restart khi sửa file, stdin forward đầy đủ). Có regression test `core/src/console/dev-stdin.test.ts` (VI)
+  EN: Console unresponsive under `npm run dev`: `tsx watch` swallows stdin for the "rs" restart key, so `averon> ` never reads input. Switched the dev script to `node --watch --import tsx` (still auto-restarts on file change, stdin fully forwarded). Regression test in `core/src/console/dev-stdin.test.ts`.
+- **Output trùng khi unload/reload module**: `modules/ping` in `Module ping unloaded` qua `console.log` (bypass logger, lẫn vào output của operator console `Unloaded module 'ping'`). Bỏ console.log trong `onLoad`/`onUnload` của module mẫu + sửa scaffold `scripts/new-module.mjs` để module mới không tái phạm (VI)
+  EN: Duplicate output on unload/reload: `modules/ping` printed `Module ping unloaded` via `console.log` (bypassing the logger, mixing into the operator console's own `Unloaded module 'ping'`). Removed console.log from the sample module's `onLoad`/`onUnload` + fixed the `scripts/new-module.mjs` scaffold so new modules don't repeat it.
+- **`npm start` (bản build) fail**: `bootstrap.ts` tính project root bằng `join(dirname(import.meta.url), '..', '..')` → từ `dist/core/src` ra `dist` (sai), nên `backupConfig` tìm `dist/config/config.yml` không có. Đổi sang `findProjectRoot()` — chạy đúng từ src lẫn dist (VI)
+  EN: `npm start` (built bundle) failed: `bootstrap.ts` computed the project root as `join(dirname(import.meta.url), '..', '..')` → from `dist/core/src` that resolved to `dist` (wrong), so `backupConfig` looked for the missing `dist/config/config.yml`. Switched to `findProjectRoot()` — correct from both src and dist.
+
 ## [0.7.0] — 2026-08-12
 **Loại / Type:** MINOR — tính năng mới / new feature
 

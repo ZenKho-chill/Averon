@@ -30,13 +30,30 @@ export class Lifecycle {
     }
   }
 
-  /** Unload module: gọi hook onUnload, cập nhật trạng thái. */
-  async unloadModule(name: string): Promise<void> {
+  /**
+   * Unload module: gọi hook onUnload, cập nhật trạng thái.
+   * - soft (mặc định): DRAINING → onUnload → UNLOADED; lỗi onUnload → FAULTED + throw.
+   * - force: UNLOADED ngay, onUnload nuốt lỗi (log + crash report), không chờ in-flight.
+   */
+  async unloadModule(name: string, opts?: { force?: boolean }): Promise<void> {
     const module = this.registry.getModule(name) as ModuleEntryWithHooks;
-    this.registry.setModuleState(name, 'UNLOADED');
 
+    if (opts?.force) {
+      this.registry.setModuleState(name, 'UNLOADED');
+      if (module.onUnload) {
+        try {
+          await module.onUnload();
+        } catch (err) {
+          this.crashReporter.handleModuleFailure(name, `onUnload failed: ${err}`);
+        }
+      }
+      return;
+    }
+
+    this.registry.setModuleState(name, 'DRAINING');
     try {
       if (module.onUnload) await module.onUnload();
+      this.registry.setModuleState(name, 'UNLOADED');
     } catch (err) {
       this.registry.setModuleState(name, 'FAULTED');
       this.crashReporter.handleModuleFailure(name, `onUnload failed: ${err}`);
@@ -44,9 +61,9 @@ export class Lifecycle {
     }
   }
 
-  /** Reload module: unload → load lại. */
-  async reloadModule(name: string): Promise<void> {
-    await this.unloadModule(name);
+  /** Reload module: unload → load lại (tái dùng entry trong registry, không re-import code). */
+  async reloadModule(name: string, opts?: { force?: boolean }): Promise<void> {
+    await this.unloadModule(name, opts);
     const module = this.registry.getModule(name) as ModuleEntryWithHooks;
     if (module.state !== 'UNLOADED') {
       throw new Error(`Module '${name}' không ở trạng thái UNLOADED sau unload`);

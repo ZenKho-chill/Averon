@@ -7,10 +7,11 @@
   "properties": {
     "app": {
       "type": "object",
-      "required": ["name", "version"],
+      "required": ["name"],
+      "description": "app.version KHÔNG khai báo ở đây — tự lấy từ package.json khi boot (§10). EN: app.version is derived from package.json at boot — not declared here.",
       "properties": {
         "name": { "type": "string", "minLength": 1 },
-        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Optional — bị ghi đè bằng version package.json nếu khai báo. EN: Optional — overridden by package.json version if set." }
       }
     },
     "discord": {
@@ -70,6 +71,15 @@
       "properties": {
         "hot_reload": { "type": "boolean" },
         "show_stacktrace": { "type": "boolean" }
+      }
+    },
+    "console": {
+      "type": "object",
+      "description": "Operator console — nhập lệnh averon ... từ stdin. Optional, mặc định trong code.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "prompt": { "type": "string", "minLength": 1 },
+        "soft_stop_timeout_ms": { "type": "number", "minimum": 0 }
       }
     },
     "modules": {

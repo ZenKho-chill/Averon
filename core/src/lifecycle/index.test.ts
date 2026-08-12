@@ -144,4 +144,81 @@ describe('Lifecycle', () => {
     expect(onLoad).toHaveBeenCalled();
     expect(registry.getModule('ping').state).toBe('LOADED');
   });
+
+  it('unloadModule soft: DRAINING trong khi onUnload chạy, rồi UNLOADED', async () => {
+    const registry = new Registry();
+    const crashReporter = makeCrashReporter();
+    const lifecycle = new Lifecycle(registry, crashReporter as never);
+
+    let duringHook: string | undefined;
+    const moduleEntry: ModuleEntryWithHooks = {
+      name: 'ping',
+      version: '1.0.0',
+      state: 'LOADED',
+      entry: 'modules/ping/src/index.ts',
+      commands: [],
+      events: [],
+      runtime: { language: 'typescript', engine: 'node', version: '>=18', transport: 'in-process' },
+      onUnload: () => {
+        duringHook = registry.getModule('ping').state;
+      },
+    };
+    registry.registerModule(moduleEntry);
+
+    await lifecycle.unloadModule('ping');
+    expect(duringHook).toBe('DRAINING');
+    expect(registry.getModule('ping').state).toBe('UNLOADED');
+  });
+
+  it('unloadModule force: nuốt lỗi onUnload → UNLOADED, không throw', async () => {
+    const registry = new Registry();
+    const crashReporter = makeCrashReporter();
+    const lifecycle = new Lifecycle(registry, crashReporter as never);
+
+    const moduleEntry: ModuleEntryWithHooks = {
+      name: 'ping',
+      version: '1.0.0',
+      state: 'LOADED',
+      entry: 'modules/ping/src/index.ts',
+      commands: [],
+      events: [],
+      runtime: { language: 'typescript', engine: 'node', version: '>=18', transport: 'in-process' },
+      onUnload: () => {
+        throw new Error('boom');
+      },
+    };
+    registry.registerModule(moduleEntry);
+
+    await expect(lifecycle.unloadModule('ping', { force: true })).resolves.toBeUndefined();
+    expect(registry.getModule('ping').state).toBe('UNLOADED');
+    expect(crashReporter.handleModuleFailure).toHaveBeenCalledWith('ping', expect.stringContaining('boom'));
+  });
+
+  it('reloadModule force: unload force (nuốt lỗi) + load lại', async () => {
+    const registry = new Registry();
+    const crashReporter = makeCrashReporter();
+    const lifecycle = new Lifecycle(registry, crashReporter as never);
+
+    const onLoad = vi.fn();
+    const onUnload = vi.fn(async () => {
+      throw new Error('boom');
+    });
+    const moduleEntry: ModuleEntryWithHooks = {
+      name: 'ping',
+      version: '1.0.0',
+      state: 'LOADED',
+      entry: 'modules/ping/src/index.ts',
+      commands: [],
+      events: [],
+      runtime: { language: 'typescript', engine: 'node', version: '>=18', transport: 'in-process' },
+      onLoad,
+      onUnload,
+    };
+    registry.registerModule(moduleEntry);
+
+    await lifecycle.reloadModule('ping', { force: true });
+    expect(onUnload).toHaveBeenCalled();
+    expect(onLoad).toHaveBeenCalled();
+    expect(registry.getModule('ping').state).toBe('LOADED');
+  });
 });

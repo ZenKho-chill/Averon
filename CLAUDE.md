@@ -73,13 +73,14 @@ Averon là hệ thống **Discord bot đa chức năng**, thiết kế theo hư�
 
 ### 2.2 Vòng đời module (Module Lifecycle)
 
-Core quản lý theo 5 trạng thái: `REGISTERED → LOADING → LOADED → RUNNING → UNLOADED`
+Core quản lý theo 7 trạng thái: `REGISTERED → LOADING → LOADED → RUNNING → DRAINING → UNLOADED` (+ `FAULTED` khi lỗi)
 
 1. **REGISTERED** — `loader` đọc `module.yml`, validate manifest (bắt buộc có `name`, `version`, `entry`, `runtime`).
 2. **LOADING** — resolve dependencies (`load.after`, `requires`), import entry point, attach commands/events.
 3. **LOADED** — gọi hook `onLoad()` của module (nếu có).
 4. **RUNNING** — module đã nhận và xử lý event/command.
-5. **UNLOADED** — gọi hook `onUnload()` (cleanup: đóng handle, clear interval, unsubscribe), rồi gỡ khỏi registry.
+5. **DRAINING** — đang soft-unload (qua operator console): đã detach listener (không nhận command mới), chờ in-flight handler xong rồi mới `onUnload`. `--force` bỏ qua bước chờ.
+6. **UNLOADED** — gọi hook `onUnload()` (cleanup: đóng handle, clear interval, unsubscribe), rồi gỡ khỏi registry.
 
 Lỗi ở bất kỳ bước nào → module chuyển sang trạng thái **FAULTED** (bị cô lập, xem §9.2) chứ **không** làm sập core.
 
@@ -136,7 +137,8 @@ averon/
 │   │   ├── registry/              # service registry (DI) + module registry
 │   │   ├── ipc/                   # lớp giao tiếp đa ngôn ngữ: in-process / subprocess / socket / ffi
 │   │   ├── discord/               # client Discord gateway wrapper (login, middleware, rate-limit)
-│   │   └── crash/                 # global error handlers, quarantine logic, crash report writer
+│   │   ├── crash/                 # global error handlers, quarantine logic, crash report writer
+│   │   └── console/               # operator console: stdin REPL + ModuleManager (status, modules load/unload/reload)
 │   ├── tests/
 │   └── tsconfig.json
 │
@@ -325,7 +327,7 @@ tests:
 ```yaml
 app:
   name: averon
-  version: 0.4.0          # tuân theo quy tắc version §10
+  # version tự lấy từ package.json (§10) — không cần khai báo ở đây
 
 discord:
   # ⚠️ REPO PUBLIC — KHÔNG commit token thật! Chỉ sửa trong config.yml (gitignored).
@@ -416,6 +418,8 @@ Không có env vars — mode = tự chỉnh giá trị trong **1 file** `config/
 
 **Cách `syncCommands` hoạt động** (khi boot, theo scope bật): fetch danh sách command hiện có trên Discord → **xóa stale** (command không còn tồn tại trong manifest, kể cả lệnh đã đổi scope global→guild) → đăng ký lại. Gộp slash (`scope: [global]`) + context menu (`scope: [user]`) vào **1 lần `set()`** cho target global — tránh overwrite nhau.
 
+> **Chạy dev:** `npm run dev` dùng `node --watch --import tsx` — **KHÔNG dùng `tsx watch`** (nó nuốt stdin cho phím restart "rs", làm console `averon> ` không nhận lệnh). `node --watch` forward stdin đầy đủ và vẫn tự restart khi sửa file. Regression test: `core/src/console/dev-stdin.test.ts`.
+
 ---
 
 ## 9. Anti-crash & tự phục hồi (Anti-crash & Self-recovery)
@@ -451,7 +455,7 @@ Version dạng `<MAJOR>.<MINOR>.<PATCH>`. Chỉ **một** vị trí tăng trong 
 | **MINOR** (số giữa) | `x.0.x` → tăng số giữa | **Thêm tính năng mới** (backward-compatible) | `1.2.4 → 1.3.0` |
 | **MAJOR** (số đầu) | `0.x.x` → tăng số đầu | **Breaking change / cập nhật lớn** | `1.3.0 → 2.0.0` |
 
-> Ghi chú: quy tắc này khớp ngữ nghĩa SemVer chuẩn, được quy định rõ cho từng trường hợp để tránh tranh cãi khi bump. **Mỗi module có version riêng** trong `module.yml`; bot tổng có version riêng trong `config/config.yml` → `app.version`.
+> Ghi chú: quy tắc này khớp ngữ nghĩa SemVer chuẩn, được quy định rõ cho từng trường hợp để tránh tranh cãi khi bump. **Mỗi module có version riêng** trong `module.yml`; **bot tổng có version trong `package.json`** — `app.version` khi boot tự lấy từ đó (không khai báo trong `config.yml`), nguồn sự thật duy nhất để tránh drift.
 
 ### 10.2 CHANGELOG — format & quy tắc
 - File `CHANGELOG.md` **song ngữ**, mỗi mục version gồm: **ngày, loại thay đổi, module liên quan**.

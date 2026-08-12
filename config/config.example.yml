@@ -10,7 +10,8 @@
 
 app:
   name: averon
-  version: 0.7.0          # tuân theo quy tắc version §10
+  # version TỰ LẤY từ package.json (nguồn sự thật duy nhất, §10) — không cần khai báo ở đây.
+  # EN: version is derived from package.json (single source of truth, §10) — no need to declare it here.
 
 discord:
   # ⚠️ Repo này PUBLIC — KHÔNG commit token thật! Thay placeholder cục bộ.
@@ -49,6 +50,15 @@ crash:
 dev:
   hot_reload: false
   show_stacktrace: true
+
+# Operator console — nhập lệnh `averon ...` từ stdin để quản lý bot (status, modules load/unload/reload).
+# EN: Operator console — type `averon ...` in the terminal to manage the bot.
+console:
+  enabled: true
+  prompt: "averon> "
+  # Thời gian chờ soft-stop khi unload module đang có in-flight handler (ms). Vượt → báo retry --force.
+  # EN: Soft-stop wait when unloading a busy module (ms). Timeout → retry with --force.
+  soft_stop_timeout_ms: 15000
 
 # Override config từng module theo tên — merge lên defaults của module (admin chỉnh).
 # EN: Per-module config override — merged onto the module's defaults (admin editable).

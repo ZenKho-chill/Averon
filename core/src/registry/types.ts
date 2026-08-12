@@ -17,6 +17,8 @@ export type ServiceKey = keyof CoreServices;
 export interface CommandContext {
   config: Record<string, unknown>;
   logger: Logger;
+  /** Tên module sở hữu command (dùng để đếm in-flight handler qua UsageTracker — soft-stop). */
+  moduleName?: string;
 }
 
 /** Handler command: nhận interaction + ctx (config module, logger), trả promise/void. */
@@ -25,7 +27,7 @@ export type CommandHandler = (interaction: unknown, ctx: CommandContext) => Prom
 export interface ModuleRegistryEntry {
   name: string;
   version: string;
-  state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'UNLOADED' | 'FAULTED';
+  state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'DRAINING' | 'UNLOADED' | 'FAULTED';
   entry: string; // đường dẫn entry point
   config?: Record<string, unknown>; // module config đã merge (defaults + override)
   commands: Array<{
