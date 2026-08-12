@@ -32,6 +32,11 @@ EN: new core subsystem `core/console` — deliberate core decision (lifecycle co
   EN: Duplicate output on unload/reload: `modules/ping` printed `Module ping unloaded` via `console.log` (bypassing the logger, mixing into the operator console's own `Unloaded module 'ping'`). Removed console.log from the sample module's `onLoad`/`onUnload` + fixed the `scripts/new-module.mjs` scaffold so new modules don't repeat it.
 - **`npm start` (bản build) fail**: `bootstrap.ts` tính project root bằng `join(dirname(import.meta.url), '..', '..')` → từ `dist/core/src` ra `dist` (sai), nên `backupConfig` tìm `dist/config/config.yml` không có. Đổi sang `findProjectRoot()` — chạy đúng từ src lẫn dist (VI)
   EN: `npm start` (built bundle) failed: `bootstrap.ts` computed the project root as `join(dirname(import.meta.url), '..', '..')` → from `dist/core/src` that resolved to `dist` (wrong), so `backupConfig` looked for the missing `dist/config/config.yml`. Switched to `findProjectRoot()` — correct from both src and dist.
+
+## [0.8.1] — 2026-08-12
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
 - **Loop load↔reload sau khi unload**: `load` chặn module UNLOADED ("already registered — use reload") còn `reload` chặn UNLOADED ("already unloaded — use load") → không đường nào load lại được. Fix: `load` cho phép module UNLOADED — gỡ entry cũ khỏi registry, load fresh lại từ đĩa (VI)
   EN: load↔reload loop after unload: `load` rejected UNLOADED modules ("already registered — use reload") while `reload` rejected them ("already unloaded — use load") → no way to re-load. Fixed: `load` accepts UNLOADED modules — drops the stale registry entry and re-loads fresh from disk.
 - **Console xử lý lệnh song song → race**: `rl.on('line')` gọi `void handleLine()` không await — lệnh sau (vd `load`) chạy đè lệnh trước đang dở (vd `unload` còn DRAINING) khi pipe nhanh hoặc soft-stop chờ in-flight. Fix: `OperatorConsole` tuần tự hoá qua promise chain — mỗi lệnh đợi lệnh trước xong (VI)
