@@ -42,7 +42,11 @@ describe('DiscordClient', () => {
     const config = makeConfig();
     const discord = new DiscordClient(config, logger);
     // @ts-expect-error — private field
-    discord.client.login = vi.fn().mockResolvedValue(undefined);
+    discord.client.login = vi.fn().mockImplementation(() => {
+      // @ts-expect-error — private field
+      discord.client.emit('ready'); // mock login emit ready → connectAndWaitReady resolve ngay
+      return Promise.resolve();
+    });
     await discord.login();
     // @ts-expect-error — private field
     expect(discord.client.login).toHaveBeenCalledWith('test-token');
