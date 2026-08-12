@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.8.2] — 2026-08-12
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- **Không phản hồi commands ở bản build (npm start / dist)**: core loader import file source `.ts` (`modules/ping/commands/ping.ts`) từ manifest, node thuần ở dist không import được `.ts` → `handlerFn` bị `undefined` → command được sync lên Discord nhưng bot không phản hồi khi gọi. Fix: tạo `core/src/loader/resolve.ts` chứa hàm pure `resolveModuleFile` để tự động map đường dẫn sang file đã biên dịch trong `dist/modules/<name>/*.js` nếu đang chạy bản build (runningFromDist=true), giữ fallback về source nếu thiếu file built (VI)
+  EN: No command response in built dist (npm start): core loader imported source `.ts` files (`modules/ping/commands/ping.ts`) from manifest, but plain node in dist cannot import `.ts` → `handlerFn` became `undefined` → commands synced to Discord but bot never responded. Fixed: created `core/src/loader/resolve.ts` with pure `resolveModuleFile` to automatically map paths to compiled `.js` files in `dist/modules/<name>/*.js` when running from dist (runningFromDist=true), keeping a fallback to source if missing.
+
 ## [0.8.1] — 2026-08-12
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 
