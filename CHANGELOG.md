@@ -20,6 +20,8 @@ EN: new core subsystem `core/console` — deliberate core decision (lifecycle co
   EN: New `console:` config section (`enabled`/`prompt`/`soft_stop_timeout_ms`) — optional, defaults in code.
 - **`CommandContext.moduleName`** (additive) — để đếm in-flight handler theo module (VI)
   EN: `CommandContext.moduleName` (additive) — enables per-module in-flight tracking.
+- **Quick command `-help`**: gõ thẳng `-help` không cần prefix `averon` để xem help (VI)
+  EN: Quick command `-help`: type bare `-help` (no `averon` prefix) to show help.
 
 ### Fixed
 - **Console không nhận lệnh khi `npm run dev`**: `tsx watch` nuốt stdin cho phím restart "rs" → `averon> ` không đọc được input. Đổi dev script sang `node --watch --import tsx` (vẫn tự restart khi sửa file, stdin forward đầy đủ). Có regression test `core/src/console/dev-stdin.test.ts` (VI)

@@ -116,5 +116,6 @@ export function handleHelp(): string {
     'averon modules unload <name> [--force]  — soft-stop (wait in-flight) or force unload',
     'averon modules reload <name> [--force]  — soft or force reload',
     'averon help                          — this help',
+    '-help                                — quick help (shorthand)',
   ].join('\n');
 }

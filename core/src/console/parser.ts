@@ -5,6 +5,7 @@
  * Grammar:
  *   averon status
  *   averon help
+ *   -help                      (quick: shorthand cho 'averon help')
  *   averon modules list
  *   averon modules status
  *   averon modules load <name>
@@ -31,8 +32,16 @@ export function parseConsoleCommand(line: string): ParseResult {
   if (!trimmed) return { ok: false, error: 'empty input' };
 
   const tokens = trimmed.split(/\s+/);
+
+  // Quick command: gõ thẳng `-help` không cần prefix `averon`.
+  // EN: Quick command — bare `-help`, no `averon` prefix needed.
+  if (tokens[0] === '-help') {
+    if (tokens.length > 1) return { ok: false, error: `'-help' takes no arguments — got: ${tokens.slice(1).join(' ')}` };
+    return { ok: true, command: { kind: 'help' } };
+  }
+
   if (tokens[0] !== 'averon') {
-    return { ok: false, error: `unknown prefix '${tokens[0]}' — commands start with 'averon'` };
+    return { ok: false, error: `unknown prefix '${tokens[0]}' — commands start with 'averon' (quick: '-help')` };
   }
   const rest = tokens.slice(1);
   if (rest.length === 0) return { ok: false, error: 'missing command — try "averon help"' };

@@ -208,4 +208,9 @@ describe('handleHelp', () => {
     expect(out).toContain('averon modules unload');
     expect(out).toContain('averon modules reload');
   });
+
+  it('có quick command -help', () => {
+    const out = handleHelp();
+    expect(out).toContain('-help');
+  });
 });

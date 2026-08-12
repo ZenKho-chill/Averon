@@ -7,6 +7,17 @@ describe('parseConsoleCommand', () => {
     expect(parseConsoleCommand('averon help')).toEqual({ ok: true, command: { kind: 'help' } });
   });
 
+  it('quick command -help = shorthand cho averon help (có whitespace)', () => {
+    expect(parseConsoleCommand('-help')).toEqual({ ok: true, command: { kind: 'help' } });
+    expect(parseConsoleCommand('  -help  ')).toEqual({ ok: true, command: { kind: 'help' } });
+  });
+
+  it('reject: -help không nhận argument', () => {
+    const r = parseConsoleCommand('-help status');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("'-help' takes no arguments");
+  });
+
   it('parse averon modules list / status', () => {
     expect(parseConsoleCommand('averon modules list')).toEqual({ ok: true, command: { kind: 'modulesList' } });
     expect(parseConsoleCommand('averon modules status')).toEqual({ ok: true, command: { kind: 'modulesStatus' } });

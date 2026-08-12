@@ -97,6 +97,19 @@ describe('OperatorConsole', () => {
     await pending;
   });
 
+  it('-help (quick command) hiện help giống averon help', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const console = new OperatorConsole({ ...makeDeps(), input, output });
+    console.start();
+
+    const pending = readUntil(output, '-help');
+    input.write('-help\n');
+    const out = await pending;
+    expect(out).toContain('averon status');
+    expect(out).toContain('-help');
+  });
+
   it('EOF (piped input) → stop() gọi logger, không throw', async () => {
     const input = new PassThrough();
     const output = new PassThrough();
