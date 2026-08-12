@@ -107,7 +107,7 @@ export class ModuleManager {
     return { ok: true, outcome: 'unloaded', name };
   }
 
-  /** Reload module — soft unload (chờ idle) hoặc force, rồi load lại (tái dùng entry trong registry). */
+  /** Reload module — soft unload (chờ idle) hoặc force, rồi LOAD LẠI FRESH TỪ ĐĨA (config + handler mới nhất). */
   async reload(name: string, opts: { force?: boolean }): Promise<ModuleReloadResult> {
     if (!this.deps.registry.hasModule(name)) return { ok: false, error: `module '${name}' not loaded — use "averon modules load ${name}"` };
 
@@ -116,6 +116,7 @@ export class ModuleManager {
     if (state === 'FAULTED' && !opts.force) return { ok: false, error: `module '${name}' is FAULTED — retry with --force` };
     if (state === 'DRAINING' && !opts.force) return { ok: false, error: `module '${name}' is draining — retry with --force` };
 
+    // Dừng nhận command mới trước (soft-stop: không ai vào thêm nữa).
     this.detachModuleCommands(name);
 
     if (opts.force) {
@@ -133,8 +134,28 @@ export class ModuleManager {
     }
 
     this.deps.usage.reset(name);
+
+    // Load lại FRESH từ đĩa — đọc lại defaults.yml (config) + handler mới nhất. Trước đây reload
+    // tái dùng entry cũ trong registry → config đổi trên đĩa KHÔNG có hiệu lực sau reload.
+    // EN: Reload fresh from disk — re-reads defaults.yml (config) + latest handlers. Previously
+    // reload reused the stale registry entry, so config changes on disk never took effect.
     try {
-      const entry = this.deps.registry.getModule(name) as ModuleEntryWithHooks;
+      const dir = resolveModuleDir(this.deps.root, name);
+      if (!dir) return { ok: false, error: `module '${name}' not found on disk (modules/${name}/module.yml missing)` };
+
+      this.deps.registry.unregisterModule(name);
+      const entry = await this.deps.loader.loadModule(dir);
+
+      // Collision check trước khi load — nếu lỗi, gỡ khỏi registry để không để module half-registered.
+      for (const cmd of entry.commands) {
+        if (!cmd.handlerFn) continue;
+        const owner = this.attachedCommands.get(cmd.name);
+        if (owner && owner !== name) {
+          this.deps.registry.unregisterModule(name);
+          return { ok: false, error: `command /${cmd.name} already owned by module '${owner}'` };
+        }
+      }
+
       await this.deps.lifecycle.loadModule(entry);
       this.attachModuleCommands(entry);
       this.deps.registry.setModuleState(name, 'RUNNING');
@@ -156,6 +177,7 @@ export class ModuleManager {
         config: entry.config ?? {},
         logger: this.deps.logger,
         moduleName: entry.name,
+        registry: this.deps.registry,
       });
       this.attachedCommands.set(cmd.name, entry.name);
     }

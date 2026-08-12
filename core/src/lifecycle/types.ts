@@ -11,4 +11,6 @@ export interface ModuleLifecycleHooks {
   onUnload?: () => Promise<void> | void;
 }
 
+// getConfig nằm trong ModuleRegistryEntry (registry/types.ts) — handler lấy config mới nhất qua registry.
+// EN: getConfig lives on ModuleRegistryEntry (registry/types.ts) so handlers can read the latest config via the registry.
 export type ModuleEntryWithHooks = ModuleRegistryEntry & ModuleLifecycleHooks;

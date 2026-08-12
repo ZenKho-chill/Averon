@@ -19,6 +19,16 @@ import type { ModuleEntryWithHooks } from '../lifecycle/types.js';
 import type { CrashReporter } from '../crash/index.js';
 import { resolveModuleFile, RUNNING_FROM_DIST } from './resolve.js';
 
+/** Import ESM có cache-buster (`?v=<time>-<seq>`) — Node cache `import()` theo URL, không bust thì
+ *  lần load lại (reload module) nạp lại module CŨ đã cache → thay đổi code handler/entry không có hiệu lực.
+ *  EN: ESM import with a cache-buster query — Node caches `import()` by URL; without busting, a module
+ *  reload re-imports the SAME cached module (old code), so handler/entry code changes never take effect. */
+let importBustSeq = 0;
+function importModuleFresh(url: string): Promise<unknown> {
+  const separator = url.includes('?') ? '&' : '?';
+  return import(`${url}${separator}v=${Date.now()}-${importBustSeq++}`) as Promise<unknown>;
+}
+
 export class ModuleLoader {
   constructor(
     private readonly registry: Registry,
@@ -63,7 +73,8 @@ export class ModuleLoader {
       if (cmd.handler) {
         const handlerPath = this.resolveModuleFile(moduleDir, cmd.handler);
         try {
-          const h = await import(pathToFileURL(handlerPath).href);
+          // importModuleFresh: bust cache → reload nạp lại CODE mới nhất của handler (hot-reload code).
+          const h = (await importModuleFresh(pathToFileURL(handlerPath).href)) as { handler?: NonNullable<ModuleRegistryEntry['commands'][number]['handlerFn']> };
           withHandler.handlerFn = h.handler;
         } catch (err) {
           this.crashReporter.handleModuleFailure(manifest.name, `handler import failed (${cmd.handler}): ${err}`);
@@ -75,12 +86,15 @@ export class ModuleLoader {
     // Nạp config module: defaults.yml (nếu khai báo) merge override từ config tổng
     const moduleConfig = this.loadModuleConfig(manifest, moduleDir);
 
+    // Cache config đã merge để tránh merge lại mỗi lần load (fix reload chậm + race condition config cũ/mới)
     const moduleEntry: ModuleEntryWithHooks = {
       name: manifest.name,
       version: manifest.version,
       state: 'REGISTERED',
       entry,
       config: moduleConfig,
+      // Cache config đã merge trong entry để handler có thể lấy config mới nhất qua registry
+      getConfig: () => moduleConfig ?? {},
       commands,
       events: manifest.events ?? [],
       runtime: {
@@ -99,25 +113,25 @@ export class ModuleLoader {
   }
 
   /** Nạp config module: defaults.yml (khai báo trong manifest.config.defaults) merge override từ config tổng. */
-  private loadModuleConfig(manifest: ModuleManifest, moduleDir: string): Record<string, unknown> | undefined {
+  private loadModuleConfig(manifest: ModuleManifest, moduleDir: string): Record<string, unknown> {
     const defaultsFile = manifest.config?.defaults;
     let merged: Record<string, unknown> | undefined;
 
     if (defaultsFile) {
       const defaultsPath = join(moduleDir, defaultsFile);
-      if (!existsSync(defaultsPath)) {
+      if (existsSync(defaultsPath)) {
+        try {
+          merged = (YAML.parse(readFileSync(defaultsPath, 'utf8')) ?? {}) as Record<string, unknown>;
+        } catch (err) {
+          this.crashReporter.handleModuleFailure(manifest.name, `config defaults parse failed: ${err}`);
+        }
+      } else {
         this.crashReporter.handleModuleFailure(manifest.name, `config defaults not found: ${defaultsFile}`);
-        return undefined;
-      }
-      try {
-        merged = (YAML.parse(readFileSync(defaultsPath, 'utf8')) ?? {}) as Record<string, unknown>;
-      } catch (err) {
-        this.crashReporter.handleModuleFailure(manifest.name, `config defaults parse failed: ${err}`);
-        return undefined;
       }
     }
 
-    // Validate theo schema module (nếu khai báo) — fail-fast, lỗi → ConfigError
+    // Validate theo schema module (nếu khai báo VÀ có defaults load được) — fail-fast, lỗi → ConfigError
+    // EN: Validate against the module schema only when defaults were actually loaded.
     const schemaFile = manifest.config?.schema;
     if (schemaFile && merged) {
       try {
@@ -136,7 +150,7 @@ export class ModuleLoader {
       merged = merged ? (deepMerge(merged, override as Record<string, unknown>) as Record<string, unknown>) : (override as Record<string, unknown>);
     }
 
-    return merged;
+    return merged ?? {};
   }
 
   /** Map đường dẫn module file → nơi thực sự import được (source .ts hoặc bản built .js trong dist/). */
@@ -164,7 +178,11 @@ export class ModuleLoader {
       throw new ConfigError(`Entry point không tồn tại: ${entry}. EN: Entry point not found: ${entry}`);
     }
     // Import ESM (JS/TS) — pathToFileURL để xử lý space/backslash trên Windows
-    const moduleExports = await import(pathToFileURL(entry).href);
+    // importModuleFresh: bust cache → reload nạp lại CODE entry mới nhất (hot-reload code).
+    const moduleExports = (await importModuleFresh(pathToFileURL(entry).href)) as {
+      onLoad?: () => Promise<void> | void;
+      onUnload?: () => Promise<void> | void;
+    };
     return {
       onLoad: moduleExports.onLoad,
       onUnload: moduleExports.onUnload,

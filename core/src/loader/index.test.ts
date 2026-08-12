@@ -184,4 +184,47 @@ entry: src/index.py
       fx.cleanup();
     }
   });
+
+  it('load lại (reload) sau khi đổi CODE handler → handler mới được nạp (bust import cache — hot-reload code)', async () => {
+    const fx = makeFixture({
+      'module.yml': `
+name: ping
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: '>=18'
+  transport: in-process
+entry: src/index.ts
+commands:
+  - name: ping
+    handler: commands/ping.ts
+`,
+      'src/index.ts': `export const onLoad = () => {};`,
+      'commands/ping.ts': `export async function handler(interaction) { await interaction.reply('v1'); }`,
+    });
+    try {
+      const registry = new Registry();
+      const crashReporter = makeCrashReporter();
+      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+
+      // Load lần đầu — handler bản v1
+      const entry1 = await loader.loadModule(fx.dir);
+      const reply1 = vi.fn();
+      await entry1.commands[0].handlerFn?.({ reply: reply1 });
+      expect(reply1).toHaveBeenCalledWith('v1');
+
+      // Đổi CODE handler trên đĩa (mô phỏng admin sửa module) rồi load lại như manager.reload
+      writeFileSync(join(fx.dir, 'commands', 'ping.ts'), `export async function handler(interaction) { await interaction.reply('v2'); }`);
+      registry.unregisterModule('ping');
+      const entry2 = await loader.loadModule(fx.dir);
+
+      // KHÔNG được dùng module cũ trong import cache — phải là handler mới (v2)
+      const reply2 = vi.fn();
+      await entry2.commands[0].handlerFn?.({ reply: reply2 });
+      expect(reply2).toHaveBeenCalledWith('v2');
+    } finally {
+      fx.cleanup();
+    }
+  });
 });

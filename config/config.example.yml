@@ -18,6 +18,9 @@ discord:
   # EN: This repo is PUBLIC — never commit a real token! Replace the placeholder locally.
   token: "PASTE_DISCORD_TOKEN_HERE"
   intents: [Guilds, GuildMessages, MessageContent]
+  # Timeout chờ login + gateway ready (ms) trước khi boot fail-fast (tránh treo boot khi mạng chậm).
+  # EN: Login + gateway-ready timeout (ms) before boot fails fast (avoids hanging on a slow network).
+  login_timeout_ms: 30000
   # Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true.
   # EN: Guild ID for guild-scoped command sync — required when register_commands.guild=true.
   # guild_id: "123456789012345678"
