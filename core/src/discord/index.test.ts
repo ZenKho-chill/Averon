@@ -37,16 +37,50 @@ describe('DiscordClient', () => {
     expect(discord.client).toBeDefined();
   });
 
-  it('login gọi client.login với token từ config', async () => {
+  it('login gọi client.login với token từ config (client đã ready → không chờ event)', async () => {
     const logger = makeLogger();
     const config = makeConfig();
     const discord = new DiscordClient(config, logger);
     // @ts-expect-error — private field
     discord.client.login = vi.fn().mockResolvedValue(undefined);
+    // @ts-expect-error — private field
+    discord.client.isReady = vi.fn(() => true); // đã ready → login không bị treo chờ 'ready'
     await discord.login();
     // @ts-expect-error — private field
     expect(discord.client.login).toHaveBeenCalledWith('test-token');
     expect(logger.info).toHaveBeenCalledWith('Discord client đã login thành công', expect.anything());
+  });
+
+  it('login chưa ready → đợi event ready rồi mới resolve (fix latency -1 khi khởi động)', async () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    const discord = new DiscordClient(config, logger);
+    // @ts-expect-error — private field
+    discord.client.login = vi.fn().mockResolvedValue(undefined);
+    // @ts-expect-error — private field
+    discord.client.isReady = vi.fn(() => false); // chưa ready → login phải chờ 'ready'
+    const loginPromise = discord.login();
+    setTimeout(() => {
+      // @ts-expect-error — private field
+      discord.client.emit('ready');
+    }, 10);
+    await loginPromise;
+    expect(logger.debug).toHaveBeenCalledWith('Discord client đã sẵn sàng (ready event)');
+  });
+
+  it('login không ready trong timeout → reject (boot fail-fast) + destroy cleanup', async () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    const discord = new DiscordClient(config, logger);
+    // @ts-expect-error — private field
+    discord.client.login = vi.fn().mockResolvedValue(undefined);
+    // @ts-expect-error — private field
+    discord.client.isReady = vi.fn(() => false); // không bao giờ ready
+    // @ts-expect-error — private field
+    discord.client.destroy = vi.fn().mockResolvedValue(undefined);
+    await expect(discord.login(50)).rejects.toThrow(/không hoàn thành trong 50ms/);
+    // @ts-expect-error — private field
+    expect(discord.client.destroy).toHaveBeenCalled();
   });
 
   it('login thiếu token → lỗi', async () => {

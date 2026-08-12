@@ -22,6 +22,9 @@ export async function handler(interaction: InteractionLike, ctx?: CommandContext
 | `config` | `Record<string, unknown>` | Config module sau khi merge (`defaults.yml` + override từ `config/config.yml → modules.<name>`). Là **config source chính** cho module — không đọc file trực tiếp. |
 | `logger` | `Logger` | Logger chuẩn của core. Dùng để log thay vì `console.log` (có source/context, che secret, ghi file). |
 | `moduleName` | `string` (optional) | Tên module sở hữu command. Core dùng nội bộ để đếm in-flight handler khi soft-unload (`DRAINING`). Module thường không cần đụng — nếu cần tên module, đọc từ `ctx.moduleName`. |
+| `registry` | `RegistryLike` (optional) | Tra module đang chạy. Dùng `ctx.registry.hasModule(name)` + `ctx.registry.getModule(name).getConfig?.()` để lấy config module **mới nhất** (sau reload, config đã đổi trên đĩa sẽ được nạp lại — đừng dùng `ctx.config` nếu module có thể bị reload). |
+
+> `RegistryLike` chỉ lộ 2 hàm non-destructive: `hasModule(name): boolean` và `getModule(name): ModuleRegistryEntry`. Đọc metadata (name/version/state/config) là an toàn; **không** gọi `handlerFn`/`commands` của module khác (vi phạm §5.3).
 
 > Nếu module cần thêm service (database, ...), mở issue/PR — đừng tự đăng ký vào core registry.
 

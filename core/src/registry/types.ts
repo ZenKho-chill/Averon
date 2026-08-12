@@ -13,12 +13,22 @@ export interface CoreServices {
 
 export type ServiceKey = keyof CoreServices;
 
+/** Tối thiểu core expose cho module để tra module đang chạy (không phải toàn bộ Registry). */
+export interface RegistryLike {
+  /** Kiểm tra module có tồn tại không (non-throwing). */
+  hasModule(name: string): boolean;
+  /** Lấy module theo tên. */
+  getModule(name: string): ModuleRegistryEntry;
+}
+
 /** Context truyền cho handler command (module) — config module + logger (§2.1). */
 export interface CommandContext {
   config: Record<string, unknown>;
   logger: Logger;
   /** Tên module sở hữu command (dùng để đếm in-flight handler qua UsageTracker — soft-stop). */
   moduleName?: string;
+  /** Registry core (tra module) — handler đọc config MỚI NHẤT qua registry.getModule(name).getConfig() sau reload. */
+  registry?: RegistryLike;
 }
 
 /** Handler command: nhận interaction + ctx (config module, logger), trả promise/void. */
@@ -30,6 +40,8 @@ export interface ModuleRegistryEntry {
   state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'DRAINING' | 'UNLOADED' | 'FAULTED';
   entry: string; // đường dẫn entry point
   config?: Record<string, unknown>; // module config đã merge (defaults + override)
+  /** Cache config đã merge trong entry — handler lấy config mới nhất qua registry sau reload. */
+  getConfig?: () => Record<string, unknown> | undefined;
   commands: Array<{
     name: string;
     handler: string;            // path file handler (tương đối module dir)
