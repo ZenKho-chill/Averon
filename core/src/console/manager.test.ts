@@ -102,6 +102,20 @@ describe('ModuleManager.load', () => {
     if (!result.ok) expect(result.error).toContain('already registered');
   });
 
+  it('load lại module đã UNLOADED → gỡ entry cũ, load fresh từ đĩa, RUNNING + attach lại command', async () => {
+    const { deps, registry, registerCommand } = makeDeps();
+    const manager = new ModuleManager(deps);
+    await manager.load('ping');
+    await manager.unload('ping', { force: true });
+    expect(registry.getModule('ping').state).toBe('UNLOADED');
+
+    const result = await manager.load('ping');
+    expect(result).toEqual({ ok: true, name: 'ping' });
+    expect(registry.getModule('ping').state).toBe('RUNNING');
+    // attach 2 lần: load đầu + load lại sau unload (fix loop load↔reload)
+    expect(registerCommand).toHaveBeenCalledTimes(2);
+  });
+
   it('load module không tồn tại trên đĩa → lỗi', async () => {
     const { deps } = makeDeps();
     const manager = new ModuleManager(deps);

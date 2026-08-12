@@ -32,6 +32,8 @@ export class OperatorConsole {
   private readonly prompt: string;
   private rl?: Interface;
   private closed = false;
+  /** Chuỗi lệnh tuần tự — REPL xử lý 1 lệnh một, lệnh sau đợi lệnh trước xong. */
+  private chain: Promise<void> = Promise.resolve();
 
   constructor(private readonly opts: OperatorConsoleOptions) {
     this.input = opts.input ?? process.stdin;
@@ -51,7 +53,11 @@ export class OperatorConsole {
 
     if (terminal) rl.setPrompt(this.prompt);
     rl.on('line', (line) => {
-      void this.handleLine(line);
+      // Tuần tự hoá: lệnh sau đợi lệnh trước hoàn tất — tránh race (vd load chạy khi unload còn DRAINING).
+      // EN: serialize commands — each waits for the previous one, avoiding races (e.g. load while unload is still DRAINING).
+      this.chain = this.chain
+        .then(() => this.handleLine(line))
+        .catch((err) => this.opts.logger.error('Operator console command thất bại', { error: err }));
     });
     rl.on('close', () => this.stop());
 
