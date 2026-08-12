@@ -21,6 +21,10 @@ EN: new core subsystem `core/console` — deliberate core decision (lifecycle co
 - **`CommandContext.moduleName`** (additive) — để đếm in-flight handler theo module (VI)
   EN: `CommandContext.moduleName` (additive) — enables per-module in-flight tracking.
 
+### Fixed
+- **Console không nhận lệnh khi `npm run dev`**: `tsx watch` nuốt stdin cho phím restart "rs" → `averon> ` không đọc được input. Đổi dev script sang `node --watch --import tsx` (vẫn tự restart khi sửa file, stdin forward đầy đủ). Có regression test `core/src/console/dev-stdin.test.ts` (VI)
+  EN: Console unresponsive under `npm run dev`: `tsx watch` swallows stdin for the "rs" restart key, so `averon> ` never reads input. Switched the dev script to `node --watch --import tsx` (still auto-restarts on file change, stdin fully forwarded). Regression test in `core/src/console/dev-stdin.test.ts`.
+
 ## [0.7.0] — 2026-08-12
 **Loại / Type:** MINOR — tính năng mới / new feature
 
