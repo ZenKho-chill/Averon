@@ -176,9 +176,15 @@ export class ModuleManager {
     if (!info) throw new Error(`cannot read module.yml in ${dir}`);
     const { name } = info;
 
-    if (this.deps.registry.hasModule(name)) {
-      throw new Error(`module '${name}' already registered (state=${this.deps.registry.getModule(name).state}) — use "averon modules reload ${name}"`);
+    const existing = this.deps.registry.hasModule(name) ? this.deps.registry.getModule(name) : undefined;
+    // Chỉ chặn khi module đang chạy/đang draining — UNLOADED thì được load lại (fix loop load↔reload).
+    // EN: Only block when running/draining — UNLOADED modules may be loaded again (fixes the load↔reload loop).
+    if (existing && existing.state !== 'UNLOADED') {
+      throw new Error(`module '${name}' already registered (state=${existing.state}) — use "averon modules reload ${name}"`);
     }
+    // Module từng load (UNLOADED) → gỡ entry cũ khỏi registry, load fresh lại từ đĩa.
+    // EN: previously-loaded module (UNLOADED) → drop stale registry entry, re-load fresh from disk.
+    if (existing) this.deps.registry.unregisterModule(name);
 
     const entry = await this.deps.loader.loadModule(dir);
 

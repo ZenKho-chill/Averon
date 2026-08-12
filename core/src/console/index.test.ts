@@ -122,6 +122,33 @@ describe('OperatorConsole', () => {
     expect(out).toContain('-help / -h');
   });
 
+  it('lệnh xử lý TUẦN TỰ — load không chạy khi unload còn dở (tránh race DRAINING)', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const deps = makeDeps();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    deps.manager.unload = vi.fn(async () => {
+      await gate;
+      return { ok: true, outcome: 'unloaded', name: 'ping' };
+    });
+    const console = new OperatorConsole({ ...deps, input, output });
+    console.start();
+
+    let buf = '';
+    output.on('data', (chunk: Buffer) => { buf += chunk.toString(); });
+
+    input.write('averon modules unload ping\n');
+    input.write('averon modules load ping\n');
+    // unload đang chờ gate → nếu load chạy SONG SONG sẽ ra "Loaded" ngay; serialize thì phải ĐỢI.
+    await new Promise((r) => setTimeout(r, 60));
+    expect(buf).not.toContain("Loaded module 'ping'");
+    expect(buf).not.toContain("Unloaded module 'ping'");
+    release();
+    await waitFor(() => buf.includes("Loaded module 'ping'"));
+    expect(buf.indexOf("Unloaded module 'ping'")).toBeLessThan(buf.indexOf("Loaded module 'ping'"));
+  });
+
   it('EOF (piped input) → stop() gọi logger, không throw', async () => {
     const input = new PassThrough();
     const output = new PassThrough();

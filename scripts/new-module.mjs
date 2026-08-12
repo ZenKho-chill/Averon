@@ -72,6 +72,7 @@ export const onUnload = () => {
 
 export async function handler(interaction) {
   await interaction.reply('Pong!');
+  return 'Pong!'; // test mong đợi return content (không có test = không tồn tại, §12.3)
 }
 `;
   writeFileSync(join(moduleDir, 'commands', `${name}.ts`), commandTs);
@@ -112,19 +113,19 @@ describe('${name} command', () => {
 
 ## Cấu trúc
 
-- [36mcommands/${name}.ts[0m — handler cho lệnh /${name}
-- [36msrc/index.ts[0m — entry point
-- [36mconfig/[0m — config module
-- [36mtests/[0m — test module
+- commands/${name}.ts — handler cho lệnh /${name}
+- src/index.ts — entry point
+- config/ — config module
+- tests/ — test module
 
 ## Cách dùng
 
-1. Chạy bot: [32mnpm run dev[0m
-2. Gõ [33m/${name}[0m trong Discord
+1. Chạy bot: npm run dev
+2. Gõ /${name} trong Discord
 
 ## Test
 
-[32mnpm test[0m
+npm test
 `;
   writeFileSync(join(moduleDir, 'README.md'), readmeMd);
 
