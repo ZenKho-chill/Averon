@@ -52,7 +52,9 @@ export async function bootstrap() {
   registry.registerService('config', config);
 
   // 5. Load modules
-  const loader = new ModuleLoader(registry, crashReporter);
+  // Override config module từ config tổng (config/config.yml → modules.<name>) — admin chỉnh
+  const moduleConfigOverrides = (config as { modules?: Record<string, unknown> }).modules ?? {};
+  const loader = new ModuleLoader(registry, crashReporter, moduleConfigOverrides);
   const lifecycle = new Lifecycle(registry, crashReporter);
 
   // Quét thư mục modules/ và load từng module
@@ -76,8 +78,10 @@ export async function bootstrap() {
   for (const module of registry.getAllModules()) {
     for (const cmd of module.commands) {
       commands.push(cmd); // dùng cho syncCommands (REST register metadata)
-      // Gắn handler đã import (loader) để phản hồi interaction — thiếu thì bỏ qua, không chặn boot
-      if (cmd.handlerFn) discord.registerCommand(cmd.name, cmd.handlerFn);
+      // Gắn handler đã import (loader) để phản hồi interaction — truyền ctx (config module + logger)
+      if (cmd.handlerFn) {
+        discord.registerCommand(cmd.name, cmd.handlerFn, { config: module.config ?? {}, logger });
+      }
     }
     // TODO: module.events — nạp handler từ evt.handler để gắn listener
   }

@@ -10,7 +10,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import YAML from 'yaml';
-import { ConfigError } from '../../../shared/config/index.js';
+import { ConfigError, deepMerge } from '../../../shared/config/index.js';
+import { loadSchema, validateConfig } from '../../../shared/config/validator.js';
 import type { Registry } from '../registry/index.js';
 import type { ModuleRegistryEntry } from '../registry/types.js';
 import type { ModuleManifest } from './types.js';
@@ -21,6 +22,8 @@ export class ModuleLoader {
   constructor(
     private readonly registry: Registry,
     private readonly crashReporter: CrashReporter,
+    /** Override config module từ config tổng: `{ ping: {...} }` (section modules.<name>). */
+    private readonly moduleConfigOverrides: Record<string, unknown> = {},
   ) {}
 
   /** Load module từ thư mục module (vd: modules/ping/). */
@@ -64,11 +67,15 @@ export class ModuleLoader {
       commands.push(withHandler);
     }
 
+    // Nạp config module: defaults.yml (nếu khai báo) merge override từ config tổng
+    const moduleConfig = this.loadModuleConfig(manifest, moduleDir);
+
     const moduleEntry: ModuleEntryWithHooks = {
       name: manifest.name,
       version: manifest.version,
       state: 'REGISTERED',
       entry,
+      config: moduleConfig,
       commands,
       events: manifest.events ?? [],
       runtime: {
@@ -84,6 +91,47 @@ export class ModuleLoader {
 
     this.registry.registerModule(moduleEntry);
     return moduleEntry;
+  }
+
+  /** Nạp config module: defaults.yml (khai báo trong manifest.config.defaults) merge override từ config tổng. */
+  private loadModuleConfig(manifest: ModuleManifest, moduleDir: string): Record<string, unknown> | undefined {
+    const defaultsFile = manifest.config?.defaults;
+    let merged: Record<string, unknown> | undefined;
+
+    if (defaultsFile) {
+      const defaultsPath = join(moduleDir, defaultsFile);
+      if (!existsSync(defaultsPath)) {
+        this.crashReporter.handleModuleFailure(manifest.name, `config defaults not found: ${defaultsFile}`);
+        return undefined;
+      }
+      try {
+        merged = (YAML.parse(readFileSync(defaultsPath, 'utf8')) ?? {}) as Record<string, unknown>;
+      } catch (err) {
+        this.crashReporter.handleModuleFailure(manifest.name, `config defaults parse failed: ${err}`);
+        return undefined;
+      }
+    }
+
+    // Validate theo schema module (nếu khai báo) — fail-fast, lỗi → ConfigError
+    const schemaFile = manifest.config?.schema;
+    if (schemaFile && merged) {
+      try {
+        const schemaPath = join(moduleDir, schemaFile);
+        if (existsSync(schemaPath)) {
+          validateConfig(merged, loadSchema(schemaPath), [schemaFile]);
+        }
+      } catch (err) {
+        throw new ConfigError(`Config module '${manifest.name}' không hợp lệ: ${(err as Error).message}`);
+      }
+    }
+
+    // Override từ config tổng (config/config.yml → modules.<name>) — admin chỉnh
+    const override = this.moduleConfigOverrides[manifest.name];
+    if (override && typeof override === 'object') {
+      merged = merged ? (deepMerge(merged, override as Record<string, unknown>) as Record<string, unknown>) : (override as Record<string, unknown>);
+    }
+
+    return merged;
   }
 
   private parseManifest(file: string): ModuleManifest {

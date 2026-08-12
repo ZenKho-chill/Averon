@@ -3,6 +3,34 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.7.0] — 2026-08-12
+**Loại / Type:** MINOR — tính năng mới / new feature
+
+### Added
+- **Command description đa ngôn ngữ qua Discord localization**: mô tả lệnh hiển thị theo ngôn ngữ client, lấy từ `description.vi/en` trong `module.yml` (VI)
+  EN: Bilingual command descriptions via Discord localization, sourced from `description.vi/en` in `module.yml`.
+- **`modules/ping` custom phản hồi qua config** — admin chỉnh `config/config.yml → modules.ping` (không cần đổi code): phản hồi **plain text hoặc embed** (toàn bộ EmbedBuilder), **nhiều câu + random** (`random: true`), **placeholder** `{time} {tag_user} {latency} {username} {user_id} {guild} {guild_id}`; không có config → fallback `Pong!` (VI)
+  EN: `modules/ping` config-driven responses via `config/config.yml → modules.ping` (no code change): **plain or embed** replies (full EmbedBuilder), **multiple random** choices (`random: true`), **placeholders** `{time} {tag_user} {latency} {username} {user_id} {guild} {guild_id}`; no config → `Pong!` fallback.
+- **`shared/placeholders`**: `renderPlaceholders(text, vars)` thay `{key}` — utility dùng chung, module khác tái dùng được (VI)
+  EN: `shared/placeholders`: `renderPlaceholders(text, vars)` replaces `{key}` — shared utility reusable by other modules.
+- **Config riêng cho module**: `module.yml` khai báo `config.schema/defaults`; loader validate defaults bằng schema + merge override `modules.<name>` từ config tổng; handler nhận `CommandContext { config, logger }` (VI)
+  EN: Per-module config: `module.yml` declares `config.schema/defaults`; loader validates defaults against schema and merges the `modules.<name>` override from the core config; handlers receive `CommandContext { config, logger }`.
+
+### Fixed
+- **`modules/ping` embed color**: nhận chuỗi hex chuẩn `#RRGGBB`/`RRGGBB` thay vì int (VI)
+  EN: `modules/ping` embed color accepts standard `#RRGGBB`/`RRGGBB` hex strings instead of int.
+- **`modules/ping` type tường minh**: response khai báo rõ `type: plain | embed` để đỡ nhầm lẫn (VI)
+  EN: `modules/ping` responses now declare an explicit `type: plain | embed` to avoid ambiguity.
+
+## [0.6.1] — 2026-08-11
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- **`core/discord` + `shared/logger`**: log dùng giờ local + độ chính xác ms; `syncCommands` gom vào `set()` bulk thay vì delete lẻ từng command — tránh race/overwrite (VI)
+  EN: `core/discord` + `shared/logger`: log timestamps use local time + ms precision; `syncCommands` now uses a bulk `set()` instead of deleting commands one-by-one — avoids races/overwrites.
+- **`modules/ping` register nhưng không phản hồi**: gắn command handler để `/ping` thực sự reply (VI)
+  EN: Fixed `/ping` being registered but never replying — command handler is now wired up.
+
 ## [0.6.0] — 2026-08-11
 **Loại / Type:** MINOR — tính năng mới / new feature
 

@@ -71,6 +71,10 @@
         "hot_reload": { "type": "boolean" },
         "show_stacktrace": { "type": "boolean" }
       }
+    },
+    "modules": {
+      "type": "object",
+      "description": "Override config của từng module theo tên: { ping: {...} }. Loader merge lên defaults của module."
     }
   }
 }

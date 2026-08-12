@@ -50,8 +50,8 @@ describe('bootstrap', () => {
 
   it('gắn command handler từ module ping qua discord.registerCommand', async () => {
     const result = await bootstrap();
-    // Mock DiscordClient.registerCommand là vi.fn → assert đã gọi với tên lệnh + handler function
+    // Mock DiscordClient.registerCommand là vi.fn → assert đã gọi với tên lệnh + handler function + ctx
     const registerCommand = result.discord.registerCommand as ReturnType<typeof vi.fn>;
-    expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function));
+    expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function), expect.objectContaining({ config: expect.any(Object) }));
   });
 });

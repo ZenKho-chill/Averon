@@ -1,5 +1,60 @@
 # JSON Schema cho config module ping
 # EN: JSON Schema for module ping config
 $schema: http://json-schema.org/draft-07/schema#
+title: Ping module config
 type: object
-properties: {}
+additionalProperties: false
+properties:
+  random:
+    type: boolean
+    default: true
+  responses:
+    type: array
+    items:
+      oneOf:
+        # Mode plain: text thuần + placeholder
+        - type: object
+          required: [type, content]
+          additionalProperties: false
+          properties:
+            type: { const: plain }
+            content: { type: string }
+        # Mode embed: toàn bộ field EmbedBuilder
+        - type: object
+          required: [type, embed]
+          additionalProperties: false
+          properties:
+            type: { const: embed }
+            embed:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                # Màu hex: "#RRGGBB" hoặc "RRGGBB" (6/8 chữ số, hỗ trợ alpha). Vẫn chấp nhận số decimal.
+                color:
+                  type: [integer, string]
+                  pattern: ^#?[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$
+                url: { type: string }
+                image: { type: string }
+                thumbnail: { type: string }
+                timestamp: { type: [boolean, string] }
+                author:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    url: { type: string }
+                    icon_url: { type: string }
+                footer:
+                  type: object
+                  properties:
+                    text: { type: string }
+                    icon_url: { type: string }
+                fields:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, value]
+                    properties:
+                      name: { type: string }
+                      value: { type: string }
+                      inline: { type: boolean }
