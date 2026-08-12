@@ -1,0 +1,82 @@
+# Service API — Core dành cho Module / Core API for Modules
+
+> Đây là **mặt public** core expose cho module. Module **chỉ được** dùng những thứ trong trang này — không import core nội bộ dưới `core/src/` trừ `core/src/registry/types.js` (type-only `CommandContext`) (`CLAUDE.md §5.3`).
+> EN: This is the **public surface** core exposes to modules. Modules must only use what's listed here — never import core internals under `core/src/`, except `core/src/registry/types.js` (type-only `CommandContext`) (`CLAUDE.md §5.3`).
+
+## 1. `CommandContext` — context handler command
+
+Command handler nhận: `handler(interaction, ctx)`.
+
+```ts
+// Import type (type-only) từ core
+import type { CommandContext } from '../../../core/src/registry/types.js';
+
+export async function handler(interaction: InteractionLike, ctx?: CommandContext) {
+  ctx?.logger.info('used', { user: interaction.user?.id });
+  const cfg = ctx?.config ?? {};
+}
+```
+
+| Field | Type | Mô tả / Description |
+|---|---|---|
+| `config` | `Record<string, unknown>` | Config module sau khi merge (`defaults.yml` + override từ `config/config.yml → modules.<name>`). Là **config source chính** cho module — không đọc file trực tiếp. |
+| `logger` | `Logger` | Logger chuẩn của core. Dùng để log thay vì `console.log` (có source/context, che secret, ghi file). |
+| `moduleName` | `string` (optional) | Tên module sở hữu command. Core dùng nội bộ để đếm in-flight handler khi soft-unload (`DRAINING`). Module thường không cần đụng — nếu cần tên module, đọc từ `ctx.moduleName`. |
+
+> Nếu module cần thêm service (database, ...), mở issue/PR — đừng tự đăng ký vào core registry.
+
+## 2. `Logger` — `shared/logger`
+
+Module nhận logger qua `ctx.logger`. Interface:
+
+```ts
+logger.debug(message: string, meta?: LogMeta): void
+logger.info(message: string, meta?: LogMeta): void
+logger.warn(message: string, meta?: LogMeta): void
+logger.error(message: string, meta?: LogMeta): void
+logger.fatal(message: string, meta?: LogMeta): void
+logger.mask(value: string | null | undefined, keepLast?: number): string  // che secret
+logger.child(overrides: { source?: string; context?: string }): Logger   // logger con
+```
+
+- **Level**: DEBUG < INFO < WARN < ERROR < FATAL (config `logging.level` lọc).
+- **KHÔNG log secret** — dùng `logger.mask(token)`.
+- Module muốn import type: `import type { Logger } from '../../../shared/logger/index.js'`.
+
+## 3. `shared/config` — utility config
+
+| Hàm / Function | Mô tả / Description |
+|---|---|
+| `loadConfig<T>(options)` | Load + tuỳ chọn validate 1 file YAML (configDir/file/schema). |
+| `validateConfig(config, schema, path)` | Validate object theo JSON Schema. |
+| `deepMerge(base, override)` | Merge sâu object (dùng cho config module). |
+| `findProjectRoot(startDir)` | Tìm thư mục chứa `package.json` (walk-up). Chạy đúng cả từ src lẫn dist. |
+| `readPackageVersion(root)` | Đọc version từ `package.json` — nguồn `app.version` duy nhất. |
+| `backupConfig(dir)` / `listBackups(dir)` / `restoreConfig(dir, file)` | Backup + rollback config. |
+
+```ts
+import { renderPlaceholders, findProjectRoot } from '../../../shared/config/index.js';
+```
+
+> Module thường **không cần** đọc config file trực tiếp — config module đã qua `ctx.config`. `shared/config` hữu ích khi module có config riêng ngoài core.
+
+## 4. `shared/placeholders` — placeholder text
+
+```ts
+import { renderPlaceholders, type PlaceholderVars } from '../../../shared/placeholders/index.js';
+
+renderPlaceholders("Pong! ({latency}ms)", { latency: "42" }); // → "Pong! (42ms)"
+```
+
+- Cú pháp `{key}`; placeholder thiếu var → thay `''`.
+- Vars built-in mặc định: `time`, `tag_user`, `latency`, `username`, `user_id`, `guild`, `guild_id` — và mở rộng `[key: string]` tùy module.
+
+## 5. Core-internal (không dùng cho module)
+
+Các thành phần sau là **nội bộ core**, module KHÔNG được dùng trực tiếp:
+
+- `ModuleManager` (`core/src/console/manager.ts`) — coordinator lifecycle; dùng bởi bootstrap + operator console.
+- `UsageTracker` (`core/src/registry/usage.ts`) — đếm in-flight; core tự xử lý khi soft-stop.
+- `Lifecycle` / `ModuleLoader` / `Registry` / `DiscordClient` — nội bộ core.
+
+Nếu module cần khả năng nào trong số đó → mở issue/PR đề xuất service public (giữ backward-compatible).

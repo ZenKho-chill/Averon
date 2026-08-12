@@ -11,6 +11,14 @@ EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, 
   EN: load↔reload loop after unload: `load` rejected UNLOADED modules ("already registered — use reload") while `reload` rejected them ("already unloaded — use load") → no way to re-load. Fixed: `load` accepts UNLOADED modules — drops the stale registry entry and re-loads fresh from disk.
 - **Console xử lý lệnh song song → race**: `rl.on('line')` gọi `void handleLine()` không await — lệnh sau (vd `load`) chạy đè lệnh trước đang dở (vd `unload` còn DRAINING) khi pipe nhanh hoặc soft-stop chờ in-flight. Fix: `OperatorConsole` tuần tự hoá qua promise chain — mỗi lệnh đợi lệnh trước xong (VI)
   EN: Console processed commands concurrently → race: `rl.on('line')` fired `void handleLine()` un-awaited, so a later command (e.g. `load`) ran over an earlier in-flight one (e.g. `unload` still DRAINING) on fast pipes or during soft-stop waits. Fixed: `OperatorConsole` serializes via a promise chain — each command waits for the previous to finish.
+- **Scaffold module (`scripts/new-module.mjs`) lẫn escape ANSI**: template README sinh ra chứa byte màu `\x1b[36m...` → README module mới hiện rác `[36m...`. Đã strip toàn bộ escape khỏi template (VI)
+  EN: Module scaffold (`scripts/new-module.mjs`) leaked ANSI color bytes `\x1b[36m...` into the generated README → new modules showed raw `[36m...` garbage. Stripped all escapes from the template.
+- **Scaffold sinh test FAIL ngay**: template command `commands/<name>.ts` gọi `await interaction.reply('Pong!')` nhưng **không return** — test scaffold sinh ra assert `result === 'Pong!'` → module mới fail ngay `npm test`. Fix: handler template return content (khớp `modules/ping`) (VI)
+  EN: Scaffold generated a FAILING test: the command template `commands/<name>.ts` called `await interaction.reply('Pong!')` without **returning** — the generated test asserts `result === 'Pong!'`, so a fresh module failed `npm test` immediately. Fixed: handler template returns the content (matches `modules/ping`).
+
+### Docs
+- **README + docs/ cập nhật cho 0.8.1**: `README.md` (feature hiện tại, operator console, getting-started với config), `modules/ping/README.md` (phản hồi config-driven), thêm mới `docs/architecture.md`, `docs/module-guide.md`, `docs/multi-language.md`, `docs/api/README.md` (service API) (VI)
+  EN: Updated READMEs + new docs for 0.8.1: `README.md` (current features, operator console, config-based getting-started), `modules/ping/README.md` (config-driven responses), new `docs/architecture.md`, `docs/module-guide.md`, `docs/multi-language.md`, `docs/api/README.md` (service API).
 
 ## [0.8.0] — 2026-08-12
 **Loại / Type:** MINOR — tính năng mới / new feature (core/console — quyết định core subsystem, có nêu rõ lý do theo §13.3: điều khiển lifecycle là control-plane của core, và §5.3 cấm module điều khiển module khác)
