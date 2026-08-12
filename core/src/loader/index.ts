@@ -17,6 +17,7 @@ import type { ModuleRegistryEntry } from '../registry/types.js';
 import type { ModuleManifest } from './types.js';
 import type { ModuleEntryWithHooks } from '../lifecycle/types.js';
 import type { CrashReporter } from '../crash/index.js';
+import { resolveModuleFile, RUNNING_FROM_DIST } from './resolve.js';
 
 export class ModuleLoader {
   constructor(
@@ -24,6 +25,10 @@ export class ModuleLoader {
     private readonly crashReporter: CrashReporter,
     /** Override config module từ config tổng: `{ ping: {...} }` (section modules.<name>). */
     private readonly moduleConfigOverrides: Record<string, unknown> = {},
+    /** Project root (nơi có modules/ và dist/) — cần khi chạy bản build để map sang dist. */
+    private readonly root: string = process.cwd(),
+    /** true = chạy bản build (npm start) → import file đã biên dịch trong dist/. */
+    private readonly runningFromDist: boolean = RUNNING_FROM_DIST,
   ) {}
 
   /** Load module từ thư mục module (vd: modules/ping/). */
@@ -34,7 +39,7 @@ export class ModuleLoader {
     }
 
     const manifest = this.parseManifest(manifestFile);
-    const entry = join(moduleDir, manifest.entry);
+    const entry = this.resolveModuleFile(moduleDir, manifest.entry);
     if (!existsSync(entry)) {
       throw new ConfigError(`Entry point không tồn tại: ${entry}. EN: Entry point not found: ${entry}`);
     }
@@ -56,7 +61,7 @@ export class ModuleLoader {
       if (cmd.enabled === false) continue;
       const withHandler: ModuleRegistryEntry['commands'][number] = { ...cmd };
       if (cmd.handler) {
-        const handlerPath = join(moduleDir, cmd.handler);
+        const handlerPath = this.resolveModuleFile(moduleDir, cmd.handler);
         try {
           const h = await import(pathToFileURL(handlerPath).href);
           withHandler.handlerFn = h.handler;
@@ -132,6 +137,11 @@ export class ModuleLoader {
     }
 
     return merged;
+  }
+
+  /** Map đường dẫn module file → nơi thực sự import được (source .ts hoặc bản built .js trong dist/). */
+  private resolveModuleFile(moduleDir: string, relative: string): string {
+    return resolveModuleFile({ runningFromDist: this.runningFromDist, root: this.root, moduleDir, relative });
   }
 
   private parseManifest(file: string): ModuleManifest {

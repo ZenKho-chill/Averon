@@ -57,7 +57,7 @@ export async function bootstrap() {
   // 5. Load modules
   // Override config module từ config tổng (config/config.yml → modules.<name>) — admin chỉnh
   const moduleConfigOverrides = (config as { modules?: Record<string, unknown> }).modules ?? {};
-  const loader = new ModuleLoader(registry, crashReporter, moduleConfigOverrides);
+  const loader = new ModuleLoader(registry, crashReporter, moduleConfigOverrides, root);
   const lifecycle = new Lifecycle(registry, crashReporter);
 
   // In-flight handler counter (soft-stop) + Discord client — cần trước khi attach command
