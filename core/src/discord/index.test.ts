@@ -47,7 +47,7 @@ describe('DiscordClient', () => {
     // @ts-expect-error — private field
     expect(discord.client.login).toHaveBeenCalledWith('test-token');
     expect(logger.info).toHaveBeenCalledWith('Discord client đã login thành công', expect.anything());
-  }, 100); // timeout ngắn — test này không cần chờ ready
+  }, 100);
 
   it('login thiếu token → lỗi', async () => {
     const logger = makeLogger();

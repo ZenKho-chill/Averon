@@ -12,6 +12,8 @@ import { pathToFileURL } from 'node:url';
 import YAML from 'yaml';
 import { ConfigError, deepMerge } from '../../../shared/config/index.js';
 import { loadSchema, validateConfig } from '../../../shared/config/validator.js';
+import { restoreLatestValidConfig } from '../../../shared/config/backup.js';
+import { validateModuleSemantics } from '../../../shared/config/module-semantic.js';
 import type { Registry } from '../registry/index.js';
 import type { ModuleRegistryEntry } from '../registry/types.js';
 import type { ModuleManifest } from './types.js';
@@ -60,7 +62,7 @@ export class ModuleLoader {
     try {
       moduleExports = await this.importEntry(entry, manifest.runtime.transport);
     } catch (err) {
-      this.crashReporter.handleModuleFailure(manifest.name, `import failed: ${err}`);
+      this.crashReporter.handleModuleFailure(manifest.name, `import failed: ${err instanceof Error ? err.stack : String(err)}`);
       throw err;
     }
 
@@ -77,7 +79,7 @@ export class ModuleLoader {
           const h = (await importModuleFresh(pathToFileURL(handlerPath).href)) as { handler?: NonNullable<ModuleRegistryEntry['commands'][number]['handlerFn']> };
           withHandler.handlerFn = h.handler;
         } catch (err) {
-          this.crashReporter.handleModuleFailure(manifest.name, `handler import failed (${cmd.handler}): ${err}`);
+          this.crashReporter.handleModuleFailure(manifest.name, `handler import failed (${cmd.handler}): ${err instanceof Error ? err.stack : String(err)}`);
         }
       }
       commands.push(withHandler);
@@ -112,10 +114,15 @@ export class ModuleLoader {
     return moduleEntry;
   }
 
-  /** Nạp config module: defaults.yml (khai báo trong manifest.config.defaults) merge override từ config tổng. */
-  private loadModuleConfig(manifest: ModuleManifest, moduleDir: string): Record<string, unknown> {
+  /** Nạp config module: defaults.yml (khai báo trong manifest.config.defaults) merge override từ config tổng.
+   * Trả về cả nội dung YAML đã merge (dùng cho backup) và config object.
+   */
+  private loadModuleConfig(manifest: ModuleManifest, moduleDir: string): {
+    content: string;
+    config: Record<string, unknown>;
+  } {
     const defaultsFile = manifest.config?.defaults;
-    let merged: Record<string, unknown> | undefined;
+    let merged: Record<string, unknown> = {};
 
     if (defaultsFile) {
       const defaultsPath = join(moduleDir, defaultsFile);
@@ -131,26 +138,43 @@ export class ModuleLoader {
     }
 
     // Validate theo schema module (nếu khai báo VÀ có defaults load được) — fail-fast, lỗi → ConfigError
-    // EN: Validate against the module schema only when defaults were actually loaded.
     const schemaFile = manifest.config?.schema;
-    if (schemaFile && merged) {
+    if (schemaFile && Object.keys(merged).length > 0) {
       try {
         const schemaPath = join(moduleDir, schemaFile);
         if (existsSync(schemaPath)) {
           validateConfig(merged, loadSchema(schemaPath), [schemaFile]);
+          validateModuleSemantics(merged, manifest, manifest.name, moduleExports);
         }
       } catch (err) {
-        throw new ConfigError(`Config module '${manifest.name}' không hợp lệ: ${(err as Error).message}`);
+        this.crashReporter.handleModuleFailure(manifest.name, `Config không hợp lệ: ${(err as Error).message}`);
+        // Cố gắng khôi phục từ backup
+        const logger = this.registry.getService('logger');
+        const restored = restoreLatestValidConfig(join(root, 'config'), { type: 'module', name: manifest.name, logger });
+        if (restored) {
+          logger.info(`Module '${manifest.name}' đã khôi phục config từ backup`);
+          // Load lại config sau khi khôi phục
+          return this.loadModuleConfig(manifest, moduleDir);
+        } else {
+          throw new ConfigError(`Config module '${manifest.name}' không hợp lệ: ${(err as Error).message}`);
+        }
       }
     }
 
     // Override từ config tổng (config/config.yml → modules.<name>) — admin chỉnh
     const override = this.moduleConfigOverrides[manifest.name];
     if (override && typeof override === 'object') {
-      merged = merged ? (deepMerge(merged, override as Record<string, unknown>) as Record<string, unknown>) : (override as Record<string, unknown>);
+      merged = deepMerge(merged, override as Record<string, unknown>) as Record<string, unknown>;
     }
 
-    return merged ?? {};
+    const content = YAML.stringify(merged);
+    return { content, config: merged };
+  }
+
+  /** Trả về nội dung YAML đã merge của module (dùng cho backup). */
+  private getModuleConfigContent(manifest: ModuleManifest, moduleDir: string): string {
+    const { content } = this.loadModuleConfig(manifest, moduleDir);
+    return content;
   }
 
   /** Map đường dẫn module file → nơi thực sự import được (source .ts hoặc bản built .js trong dist/). */
