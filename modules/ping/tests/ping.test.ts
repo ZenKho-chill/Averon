@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handler } from '../commands/ping';
+import { __resetLatencyCache } from '../src/latency';
 import type { CommandContext } from '../../../core/src/registry/types.js';
 
 function makeInteraction(overrides: Record<string, unknown> = {}) {
@@ -18,6 +19,10 @@ function makeCtx(config: Record<string, unknown>): CommandContext {
 }
 
 describe('ping command', () => {
+  beforeEach(() => {
+    __resetLatencyCache();
+  });
+
   it('không có config → fallback Pong!', async () => {
     const interaction = makeInteraction();
     const result = await handler(interaction as never);
@@ -33,11 +38,32 @@ describe('ping command', () => {
     expect(interaction.reply).toHaveBeenCalledWith('Pong! (42ms)');
   });
 
-  it('ws.ping chưa đo được (-1) → {latency} hiển thị ... thay vì -1', async () => {
+  it('ws.ping chưa đo được (-1) + đo RTT REST thất bại → {latency} hiển thị ... thay vì -1', async () => {
     const interaction = makeInteraction({ client: { ws: { ping: -1 } } });
     const ctx = makeCtx({ responses: [{ type: 'plain', content: 'Pong! ({latency}ms)' }] });
-    const result = await handler(interaction as never, ctx);
-    expect(result).toBe('Pong! (...ms)');
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network down'); }));
+    try {
+      const result = await handler(interaction as never, ctx);
+      expect(result).toBe('Pong! (...ms)');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('ws.ping chưa đo được (-1) → đo RTT qua Discord REST → hiện latency thật, không phải ...', async () => {
+    const interaction = makeInteraction({ client: { ws: { ping: -1 } } });
+    const ctx = makeCtx({ responses: [{ type: 'plain', content: 'Pong! ({latency}ms)' }] });
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+      return { arrayBuffer: async () => new ArrayBuffer(0) };
+    }));
+    try {
+      const result = await handler(interaction as never, ctx);
+      expect(result).toMatch(/^Pong! \(\d+ms\)$/);
+      expect(result).not.toBe('Pong! (...ms)');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('type=plain placeholder {tag_user} {time} {guild} thay đúng', async () => {

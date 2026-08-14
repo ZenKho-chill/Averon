@@ -2,6 +2,7 @@
 // EN: Handler for /ping — config-driven response: plain or embed, random, placeholders.
 import { EmbedBuilder } from 'discord.js';
 import { renderPlaceholders, type PlaceholderVars } from '../../../shared/placeholders/index.js';
+import { measureLatency } from '../src/latency.js';
 import type { CommandContext } from '../../../core/src/registry/types.js';
 
 interface InteractionLike {
@@ -28,13 +29,10 @@ interface PingConfig {
   responses?: PingResponse[];
 }
 
-/** Dựng các placeholder built-in từ interaction. */
-function buildVars(interaction: InteractionLike): PlaceholderVars {
+/** Dựng các placeholder built-in từ interaction. `ping` là latency dùng cho {latency} (-1 → '...'). */
+function buildVars(interaction: InteractionLike, ping: number): PlaceholderVars {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
-  // ws.ping = -1 cho tới khi heartbeat đầu tiên được ACK — hiển thị '...' thay vì -1 gây hiểu nhầm.
-  // EN: ws.ping is -1 until the first heartbeat is ACKed — show '...' instead of a misleading -1.
-  const ping = interaction.client?.ws?.ping ?? -1;
   return {
     time: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
     tag_user: interaction.user?.id ? `<@${interaction.user.id}>` : '',
@@ -110,12 +108,16 @@ export async function handler(interaction: InteractionLike, ctx?: CommandContext
   const moduleEntry = registry && registry.hasModule('ping') ? registry.getModule('ping') : undefined;
   const cfg = (moduleEntry?.getConfig?.() ?? ctx?.config ?? {}) as PingConfig;
   const response = pickResponse(cfg);
-  const vars = buildVars(interaction);
 
   if (!response) {
     await interaction.reply('Pong!');
     return 'Pong!';
   }
+
+  // ws.ping có thể chưa đo được (mới khởi động, heartbeat chưa ACK — xem src/latency.ts) → đo RTT thay thế.
+  // EN: ws.ping may not be measured yet (right after startup, heartbeat not ACKed — see src/latency.ts) → measure RTT instead.
+  const ping = await measureLatency(interaction.client?.ws?.ping);
+  const vars = buildVars(interaction, ping);
 
   // Branch theo type: plain → text; embed → { embeds: [...] }
   if (response.type === 'embed') {
