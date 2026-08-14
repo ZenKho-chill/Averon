@@ -54,7 +54,7 @@ npm run new:module -- <name>   # scaffold module mới / scaffold a new module
 
 ### Operator console
 
-Sau khi boot, terminal hiện prompt **`averon> `** — gõ lệnh trực tiếp để quản lý bot:
+Sau khi boot, terminal hiện prompt **`averon`** — gõ lệnh trực tiếp để quản lý bot:
 
 ```
 averon status                        # tên/version app, uptime, Discord, số module

@@ -146,6 +146,9 @@ export async function bootstrap() {
     root,
     bootTimestamp: Date.now(),
     protectedOutput,
+    // Prompt lấy từ config (`console.prompt`) — không hardcode; default `averon` chỉ là fallback.
+    // EN: prompt comes from config (`console.prompt`) — not hardcoded; `averon` is only the fallback.
+    prompt: consoleConfig.prompt,
   });
   if (consoleConfig.enabled) {
     operatorConsole.start();

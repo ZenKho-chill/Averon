@@ -418,7 +418,7 @@ Không có env vars — mode = tự chỉnh giá trị trong **1 file** `config/
 
 **Cách `syncCommands` hoạt động** (khi boot, theo scope bật): fetch danh sách command hiện có trên Discord → **xóa stale** (command không còn tồn tại trong manifest, kể cả lệnh đã đổi scope global→guild) → đăng ký lại. Gộp slash (`scope: [global]`) + context menu (`scope: [user]`) vào **1 lần `set()`** cho target global — tránh overwrite nhau.
 
-> **Chạy dev:** `npm run dev` dùng `node --watch --import tsx` — **KHÔNG dùng `tsx watch`** (nó nuốt stdin cho phím restart "rs", làm console `averon> ` không nhận lệnh). `node --watch` forward stdin đầy đủ và vẫn tự restart khi sửa file. Regression test: `core/src/console/dev-stdin.test.ts`.
+> **Chạy dev:** `npm run dev` dùng `node --watch --import tsx` — **KHÔNG dùng `tsx watch`** (nó nuốt stdin cho phím restart "rs", làm console `averon` không nhận lệnh). `node --watch` forward stdin đầy đủ và vẫn tự restart khi sửa file. Regression test: `core/src/console/dev-stdin.test.ts`.
 
 ---
 

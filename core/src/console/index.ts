@@ -3,7 +3,7 @@
  * EN: core/console — operator console: stdin REPL for `averon ...` commands.
  *
  * - input/output injectable (mặc định process.stdin/stdout) để test bằng PassThrough.
- * - TTY: hiện prompt `averon> `. Non-TTY (piped/CI/watchdog): đọc dòng tới EOF, không prompt,
+ * - TTY: hiện prompt `averon`. Non-TTY (piped/CI/watchdog): đọc dòng tới EOF, không prompt,
  *   không fatal — bot vẫn chạy bình thường.
  */
 import { createInterface, type Interface } from 'node:readline';
@@ -41,7 +41,7 @@ export class OperatorConsole {
   constructor(private readonly opts: OperatorConsoleOptions) {
     this.input = opts.input ?? process.stdin;
     this.output = opts.output ?? process.stdout;
-    this.prompt = opts.prompt ?? 'averon> ';
+    this.prompt = opts.prompt ?? 'averon';
   }
 
   get isClosed(): boolean {

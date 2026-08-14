@@ -45,8 +45,8 @@ describe('ProtectedOutput', () => {
     guard.setActive(true);
     let buf = '';
     stream.on('data', (c) => (buf += c.toString()));
-    guard.writeRaw('averon> ');
-    expect(buf).toBe('averon> ');
+    guard.writeRaw('averon');
+    expect(buf).toBe('averon');
   });
 
   it('color=true → writeLog tô màu token [LEVEL]', () => {

@@ -2,7 +2,7 @@
  * core/console/protected-output — chặn log ghi đè lên prompt REPL (CLAUDE.md § console).
  * EN: Guards the REPL prompt from interleaved log output.
  *
- * Logger ghi thẳng ra stdout nên khi console TTY đang hiện prompt `averon> `, dòng log bị chèn
+ * Logger ghi thẳng ra stdout nên khi console TTY đang hiện prompt `averon`, dòng log bị chèn
  * giữa prompt + input. Guard ghi log bằng cách: xoá dòng hiện tại (`\r\x1b[2K`) → in log → render
  * lại prompt. Non-TTY / chưa kích hoạt → ghi thẳng như bình thường.
  */

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { loadCoreConfig, ConfigError, getDiscordToken } from './index.js';
+import { loadCoreConfig, ConfigError, getDiscordToken, getConsoleConfig } from './index.js';
 import type { AppConfig } from './index.js';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -100,6 +100,27 @@ describe('loadCoreConfig', () => {
     } finally {
       try { rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }
     }
+  });
+});
+
+describe('getConsoleConfig', () => {
+  it('prompt lấy từ config.console (override default) — KHÔNG hardcode', () => {
+    const cfg = makeAppConfig({ console: { enabled: true, prompt: 'myaveron>', soft_stop_timeout_ms: 42 } });
+    expect(getConsoleConfig(cfg).prompt).toBe('myaveron>');
+    expect(getConsoleConfig(cfg).soft_stop_timeout_ms).toBe(42);
+  });
+
+  it('không có section console → dùng default', () => {
+    const cfg = makeAppConfig();
+    const cc = getConsoleConfig(cfg);
+    expect(cc.enabled).toBe(true);
+    expect(cc.prompt).toBe('averon');
+    expect(cc.soft_stop_timeout_ms).toBe(15000);
+  });
+
+  it('config.console enabled=false → console tắt', () => {
+    const cfg = makeAppConfig({ console: { enabled: false, prompt: 'x', soft_stop_timeout_ms: 1 } });
+    expect(getConsoleConfig(cfg).enabled).toBe(false);
   });
 });
 

@@ -1,9 +1,9 @@
 /**
- * Regression guard cho bug: console `averon> ` không nhận lệnh khi chạy `npm run dev`.
+ * Regression guard cho bug: console `averon` không nhận lệnh khi chạy `npm run dev`.
  * Nguyên nhân: `tsx watch` nuốt stdin cho phím restart "rs" → child không đọc được input.
  * Fix: dev script dùng `node --watch --import tsx` (forward stdin đầy đủ + vẫn hot-reload).
  * EN: Guards against `tsx watch` being reintroduced in the `dev` script — it swallows stdin,
- * breaking the `averon> ` console. `node --watch --import tsx` forwards stdin and still hot-reloads.
+ * breaking the `averon` console. `node --watch --import tsx` forwards stdin and still hot-reloads.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
