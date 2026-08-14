@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [3.0.1] — 2026-08-14
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- `core/console`: **startup/hot-operations không log module load — vi phạm CLAUDE.md §7.1 (module load phải log INFO)** — `ModuleManager.loadDir` (startup `loadAll` + lệnh `modules load`) và `reload` giờ log `[INFO] [core/loader] [modules/<name>] Loading module '<name> v<version>` + `Module '<name>' loaded (<n> commands, <n> events)` (dùng `logger.child({ source, context })` đúng format §7.2). Kèm test assert source/context + thông báo (VI)
+  EN: Module loads were never logged at startup or during hot operations — violating CLAUDE.md §7.1 (module load must log INFO). `ModuleManager.loadDir` (startup `loadAll` + the `modules load` command) and `reload` now log `[INFO] [core/loader] [modules/<name>] Loading module '<name> v<version>` + `Module '<name>' loaded (<n> commands, <n> events)` via a `logger.child({ source, context })` matching the §7.2 format. Added a test asserting source/context + messages.
+
 ## [3.0.0] — 2026-08-14
 **Loại / Type:** MAJOR — breaking config change (gỡ section `app` khỏi config.yml) / breaking config change (`app` section removed from config.yml)
 

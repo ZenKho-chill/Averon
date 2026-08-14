@@ -9,7 +9,9 @@ import type { Logger } from '../../../shared/logger/index.js';
 import type { ModuleEntryWithHooks } from '../lifecycle/index.js';
 
 function makeLogger(): Logger {
-  return { fatal: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+  const logger = { fatal: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), child: vi.fn() };
+  logger.child.mockReturnValue(logger);
+  return logger as unknown as Logger;
 }
 
 /** Entry giả — loader mock trả về, tên từ basename(dir). */
@@ -91,6 +93,16 @@ describe('ModuleManager.load', () => {
     expect(registry.getModule('ping').state).toBe('RUNNING');
     expect(loadModule).toHaveBeenCalled();
     expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function), expect.objectContaining({ moduleName: 'ping' }));
+  });
+
+  it('load module → log INFO với source core/loader + context modules/<name> (CLAUDE.md §7.2)', async () => {
+    const { deps } = makeDeps();
+    const manager = new ModuleManager(deps);
+    await manager.load('ping');
+
+    expect(deps.logger.child).toHaveBeenCalledWith({ source: 'core/loader', context: 'modules/ping' });
+    expect(deps.logger.info).toHaveBeenCalledWith("Loading module 'ping' v1.0.0");
+    expect(deps.logger.info).toHaveBeenCalledWith(expect.stringMatching(/Module 'ping' loaded \(1 commands, 0 events\)/));
   });
 
   it('load module đã đăng ký → lỗi hướng dẫn reload', async () => {
