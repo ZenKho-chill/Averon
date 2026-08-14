@@ -279,6 +279,69 @@ entry: src/index.py
     }
   });
 
+  it('entry.config + getConfig trả merged config THẬT, không phải wrapper {content, config} (regression: ping luôn plain)', async () => {
+    const fx = makeFixture({
+      'module.yml': `
+name: ping
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: '>=18'
+  transport: in-process
+entry: src/index.ts
+config:
+  schema: config/schema.yml
+  defaults: config/defaults.yml
+`,
+      'src/index.ts': `export const onLoad = () => {};`,
+      'config/schema.yml': `
+type: object
+additionalProperties: false
+required: [responses]
+properties:
+  random: { type: boolean }
+  responses:
+    type: array
+    items:
+      type: object
+      required: [type, content]
+      properties:
+        type: { enum: [plain, embed] }
+        content: { type: string }
+`,
+      'config/defaults.yml': `
+random: false
+responses:
+  - type: plain
+    content: "hi {latency}"
+`,
+    });
+    try {
+      const registry = new Registry();
+      registry.registerService('logger', makeLogger() as never);
+      const crashReporter = makeCrashReporter();
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
+      const entry = await loader.loadModule(fx.dir);
+
+      // entry.config phải là chính merged config (có random + responses) — không phải wrapper {content, config}
+      expect(entry.config).toEqual({
+        random: false,
+        responses: [{ type: 'plain', content: 'hi {latency}' }],
+      });
+      expect((entry.config as Record<string, unknown>).responses).toBeDefined();
+      expect((entry.config as Record<string, unknown>)).not.toHaveProperty('content');
+
+      // getConfig() (handler lấy config sau reload) cũng phải là config thật
+      const viaGetter = entry.getConfig?.();
+      expect(viaGetter).toMatchObject({ random: false });
+      expect((viaGetter as Record<string, unknown>).responses).toBeDefined();
+      expect((viaGetter as Record<string, unknown>)).not.toHaveProperty('config');
+    } finally {
+      fx.cleanup();
+    }
+  });
+
   it('load lại (reload) sau khi đổi CODE handler → handler mới được nạp (bust import cache — hot-reload code)', async () => {
     const fx = makeFixture({
       'module.yml': `

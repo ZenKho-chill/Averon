@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [2.0.1] — 2026-08-14
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- `core/loader`: **config module không được truyền tới handler — `/ping` luôn trả plain fallback "Pong!"** — `loadModule` gán nhầm wrapper `{ content, config }` (trả về từ `loadModuleConfig`) vào `entry.config`/`getConfig()` thay vì `moduleConfig.config` (merged config thật). Handler đọc `cfg.responses` → `undefined` → `pickResponse` fallback → reply "Pong!", nên mọi thay đổi `defaults.yml` (đổi plain→embed, `random: false`, thứ tự response) đều không có tác dụng dù đã `modules reload ping`. Fix: `config: moduleConfig.config`, `getConfig: () => moduleConfig.config ?? {}`. Kèm regression test (VI)
+  EN: Module config was never delivered to handlers — `/ping` always replied the plain "Pong!" fallback. `loadModule` assigned the `{ content, config }` wrapper (returned by `loadModuleConfig`) to `entry.config`/`getConfig()` instead of the real merged config (`moduleConfig.config`). Handlers read `cfg.responses` → `undefined` → `pickResponse` fallback → "Pong!", so any `defaults.yml` change (plain→embed, `random: false`, response order) had no effect even after `modules reload ping`. Fixed: `config: moduleConfig.config`, `getConfig: () => moduleConfig.config ?? {}`. Added a regression test.
+
 ## [2.0.0] — 2026-08-14
 **Loại / Type:** MAJOR — breaking change (gỡ prefix lệnh) / breaking change (command prefix removed)
 

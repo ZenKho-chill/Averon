@@ -92,9 +92,15 @@ export class ModuleLoader {
       version: manifest.version,
       state: 'REGISTERED',
       entry,
-      config: moduleConfig,
+      // CHÚ Ý: dùng moduleConfig.config (merged config THẬT) — KHÔNG được gán cả wrapper
+      // { content, config } từ loadModuleConfig, nếu không handler chỉ thấy `{content, config}`
+      // → cfg.responses undefined → luôn reply fallback (bug "ping luôn plain").
+      // EN: use moduleConfig.config (the REAL merged config) — NOT the { content, config } wrapper,
+      // otherwise handlers see `{content, config}`, cfg.responses is undefined, and they always
+      // reply the fallback (the "ping always plain" bug).
+      config: moduleConfig.config,
       // Cache config đã merge trong entry để handler có thể lấy config mới nhất qua registry
-      getConfig: () => moduleConfig ?? {},
+      getConfig: () => moduleConfig.config ?? {},
       commands,
       events: manifest.events ?? [],
       runtime: {
