@@ -15,8 +15,8 @@ EN: **Golden rule:** new feature → create a new module under `modules/`, never
 
 ## Tính năng / Features
 
-- **Operator console** — quản lý bot ngay từ terminal khi đang chạy: `status`, `modules list|status|load|unload|reload [--force]` (gõ thẳng, không cần prefix `averon`), quick `-help`/`-h`. Unload mặc định **soft-stop** (state `DRAINING`): đợi in-flight handler xong rồi mới gỡ module; `--force` để gỡ ngay.
-  EN: **Operator console** — manage a running bot from the terminal: `status`, `modules list|status|load|unload|reload [--force]` (typed bare, no `averon` prefix needed), quick `-help`/`-h`. Unload defaults to **soft-stop** (state `DRAINING`): waits for in-flight handlers before detaching; `--force` detaches immediately.
+- **Operator console** — quản lý bot ngay từ terminal khi đang chạy: `status`, `modules list|status|load|unload|reload [--force]` (gõ thẳng, không cần prefix), quick `-help`/`-h`. Unload mặc định **soft-stop** (state `DRAINING`): đợi in-flight handler xong rồi mới gỡ module; `--force` để gỡ ngay.
+  EN: **Operator console** — manage a running bot from the terminal: `status`, `modules list|status|load|unload|reload [--force]` (typed bare, no prefix), quick `-help`/`-h`. Unload defaults to **soft-stop** (state `DRAINING`): waits for in-flight handlers before detaching; `--force` detaches immediately.
 - **Module mẫu `ping`** — phản hồi config-driven (không cần đổi code): text **plain** hoặc **embed** đầy đủ, **random** giữa nhiều câu, **placeholder** `{latency} {tag_user} {time}...` — chỉnh qua `config/config.yml → modules.ping`.
   EN: **Sample module `ping`** — config-driven responses (no code change): **plain** text or full **embed**, **random** pick among multiple, **placeholders** `{latency} {tag_user} {time}...` — tuned via `config/config.yml → modules.ping`.
 - **Đa ngôn ngữ**: core và từng module có thể viết bằng nhiều ngôn ngữ khác nhau; command description hiển thị theo ngôn ngữ client (Discord localization).
@@ -54,8 +54,8 @@ npm run new:module -- <name>   # scaffold module mới / scaffold a new module
 
 ### Operator console
 
-Sau khi boot, terminal hiện prompt **`averon> `** — gõ lệnh trực tiếp để quản lý bot (không cần prefix `averon`; vẫn chấp nhận nếu gõ):
-> EN: After boot the terminal shows the **`averon> `** prompt — type commands directly (no `averon` prefix needed; it's still accepted).
+Sau khi boot, terminal hiện prompt **`averon> `** — gõ lệnh trực tiếp để quản lý bot (không cần prefix `averon`):
+> EN: After boot the terminal shows the **`averon> `** prompt — type commands directly (no `averon` prefix needed).
 
 ```
 status                          # tên/version app, uptime, Discord, số module

@@ -1,8 +1,8 @@
 /**
- * core/console/parser — parse dòng lệnh `averon ...` (thuần, dễ test).
- * EN: core/console/parser — parse `averon ...` command lines (pure).
+ * core/console/parser — parse dòng lệnh console (thuần, dễ test).
+ * EN: core/console/parser — parse console command lines (pure).
  *
- * Grammar (prefix `averon` tùy chọn — gõ thẳng `status` cũng được):
+ * Grammar (lệnh gõ thẳng, KHÔNG có prefix `averon` — prefix đã bị gỡ):
  *   status
  *   help
  *   -help | -h                 (quick: shorthand cho 'help')
@@ -11,7 +11,6 @@
  *   modules load <name>
  *   modules unload <name> [--force]
  *   modules reload <name> [--force]
- * `averon <command>` vẫn hợp lệ (optional prefix, backward-compatible).
  * `--force` chỉ hợp lệ cho unload/reload (KHÔNG cho load).
  */
 export type ConsoleCommand =
@@ -34,21 +33,21 @@ export function parseConsoleCommand(line: string): ParseResult {
 
   const tokens = trimmed.split(/\s+/);
 
-  // Quick command: gõ thẳng `-help` / `-h` không cần prefix.
-  // EN: Quick commands — bare `-help` / `-h`, no prefix needed.
+  // Quick command: gõ thẳng `-help` / `-h`.
+  // EN: Quick commands — bare `-help` / `-h`.
   if (tokens[0] === '-help' || tokens[0] === '-h') {
     if (tokens.length > 1) return { ok: false, error: `'${tokens[0]}' takes no arguments — got: ${tokens.slice(1).join(' ')}` };
     return { ok: true, command: { kind: 'help' } };
   }
 
-  // Prefix `averon` TÙY CHỌN: gõ thẳng `status` / `modules list`, hoặc `averon status` đều được.
-  // EN: `averon` prefix is OPTIONAL — bare `status` / `modules list` work, `averon status` still does.
-  const rest = tokens[0] === 'averon' ? tokens.slice(1) : tokens;
-  if (rest.length === 0) {
-    return tokens[0] === 'averon'
-      ? { ok: false, error: 'missing command — try "help"' }
-      : { ok: false, error: 'empty input' };
+  // Prefix `averon` ĐÃ BỊ GỠ — người quen gõ `averon status` cũ được báo rõ ràng.
+  // EN: `averon` prefix was REMOVED — users typing `averon status` get a clear message.
+  if (tokens[0] === 'averon') {
+    return { ok: false, error: "'averon' prefix removed — type commands directly: status, modules list, help" };
   }
+
+  const rest = tokens;
+  if (rest.length === 0) return { ok: false, error: 'empty input' };
 
   const [head, ...tail] = rest;
 

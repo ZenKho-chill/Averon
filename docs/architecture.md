@@ -152,7 +152,7 @@ help                            # help đầy đủ
 -help / -h                      # quick help (không cần prefix)
 ```
 
-Lệnh gõ thẳng **không cần prefix** (`status`, `modules list`, ...). Prefix `averon` vẫn được chấp nhận (optional): `averon status` == `status`.
+Lệnh gõ thẳng **không cần prefix** (`status`, `modules list`, ...). Prefix `averon` đã bị gỡ (gõ `averon status` → báo lỗi hướng dẫn gõ thẳng).
 ```
 
 Thành phần:

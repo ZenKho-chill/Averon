@@ -76,7 +76,7 @@ export class ModuleManager {
 
     const state = this.deps.registry.getModule(name).state;
     if (state === 'UNLOADED') return { ok: false, error: `module '${name}' already unloaded` };
-    if (state === 'FAULTED') return { ok: false, error: `module '${name}' is FAULTED — try "averon modules reload ${name} --force"` };
+    if (state === 'FAULTED') return { ok: false, error: `module '${name}' is FAULTED — try "modules reload ${name} --force"` };
     if (state === 'DRAINING' && !opts.force) return { ok: false, error: `module '${name}' is draining — wait or retry with --force` };
 
     // Dừng nhận command mới trước (soft-stop: không ai vào thêm nữa).
@@ -109,7 +109,7 @@ export class ModuleManager {
 
   /** Reload module — soft unload (chờ idle) hoặc force, rồi LOAD LẠI FRESH TỪ ĐĨA (config + handler mới nhất). */
   async reload(name: string, opts: { force?: boolean }): Promise<ModuleReloadResult> {
-    if (!this.deps.registry.hasModule(name)) return { ok: false, error: `module '${name}' not loaded — use "averon modules load ${name}"` };
+    if (!this.deps.registry.hasModule(name)) return { ok: false, error: `module '${name}' not loaded — use "modules load ${name}"` };
 
     const state = this.deps.registry.getModule(name).state;
     if (state === 'UNLOADED') return { ok: false, error: `module '${name}' already unloaded — use load` };
@@ -202,7 +202,7 @@ export class ModuleManager {
     // Chỉ chặn khi module đang chạy/đang draining — UNLOADED thì được load lại (fix loop load↔reload).
     // EN: Only block when running/draining — UNLOADED modules may be loaded again (fixes the load↔reload loop).
     if (existing && existing.state !== 'UNLOADED') {
-      throw new Error(`module '${name}' already registered (state=${existing.state}) — use "averon modules reload ${name}"`);
+      throw new Error(`module '${name}' already registered (state=${existing.state}) — use "modules reload ${name}"`);
     }
     // Module từng load (UNLOADED) → gỡ entry cũ khỏi registry, load fresh lại từ đĩa.
     // EN: previously-loaded module (UNLOADED) → drop stale registry entry, re-load fresh from disk.

@@ -209,10 +209,9 @@ describe('handleHelp', () => {
     expect(out).toContain('modules reload');
   });
 
-  it('nhắc prefix `averon` vẫn hợp lệ (optional)', () => {
+  it('KHÔNG còn nhắc prefix `averon` (đã bị gỡ)', () => {
     const out = handleHelp();
-    expect(out).toContain('averon status');
-    expect(out).toContain('`averon <command>` vẫn hợp lệ');
+    expect(out).not.toMatch(/averon\s+status/);
   });
 
   it('có quick command -help / -h', () => {

@@ -117,6 +117,5 @@ export function handleHelp(): string {
     'modules reload <name> [--force] — soft or force reload',
     'help                            — this help',
     '-help / -h                      — quick help (shorthand)',
-    '`averon <command>` vẫn hợp lệ — prefix tùy chọn: `averon status` == `status`',
   ].join('\n');
 }
