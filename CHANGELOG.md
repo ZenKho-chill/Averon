@@ -3,12 +3,37 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
-## [0.8.3] — 2026-08-12
+## [0.9.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `shared/errors`: hệ thống lỗi chuẩn cho module + core — `UserError`, `NotFoundError`, `PermissionError`, `RateLimitError`, `InvalidArgumentError` + `toUserMessage()` (VI)
+  EN: Added `shared/errors` — standard error types for modules + core plus `toUserMessage()`.
+- `core/discord`: boundary bắt lỗi command giờ **tự phản hồi cho user theo loại error** — module `throw` typed error (KHÔNG reply hardcode); lỗi nội bộ: dev hiện chi tiết (`dev.show_stacktrace`), prod che giấu internals; interaction đã ack → tự fallback `followUp` (§8, §9.1) (VI)
+  EN: `core/discord` command boundary now **auto-replies to the user by error type** — modules throw typed errors instead of hardcoding replies; internal errors show detail in dev (`dev.show_stacktrace`), hidden in prod; already-acknowledged interactions fall back to `followUp` (§8, §9.1).
+
+### Changed
+- `modules/ping` + `shared/config/module-semantic`: bỏ `validateConfig` hardcode trong module — config module validate hoàn toàn bằng JSON Schema (`config/schema.yml`), hệ thống tự xử lý nhiều loại error (required, type, enum/const, pattern, additionalProperties, oneOf...) (VI)
+  EN: Removed the hardcoded `validateConfig` from `modules/ping` and its hook in `shared/config/module-semantic` — module config is validated entirely by JSON Schema (`config/schema.yml`), which auto-handles many error types (required, type, enum/const, pattern, additionalProperties, oneOf...).
+
+### Fixed
+- `core/loader`: `root is not defined` khi config module không hợp lệ và cần restore từ backup — dùng `this.root` thay vì biến không tồn tại (VI)
+  EN: Fixed `root is not defined` in `core/loader` when module config is invalid and a backup restore is needed — now uses `this.root`.
+- `core/discord` test login: timeout 5s do không mock gateway ready — mock `client.isReady()` để login resolve ngay (VI)
+  EN: Fixed the `discord.login` test timeout caused by an un-mocked gateway ready — mocked `client.isReady()` so login resolves immediately.
+
+## [0.8.4] — 2026-08-13
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Added
+- **Config module tự xử lý validate**: module có thể export hàm `validateConfig(config)` để tự validate config của chính mình (thay vì hardcode logic trong `shared/config/module-semantic.ts`). Module `ping` đã di chuyển logic validate vào `src/index.ts` (VI)
+  EN: Modules can now export a `validateConfig(config)` function to self-validate their config (replacing the hardcoded logic in `shared/config/module-semantic.ts`). The `ping` module has moved its validation logic to `src/index.ts`.
 
 ### Fixed
 - **Ping -1 + phản hồi sai lúc mới khởi động**: trước đây `bootstrap` load modules + mở operator console **trước khi** Discord client sẵn sàng → lệnh `/ping` đầu tiên trả `{latency}` = -1 (ws.ping chưa đo được). Fix: `DiscordClient.login()` đợi `ready` event trước khi resolve, `bootstrap` gọi login **trước** khi load modules và sync commands; bỏ `discord.login()` kép còn sót lại (gây unhandled rejection "tried to connect a shard that wasn't idle" mỗi lần boot). `/ping` hiển thị `...` thay vì `-1` khi ws.ping chưa đo được (VI)
   EN: -1 ping + wrong response right after boot: bootstrap previously loaded modules + started the operator console **before** the Discord client was ready → the first `/ping` returned `{latency}` = -1 (ws.ping not measured yet). Fixed: `DiscordClient.login()` now waits for the `ready` event before resolving, `bootstrap` logs in **before** loading modules and syncing commands; removed the leftover duplicate `discord.login()` (caused an unhandled rejection "tried to connect a shard that wasn't idle" on every boot). `/ping` now shows `...` instead of `-1` while ws.ping is not measured yet.
+- **Module `ping` load thất bại do validate config sai**: `shared/config/module-semantic.ts` kiểm tra field `response` nhưng config thực tế dùng `responses`. Fix: di chuyển logic validate vào module `ping` và gọi qua hook `validateConfig` (VI)
+  EN: Module `ping` failed to load due to incorrect config validation: `shared/config/module-semantic.ts` checked for a `response` field but the actual config used `responses`. Fixed: moved validation logic into the `ping` module and called via the `validateConfig` hook.
 - **Reload module sau thay đổi config không có hiệu lực**: `ModuleManager.reload` tái dùng entry cũ trong registry → config đổi trên đĩa (`modules/<name>/config/defaults.yml` hoặc `config/config.yml → modules.<name>`) **không** được nạp lại; handler còn đọc config qua closure cũ. Fix: `reload` (soft + `--force`) giờ load lại **fresh từ đĩa** (giống `load`): gỡ entry cũ, `loader.loadModule` lại (đọc lại defaults.yml + handler), attach lại; `CommandContext` thêm field `registry` để handler lấy config **mới nhất** qua `registry.getModule(name).getConfig()` thay vì closure (VI)
   EN: Module reload after a config change did not take effect: `ModuleManager.reload` reused the stale registry entry → on-disk config changes (`modules/<name>/config/defaults.yml` or `config/config.yml → modules.<name>`) were **not** re-read, and the handler kept reading config via a closure captured at attach time. Fixed: `reload` (soft + `--force`) now reloads **fresh from disk** (same as `load`): drops the stale entry, re-runs `loader.loadModule` (re-reads defaults.yml + handlers), re-attaches; `CommandContext` gained a `registry` field so handlers read the **latest** config via `registry.getModule(name).getConfig()` instead of a closure.
 - **Config loader trả `{}` thay vì `undefined`**: module không khai báo `config.defaults` → `entry.config`/`getConfig()` trả `{}` (object rỗng, không `undefined`) để handler luôn có config hợp lệ; vẫn chỉ validate schema khi defaults thực sự load được (VI)
@@ -20,7 +45,7 @@ EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, 
 - **Reload module không nạp lại CODE đã sửa**: Node cache `import()` theo URL → sau reload, handler/entry vẫn là bản code CŨ trong cache (chỉ config mới có hiệu lực). Fix: `ModuleLoader` import ESM với cache-buster (`?v=<time>-<seq>`) để mỗi lần load/reload nạp lại code mới nhất từ đĩa (hot-reload code qua `averon modules reload`) (VI)
   EN: Module reload did not pick up CODE changes: Node caches `import()` by URL → after reload, handlers/entries were still the OLD cached code (only config took effect). Fixed: `ModuleLoader` imports ESM with a cache-buster query (`?v=<time>-<seq>`) so every load/reload imports the latest code from disk (hot-reload code via `averon modules reload`).
 
-## [0.8.3] — 2026-08-12
+## [0.8.4] — 2026-08-13
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 
 ### Fixed

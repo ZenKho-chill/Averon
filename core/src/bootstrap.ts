@@ -5,7 +5,8 @@
  * Pipeline: config.load → logger.init → anti-crash handlers → module loader → discord.login → watchdog.start
  */
 import { loadCoreConfig, getConsoleConfig } from './config/index.js';
-import { backupConfig, findProjectRoot } from '../../shared/config/index.js';
+import { backupConfig, restoreLatestValidConfig } from '../../shared/config/backup.js';
+import { findProjectRoot } from '../../shared/config/index.js';
 import { createLogger } from '../../shared/logger/index.js';
 import { Registry } from './registry/index.js';
 import { UsageTracker } from './registry/usage.js';
@@ -19,10 +20,31 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export async function bootstrap() {
-  // 1. Load config — config hợp lệ (schema + semantic) = bản ổn định
-  const config = await loadCoreConfig();
+  // 1. Khởi tạo logger tạm thời để dùng trong catch
+  const tempLogger = createLogger({
+    level: 'INFO', // Mặc định INFO cho logger tạm
+    color: false,
+    file: null,
+  });
 
-  // 2. Khởi tạo logger
+  // 2. Load config — config hợp lệ (schema + semantic) = bản ổn định
+  let config;
+  try {
+    config = await loadCoreConfig();
+  } catch (err) {
+    tempLogger.error(`Config tổng không hợp lệ: ${(err as Error).message}`);
+    tempLogger.warn('Đang cố gắng khôi phục từ bản backup mới nhất...');
+    const restored = restoreLatestValidConfig(join(root, 'config'), { type: 'core', logger: tempLogger });
+    if (restored) {
+      config = await loadCoreConfig(); // Thử load lại sau khi khôi phục
+      tempLogger.info('Config đã được khôi phục thành công, tiếp tục khởi động...');
+    } else {
+      tempLogger.error('Không thể khôi phục config từ backup. Vui lòng kiểm tra lại config.yml hoặc khôi phục thủ công.');
+      process.exit(1);
+    }
+  }
+
+  // 3. Khởi tạo logger chính thức với config từ file
   const logger = createLogger({
     level: config.logging.level,
     color: config.logging.console_color,
@@ -35,8 +57,10 @@ export async function bootstrap() {
   logger.info('Averon booting', { version: config.app.version, register_commands: config.discord.register_commands });
 
   // 2.1 Backup bản config ổn định cuối cùng — dễ rollback (§6.4)
-  const backupPath = backupConfig(join(root, 'config'));
-  logger.info(`Backup config → ${backupPath.replaceAll('\\', '/')}`);
+  const backupPath = backupConfig(join(root, 'config'), { type: 'core' });
+  if (backupPath) {
+    logger.info(`Backup config tổng → ${backupPath.replaceAll('\\', '/')}`);
+  }
 
   // 3. Đăng ký anti-crash handlers
   const registry = new Registry();
@@ -79,6 +103,15 @@ export async function bootstrap() {
   });
   await manager.loadAll();
 
+  // Backup config cho từng module
+  for (const module of registry.getAllModules()) {
+    const moduleDir = join(root, 'modules', module.name);
+    const backupPath = backupConfig(moduleDir, { type: 'module', name: module.name });
+    if (backupPath) {
+      logger.info(`Backup config module '${module.name}' → ${backupPath.replaceAll('\\', '/')}`);
+    }
+  }
+
   // 6. Sync command lên Discord — metadata từ registry (handler đã được Manager gắn)
   const commands: Array<{ name: string; description?: { vi?: string; en?: string } | string; type?: 'chat_input' | 'user' | 'message'; scope?: Array<'global' | 'guild' | 'user'> }> = [];
   for (const module of registry.getAllModules()) {
@@ -111,7 +144,10 @@ export async function bootstrap() {
     root,
     bootTimestamp: Date.now(),
   });
-  if (consoleConfig.enabled) operatorConsole.start();
+  if (consoleConfig.enabled) {
+    operatorConsole.start();
+    logger.info('Operator console đã sẵn sàng');
+  }
 
   return { config, logger, registry, discord, crashReporter, lifecycle, usage, manager, console: operatorConsole };
 }

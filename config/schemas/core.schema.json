@@ -3,51 +3,119 @@
   "$id": "https://averon.dev/schemas/core.schema.json",
   "title": "Averon core config",
   "type": "object",
-  "required": ["app", "discord", "logging", "crash", "dev"],
+  "required": [
+    "app",
+    "discord",
+    "logging",
+    "crash",
+    "dev"
+  ],
   "properties": {
     "app": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "description": "app.version KHÔNG khai báo ở đây — tự lấy từ package.json khi boot (§10). EN: app.version is derived from package.json at boot — not declared here.",
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Optional — bị ghi đè bằng version package.json nếu khai báo. EN: Optional — overridden by package.json version if set." }
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Optional — bị ghi đè bằng version package.json nếu khai báo. EN: Optional — overridden by package.json version if set."
+        }
       }
     },
     "discord": {
       "type": "object",
-      "required": ["intents"],
+      "required": [
+        "intents"
+      ],
       "properties": {
-        "token": { "type": "string" },
+        "token": {
+          "type": "string"
+        },
         "intents": {
           "type": "array",
-          "items": { "type": "string", "enum": ["Guilds", "GuildMessages", "MessageContent", "GuildMembers", "GuildVoiceStates", "DirectMessages"] }
+          "items": {
+            "type": "string",
+            "enum": [
+              "Guilds",
+              "GuildMessages",
+              "MessageContent",
+              "GuildMembers",
+              "GuildVoiceStates",
+              "DirectMessages"
+            ]
+          }
         },
-        "guild_id": { "type": "string", "pattern": "^\\d+$" },
-        "login_timeout_ms": { "type": "number", "minimum": 1000, "description": "Timeout chờ discord login + gateway ready (ms) trước khi boot fail-fast. Mặc định 30000. EN: Login + gateway-ready timeout (ms) before boot fails fast. Default 30000." },
+        "guild_id": {
+          "type": "string",
+          "pattern": "^\\d+$"
+        },
+        "login_timeout_ms": {
+          "type": "number",
+          "minimum": 1000,
+          "description": "Timeout chờ discord login + gateway ready (ms) trước khi boot fail-fast. Mặc định 30000. EN: Login + gateway-ready timeout (ms) before boot fails fast. Default 30000."
+        },
         "register_commands": {
           "type": "object",
           "properties": {
-            "global": { "type": "boolean", "default": true },
-            "guild": { "type": "boolean", "default": false },
-            "user": { "type": "boolean", "default": false }
+            "global": {
+              "type": "boolean",
+              "default": true
+            },
+            "guild": {
+              "type": "boolean",
+              "default": false
+            },
+            "user": {
+              "type": "boolean",
+              "default": false
+            }
           }
         }
       }
     },
     "logging": {
       "type": "object",
-      "required": ["level"],
+      "required": [
+        "level"
+      ],
       "properties": {
-        "level": { "type": "string", "enum": ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"] },
-        "console_color": { "type": "boolean" },
+        "level": {
+          "type": "string",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR",
+            "FATAL"
+          ]
+        },
+        "console_color": {
+          "type": "boolean"
+        },
         "file": {
           "type": "object",
           "properties": {
-            "enabled": { "type": "boolean" },
-            "dir": { "type": "string" },
-            "max_size_mb": { "type": "number", "minimum": 1 },
-            "keep_files": { "type": "number", "minimum": 1 }
+            "enabled": {
+              "type": "boolean"
+            },
+            "dir": {
+              "type": "string"
+            },
+            "max_size_mb": {
+              "type": "number",
+              "minimum": 1
+            },
+            "keep_files": {
+              "type": "number",
+              "minimum": 1
+            }
           }
         }
       }
@@ -55,14 +123,28 @@
     "crash": {
       "type": "object",
       "properties": {
-        "max_failures": { "type": "number", "minimum": 1 },
-        "fail_window_ms": { "type": "number", "minimum": 0 },
+        "max_failures": {
+          "type": "number",
+          "minimum": 1
+        },
+        "fail_window_ms": {
+          "type": "number",
+          "minimum": 0
+        },
         "watchdog": {
           "type": "object",
           "properties": {
-            "enabled": { "type": "boolean" },
-            "max_restarts": { "type": "number", "minimum": 1 },
-            "window_min": { "type": "number", "minimum": 1 }
+            "enabled": {
+              "type": "boolean"
+            },
+            "max_restarts": {
+              "type": "number",
+              "minimum": 1
+            },
+            "window_min": {
+              "type": "number",
+              "minimum": 1
+            }
           }
         }
       }
@@ -70,17 +152,29 @@
     "dev": {
       "type": "object",
       "properties": {
-        "hot_reload": { "type": "boolean" },
-        "show_stacktrace": { "type": "boolean" }
+        "hot_reload": {
+          "type": "boolean"
+        },
+        "show_stacktrace": {
+          "type": "boolean"
+        }
       }
     },
     "console": {
       "type": "object",
       "description": "Operator console — nhập lệnh averon ... từ stdin. Optional, mặc định trong code.",
       "properties": {
-        "enabled": { "type": "boolean" },
-        "prompt": { "type": "string", "minLength": 1 },
-        "soft_stop_timeout_ms": { "type": "number", "minimum": 0 }
+        "enabled": {
+          "type": "boolean"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "soft_stop_timeout_ms": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
     "modules": {

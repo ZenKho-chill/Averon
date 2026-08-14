@@ -138,6 +138,100 @@ version: 1.0.0
     }
   });
 
+  it('config module sai (thiếu required theo schema) → ConfigError từ JSON Schema, KHÔNG cần validateConfig hardcode', async () => {
+    const fx = makeFixture({
+      'module.yml': `
+name: ping
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: '>=18'
+  transport: in-process
+entry: src/index.ts
+config:
+  schema: config/schema.yml
+  defaults: config/defaults.yml
+`,
+      'src/index.ts': `export const onLoad = () => {};`,
+      'config/schema.yml': `
+type: object
+additionalProperties: false
+properties:
+  responses:
+    type: array
+    items:
+      type: object
+      required: [type, content]
+      properties:
+        type: { enum: [plain, embed] }
+        content: { type: string }
+`,
+      // responses[0] thiếu 'content' → schema phải tự bắt, không cần module tự viết lỗi
+      'config/defaults.yml': `
+responses:
+  - type: plain
+`,
+    });
+    try {
+      const registry = new Registry();
+      registry.registerService('logger', makeLogger() as never);
+      const crashReporter = makeCrashReporter();
+      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      await expect(loader.loadModule(fx.dir)).rejects.toThrow(/\/responses\/0/);
+    } finally {
+      fx.cleanup();
+    }
+  });
+
+  it('config module hợp lệ theo schema → load thành công', async () => {
+    const fx = makeFixture({
+      'module.yml': `
+name: ping
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: '>=18'
+  transport: in-process
+entry: src/index.ts
+config:
+  schema: config/schema.yml
+  defaults: config/defaults.yml
+`,
+      'src/index.ts': `export const onLoad = () => {};`,
+      'config/schema.yml': `
+type: object
+additionalProperties: false
+properties:
+  responses:
+    type: array
+    items:
+      type: object
+      required: [type, content]
+      properties:
+        type: { enum: [plain, embed] }
+        content: { type: string }
+`,
+      'config/defaults.yml': `
+responses:
+  - type: plain
+    content: "Pong! ({latency}ms)"
+`,
+    });
+    try {
+      const registry = new Registry();
+      registry.registerService('logger', makeLogger() as never);
+      const crashReporter = makeCrashReporter();
+      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const entry = await loader.loadModule(fx.dir);
+      expect(entry.name).toBe('ping');
+      expect(registry.getModule('ping').state).toBe('REGISTERED');
+    } finally {
+      fx.cleanup();
+    }
+  });
+
   it('entry point không tồn tại → ConfigError', async () => {
     const fx = makeFixture({
       'module.yml': `

@@ -74,7 +74,35 @@ renderPlaceholders("Pong! ({latency}ms)", { latency: "42" }); // → "Pong! (42m
 - Cú pháp `{key}`; placeholder thiếu var → thay `''`.
 - Vars built-in mặc định: `time`, `tag_user`, `latency`, `username`, `user_id`, `guild`, `guild_id` — và mở rộng `[key: string]` tùy module.
 
-## 5. Core-internal (không dùng cho module)
+## 6. `shared/errors` — hệ thống lỗi (error handling system)
+
+**Module KHÔNG reply hardcode chuỗi lỗi trong handler** — `throw` typed error để core bắt ở boundary và tự map sang response cho user theo loại error (§8, §9.1).
+
+```ts
+import { UserError, NotFoundError, PermissionError, RateLimitError, InvalidArgumentError } from '../../../shared/errors/index.js';
+
+throw new NotFoundError('Không tìm thấy thành viên. EN: Member not found.');
+throw new PermissionError('Bạn không có quyền dùng lệnh này. EN: No permission.');
+throw new RateLimitError('Quá nhanh, chờ một chút. EN: Too fast, slow down.');
+```
+
+| Error class | Dùng khi / When |
+|---|---|
+| `UserError` | Base — lỗi hiển thị được cho user (message do module thiết kế, user-safe) |
+| `NotFoundError` | Không tìm thấy tài nguyên (user, guild, file, record...) |
+| `PermissionError` | User thiếu quyền thực hiện hành động |
+| `RateLimitError` | User bị giới hạn tần suất / cooldown / quota |
+| `InvalidArgumentError` | Đối số / dữ liệu user nhập không hợp lệ |
+
+**Quy tắc:** message của `UserError` (và subclass) hiển thị **trực tiếp** cho user → viết user-safe (song ngữ, không lộ internals/secret).
+
+**Lỗi nội bộ khác (generic `Error`):** core log đầy đủ, còn response cho user phụ thuộc mode (§8):
+- **Dev** (`dev.show_stacktrace: true`) → message chung + chi tiết lỗi (dễ debug).
+- **Prod** → message chung an toàn, **che giấu internals** (`GENERIC_ERROR_MESSAGE`).
+
+> Helper `toUserMessage(err, { showStacktrace })` map lỗi → message (core dùng nội bộ; module không cần gọi).
+
+## 7. Core-internal (không dùng cho module)
 
 Các thành phần sau là **nội bộ core**, module KHÔNG được dùng trực tiếp:
 

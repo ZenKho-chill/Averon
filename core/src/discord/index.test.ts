@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { DiscordClient } from './index.js';
 import { UsageTracker } from '../registry/usage.js';
+import { UserError, NotFoundError, GENERIC_ERROR_MESSAGE } from '../../../shared/errors/index.js';
 import type { Logger } from '../../../shared/logger/index.js';
 import type { AppConfig } from '../../config/index.js';
 
@@ -177,6 +178,122 @@ describe('DiscordClient', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(handler).not.toHaveBeenCalled();
     expect(usage.activeCount('ping')).toBe(0);
+  });
+
+  /** Interaction mock đầy đủ reply/followUp — test hệ thống error response. */
+  function makeErrorInteraction(overrides: Record<string, unknown> = {}) {
+    return {
+      isCommand: () => true,
+      commandName: 'ping',
+      reply: vi.fn().mockResolvedValue(undefined),
+      followUp: vi.fn().mockResolvedValue(undefined),
+      ...overrides,
+    };
+  }
+
+  it('handler throw UserError → user nhận message user-safe của lỗi (ephemeral)', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    const handler = vi.fn(async () => {
+      throw new NotFoundError('Không tìm thấy thành viên. EN: Member not found.');
+    });
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = makeErrorInteraction();
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(logger.error).toHaveBeenCalled();
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: 'Không tìm thấy thành viên. EN: Member not found.',
+      ephemeral: true,
+    });
+    expect(interaction.followUp).not.toHaveBeenCalled();
+  });
+
+  it('handler throw generic Error ở prod → message chung an toàn, KHÔNG lộ chi tiết', async () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    config.dev.show_stacktrace = false; // prod
+    const discord = new DiscordClient(config, logger);
+    const handler = vi.fn(async () => {
+      throw new Error('DB secret leaked');
+    });
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = makeErrorInteraction();
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    const replyArg = interaction.reply.mock.calls[0][0];
+    expect(replyArg.content).toBe(GENERIC_ERROR_MESSAGE);
+    expect(replyArg.content).not.toContain('DB secret leaked');
+  });
+
+  it('handler throw generic Error ở dev → message chung + chi tiết lỗi để debug', async () => {
+    const logger = makeLogger();
+    const config = makeConfig();
+    config.dev.show_stacktrace = true; // dev
+    const discord = new DiscordClient(config, logger);
+    const handler = vi.fn(async () => {
+      throw new Error('timeout after 5000ms');
+    });
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = makeErrorInteraction();
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    const replyArg = interaction.reply.mock.calls[0][0];
+    expect(replyArg.content).toContain(GENERIC_ERROR_MESSAGE);
+    expect(replyArg.content).toContain('timeout after 5000ms');
+  });
+
+  it('handler reply xong rồi throw → error response qua followUp (không double-reply crash)', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    let replyCalls = 0;
+    const handler = vi.fn(async (interaction: { reply: (m: unknown) => Promise<unknown> }) => {
+      await interaction.reply('đã reply thành công');
+      replyCalls++;
+      throw new UserError('Xảy ra lỗi sau khi reply. EN: Error after reply.');
+    });
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = makeErrorInteraction({
+      reply: vi.fn(() => {
+        replyCalls++;
+        // Lần gọi thứ 2 của core (sau khi handler đã reply) phải throw — mô phỏng "already acknowledged".
+        return replyCalls > 1 ? Promise.reject(new Error('Interaction has already been acknowledged')) : Promise.resolve();
+      }),
+    });
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(interaction.followUp).toHaveBeenCalledWith({
+      content: 'Xảy ra lỗi sau khi reply. EN: Error after reply.',
+      ephemeral: true,
+    });
+  });
+
+  it('handler throw nhưng interaction không có reply/followUp (mock tối giản) → không crash', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    const handler = vi.fn(async () => {
+      throw new Error('boom');
+    });
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = { isCommand: () => true, commandName: 'ping' }; // không có reply/followUp
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(logger.error).toHaveBeenCalled(); // lỗi vẫn được log ở boundary
   });
 
   /** Mock application.commands: chỉ có set() (bulk replace). */
