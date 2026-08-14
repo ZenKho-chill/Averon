@@ -53,6 +53,33 @@ describe('backupConfig', () => {
     }
   });
 
+  it('backup với content ĐÃ VALIDATE (không đụng file config đang lỗi)', () => {
+    const { dir, cleanup } = makeConfigDir('bogus: not the real content\n');
+    try {
+      const path = backupConfig(dir, { content: 'app:\n  name: VALID\n' });
+      expect(path).not.toBeNull();
+      expect(readFileSync(path!, 'utf8')).toContain('VALID');
+      // config.yml KHÔNG bị đụng tới
+      expect(readFileSync(join(dir, 'config.yml'), 'utf8')).toContain('bogus');
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('content giống backup cuối → không tạo backup mới (dedup nội dung)', () => {
+    const { dir, cleanup } = makeConfigDir('app:\n  name: averon\n');
+    try {
+      const first = backupConfig(dir);
+      const latestContent = readFileSync(first!, 'utf8');
+      // config.yml đổi thành lỗi, nhưng content truyền vào = bản backup cuối → bỏ qua
+      writeFileSync(join(dir, 'config.yml'), 'bogus: invalid\n');
+      expect(backupConfig(dir, { content: latestContent })).toBeNull();
+      expect(listBackups(dir).length).toBe(1);
+    } finally {
+      cleanup();
+    }
+  });
+
   it('backup module nếu nội dung khác', () => {
     const moduleDir = mkdtempSync(join(tmpdir(), 'averon-module-'));
     const configDir = join(moduleDir, 'config');
