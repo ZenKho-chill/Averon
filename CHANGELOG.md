@@ -3,6 +3,17 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [2.2.0] — 2026-08-14
+**Loại / Type:** MINOR — thay đổi hành vi / behavior change
+
+### Changed
+- `core` + `shared/config`: **khi config invalid, thay vì RESTORE (ghi đè file bằng backup) → giờ LOAD backup gần nhất** — `config.yml`/`defaults.yml` bị lỗi **không bị ghi đè**, chỉ nội dung backup mới nhất được dùng tạm cho lần boot đó. Admin thấy rõ file đang lỗi và sửa; restart sau khi sửa để dùng config thật. Thay `restoreLatestValidConfig()` bằng `loadLatestBackupContent()` (chỉ đọc, không ghi); `loadCoreConfig()` hỗ trợ load từ chuỗi backup qua `loadConfigFromContent()` (VI)
+  EN: When the config is invalid, instead of RESTORE (overwriting the file with the backup) we now LOAD the newest backup — the broken `config.yml`/`defaults.yml` is NOT overwritten, only the newest backup content is used temporarily for that boot. The admin can see the broken file and fix it; restart after fixing. Replaced `restoreLatestValidConfig()` with `loadLatestBackupContent()` (read-only); `loadCoreConfig()` now supports loading from backup content via `loadConfigFromContent()`.
+- `shared/config`: `restoreLatestValidConfig` đã bị gỡ (auto-restore) — rollback thủ công `npm run restore:config` vẫn dùng `restoreConfig` (VI)
+  EN: `restoreLatestValidConfig` removed (auto-restore); manual rollback `npm run restore:config` still uses `restoreConfig`.
+- Ghi chú hành vi mới thêm vào CLAUDE.md §6.6 (VI)
+  EN: CLAUDE.md §6.6 updated with the new behavior.
+
 ## [2.1.1] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 

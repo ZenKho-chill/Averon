@@ -14,7 +14,7 @@ export * from './errors.js';
 export * from './types.js';
 export { deepMerge } from './merge.js';
 export { validateSemantics } from './semantic.js';
-export { backupConfig, listBackups, restoreConfig } from './backup.js';
+export { backupConfig, listBackups, restoreConfig, loadLatestBackupContent } from './backup.js';
 // findProjectRoot được export trực tiếp từ hàm dưới
 
 /** Tìm project root (nơi có package.json) — hoạt động cả khi chạy từ src lẫn từ dist. */
@@ -62,11 +62,22 @@ export function loadConfig<T>(options: LoadConfigOptions = {}): T {
     );
   }
 
-  const config = YAML.parse(readFileSync(file, 'utf8')) ?? {};
+  return loadConfigFromContent<T>(readFileSync(file, 'utf8'), { schema: options.schema, file });
+}
+
+/**
+ * Parse + validate config từ chuỗi YAML — dùng khi load từ bản backup (config file bị lỗi).
+ * EN: Parse + validate config from a YAML string — used when loading from a backup (config file broken).
+ */
+export function loadConfigFromContent<T>(
+  content: string,
+  options: { schema?: string | object; file?: string } = {},
+): T {
+  const config = YAML.parse(content) ?? {};
 
   if (options.schema) {
     const schema = typeof options.schema === 'string' ? loadSchema(options.schema) : options.schema;
-    validateConfig(config, schema, [file]);
+    validateConfig(config, schema, [options.file ?? 'backup']);
   }
 
   return config as T;

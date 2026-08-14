@@ -33,7 +33,7 @@ vi.mock('./discord/index.js', () => ({
 // bootstrap resolves the project root through it (modules/*, config).
 vi.mock('../../shared/config/backup.js', () => ({
   backupConfig: vi.fn(() => 'config/backups/config-test.yml'),
-  restoreLatestValidConfig: vi.fn(() => false),
+  loadLatestBackupContent: vi.fn(() => null),
 }));
 
 vi.mock('../../shared/config/index.js', async (importOriginal) => {

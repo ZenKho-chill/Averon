@@ -5,7 +5,7 @@
  * Pipeline: config.load → logger.init → anti-crash handlers → module loader → discord.login → watchdog.start
  */
 import { loadCoreConfig, getConsoleConfig } from './config/index.js';
-import { backupConfig, restoreLatestValidConfig } from '../../shared/config/backup.js';
+import { backupConfig, loadLatestBackupContent } from '../../shared/config/backup.js';
 import { findProjectRoot } from '../../shared/config/index.js';
 import { createLogger } from '../../shared/logger/index.js';
 import { Registry } from './registry/index.js';
@@ -19,6 +19,7 @@ import { OperatorConsole } from './console/index.js';
 import { ProtectedOutput } from './console/protected-output.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import YAML from 'yaml';
 
 export async function bootstrap() {
   // 1. Khởi tạo logger tạm thời để dùng trong catch
@@ -30,17 +31,22 @@ export async function bootstrap() {
 
   // 2. Load config — config hợp lệ (schema + semantic) = bản ổn định
   let config;
+  let configLoadedFromBackup = false; // true = config.yml đang LỖI, đang chạy bằng bản backup
   try {
     config = await loadCoreConfig();
   } catch (err) {
     tempLogger.error(`Config tổng không hợp lệ: ${(err as Error).message}`);
-    tempLogger.warn('Đang cố gắng khôi phục từ bản backup mới nhất...');
-    const restored = restoreLatestValidConfig(join(root, 'config'), { type: 'core', logger: tempLogger });
-    if (restored) {
-      config = await loadCoreConfig(); // Thử load lại sau khi khôi phục
-      tempLogger.info('Config đã được khôi phục thành công, tiếp tục khởi động...');
+    // KHÔNG ghi đè config.yml bằng backup — chỉ DÙNG nội dung backup mới nhất cho lần boot này,
+    // để user thấy config.yml còn lỗi và sửa. EN: don't overwrite config.yml with the backup —
+    // just LOAD the newest backup for this boot, so the user still sees the broken file and fixes it.
+    tempLogger.warn('Đang dùng config từ bản backup mới nhất (config.yml không bị ghi đè)...');
+    const backupContent = loadLatestBackupContent(join(root, 'config'), { type: 'core' });
+    if (backupContent !== null) {
+      config = await loadCoreConfig(undefined, undefined, true, backupContent);
+      configLoadedFromBackup = true;
+      tempLogger.error('Config đang chạy từ bản backup (config.yml vẫn lỗi). Sửa config/config.yml rồi restart để dùng config thật.');
     } else {
-      tempLogger.error('Không thể khôi phục config từ backup. Vui lòng kiểm tra lại config.yml hoặc khôi phục thủ công.');
+      tempLogger.error('Không có bản backup nào để dùng. Sửa config/config.yml hoặc chạy `npm run restore:config`.');
       process.exit(1);
     }
   }
@@ -60,10 +66,17 @@ export async function bootstrap() {
   });
   logger.info('Averon booting', { version: config.app.version, register_commands: config.discord.register_commands });
 
-  // 2.1 Backup bản config ổn định cuối cùng — dễ rollback (§6.4)
-  const backupPath = backupConfig(join(root, 'config'), { type: 'core' });
-  if (backupPath) {
-    logger.info(`Backup config tổng → ${backupPath.replaceAll('\\', '/')}`);
+  // 2.1 Backup bản config ổn định cuối cùng — dễ rollback (§6.4).
+  // Chỉ backup khi config.yml THẬT hợp lệ (không phải đang dùng bản backup) — config lỗi KHÔNG được
+  // ghi vào backup, tránh "backup lỗi" thành bản mới nhất. EN: back up only when the real config.yml
+  // is valid (not when running from a backup) — a broken config must never become the newest backup.
+  if (configLoadedFromBackup) {
+    logger.warn('Bỏ qua backup config tổng — config.yml đang lỗi (bản backup cũ vẫn giữ, không ghi đè).');
+  } else {
+    const backupPath = backupConfig(join(root, 'config'), { type: 'core' });
+    if (backupPath) {
+      logger.info(`Backup config tổng → ${backupPath.replaceAll('\\', '/')}`);
+    }
   }
 
   // 3. Đăng ký anti-crash handlers
@@ -105,10 +118,18 @@ export async function bootstrap() {
   });
   await manager.loadAll();
 
-  // Backup config cho từng module
+  // Backup config cho từng module — chỉ backup config ĐÃ VALIDATE (đang dùng), KHÔNG backup
+  // defaults.yml thô khi nó đang lỗi (mô-đun chạy từ bản backup → nội dung trùng backup → tự bỏ qua).
+  // EN: back up each module's VALIDATED config (the one in use) — never the raw broken defaults.yml
+  // (running from a backup → content matches the existing backup → dedup skips it anyway).
   for (const module of registry.getAllModules()) {
     const moduleDir = join(root, 'modules', module.name);
-    const backupPath = backupConfig(moduleDir, { type: 'module', name: module.name });
+    if (!module.config || Object.keys(module.config).length === 0) continue;
+    const backupPath = backupConfig(moduleDir, {
+      type: 'module',
+      name: module.name,
+      content: YAML.stringify(module.config),
+    });
     if (backupPath) {
       logger.info(`Backup config module '${module.name}' → ${backupPath.replaceAll('\\', '/')}`);
     }

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { backupConfig, listBackups, restoreConfig, restoreLatestValidConfig } from './backup.js';
+import { backupConfig, listBackups, restoreConfig, loadLatestBackupContent } from './backup.js';
 
 /** Fixture: thư mục config tạm có config.yml. */
 function makeConfigDir(content = 'app:\n  name: averon\n'): { dir: string; cleanup: () => void } {
@@ -48,6 +48,33 @@ describe('backupConfig', () => {
       backupConfig(dir); // Lần 1: tạo backup
       const path2 = backupConfig(dir); // Lần 2: nội dung giống → không tạo backup mới
       expect(path2).toBeNull();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('backup với content ĐÃ VALIDATE (không đụng file config đang lỗi)', () => {
+    const { dir, cleanup } = makeConfigDir('bogus: not the real content\n');
+    try {
+      const path = backupConfig(dir, { content: 'app:\n  name: VALID\n' });
+      expect(path).not.toBeNull();
+      expect(readFileSync(path!, 'utf8')).toContain('VALID');
+      // config.yml KHÔNG bị đụng tới
+      expect(readFileSync(join(dir, 'config.yml'), 'utf8')).toContain('bogus');
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('content giống backup cuối → không tạo backup mới (dedup nội dung)', () => {
+    const { dir, cleanup } = makeConfigDir('app:\n  name: averon\n');
+    try {
+      const first = backupConfig(dir);
+      const latestContent = readFileSync(first!, 'utf8');
+      // config.yml đổi thành lỗi, nhưng content truyền vào = bản backup cuối → bỏ qua
+      writeFileSync(join(dir, 'config.yml'), 'bogus: invalid\n');
+      expect(backupConfig(dir, { content: latestContent })).toBeNull();
+      expect(listBackups(dir).length).toBe(1);
     } finally {
       cleanup();
     }
@@ -115,31 +142,42 @@ describe('listBackups', () => {
     }
   });
 
-describe('restoreLatestValidConfig', () => {
-  it('khôi phục từ backup mới nhất khi không có backup → trả về false', () => {
+describe('loadLatestBackupContent', () => {
+  it('không có backup → trả về null', () => {
     const { dir, cleanup } = makeConfigDir();
     try {
-      const logger = { warn: vi.fn() };
-      const restored = restoreLatestValidConfig(dir, { type: 'core', logger });
-      expect(restored).toBe(false);
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Không có bản backup nào'));
+      expect(loadLatestBackupContent(dir)).toBeNull();
     } finally {
       cleanup();
     }
   });
 
-  it('khôi phục thành công từ backup mới nhất → trả về true', () => {
+  it('trả nội dung backup mới nhất NHƯNG KHÔNG ghi đè config.yml', () => {
     const { dir, cleanup } = makeConfigDir('app:\n  name: ORIGINAL\n');
     try {
-      backupConfig(dir); // Tạo backup
-      writeFileSync(join(dir, 'config.yml'), 'app:\n  name: CHANGED\n'); // Sửa config
-      const logger = { warn: vi.fn() };
-      const restored = restoreLatestValidConfig(dir, { type: 'core', logger });
-      expect(restored).toBe(true);
-      expect(readFileSync(join(dir, 'config.yml'), 'utf8')).toContain('ORIGINAL');
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Đã khôi phục config từ backup'));
+      backupConfig(dir); // Backup chứa ORIGINAL
+      writeFileSync(join(dir, 'config.yml'), 'app:\n  name: CHANGED\n'); // Config.yml hiện tại
+      const content = loadLatestBackupContent(dir);
+      expect(content).toContain('ORIGINAL');
+      // load KHÔNG đụng vào config.yml — file vẫn là CHANGED
+      expect(readFileSync(join(dir, 'config.yml'), 'utf8')).toContain('CHANGED');
     } finally {
       cleanup();
+    }
+  });
+
+  it('lọc theo type module + name', () => {
+    const moduleDir = mkdtempSync(join(tmpdir(), 'averon-module-'));
+    const configDir = join(moduleDir, 'config');
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(join(configDir, 'defaults.yml'), 'key: value1\n');
+    try {
+      backupConfig(moduleDir, { type: 'module', name: 'ping' });
+      expect(loadLatestBackupContent(moduleDir, { type: 'module', name: 'ping' })).toContain('value1');
+      // Không có backup core → null
+      expect(loadLatestBackupContent(moduleDir)).toBeNull();
+    } finally {
+      rmSync(moduleDir, { recursive: true, force: true });
     }
   });
 });

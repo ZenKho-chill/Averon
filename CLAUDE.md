@@ -321,6 +321,8 @@ tests:
 - Mỗi lần boot với config hợp lệ → core **tự backup** `config/config.yml` vào `config/backups/config-<timestamp>.yml`, **giữ N bản mới nhất** (mặc định 10).
 - `config/backups/` **KHÔNG track trong git** (chứa token).
 - Rollback: `npm run restore:config` → liệt kê các bản; `npm run restore:config -- --yes <file>` → khôi phục `config.yml` về bản đó (thêm `--yes` để xác nhận ghi đè).
+- **Khi config invalid khi boot** (core hoặc module): core **KHÔNG ghi đè file config bị lỗi** — thay vào đó **DÙNG nội dung backup mới nhất** cho lần boot đó (module thì quay về FAULTED nếu không có backup). File lỗi vẫn giữ nguyên trên đĩa để admin sửa; restart sau khi sửa. Module khác với core: core không có backup → `exit(1)`; module không có backup → module FAULTED (core vẫn chạy).
+  EN: When the config is invalid at boot (core or module), the core does NOT overwrite the broken config file — it LOADS the newest backup for that boot instead (module falls back to FAULTED when no backup exists). The broken file stays on disk for the admin to fix; restart after fixing. Unlike modules, a core config with no backup → `exit(1)`.
 
 ### 6.5 Ví dụ config (`config/config.example.yml`)
 

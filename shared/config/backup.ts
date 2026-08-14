@@ -6,7 +6,7 @@
  * Module: copy <moduleDir>/config/defaults.yml vào <moduleDir>/config/backups/ (cô lập trong
  * chính folder module). Giữ N bản gần nhất. Dùng `scripts/restore-config.ts` để list + rollback.
  */
-import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { ConfigError } from './errors.js';
@@ -53,18 +53,27 @@ function tsToName(ts: Date, seq = 0): string {
 }
 
 /** Copy config.yml (core) hoặc defaults.yml (module) → backups/, giữ N bản mới nhất.
- * Trả về path file backup đã tạo, hoặc null nếu nội dung không thay đổi.
+ * Chỉ backup khi nội dung KHÁC bản backup mới nhất (dedup theo hash).
+ * Nếu truyền `content` (nội dung ĐÃ VALIDATE đang dùng) → backup content đó, KHÔNG đụng file
+ * config đang lỗi. EN: when `content` is passed (the VALIDATED config in use) → back up that
+ * content and never touch the possibly-broken config file.
+ * Trả về path file backup đã tạo, hoặc null nếu nội dung không thay đổi (hoặc không backup).
  */
 export function backupConfig(
   configDir: string,
-  options?: { keep?: number; type?: 'core' | 'module'; name?: string }
+  options?: { keep?: number; type?: 'core' | 'module'; name?: string; content?: string }
 ): string | null {
-  const { keep = DEFAULT_KEEP, type = 'core', name } = options ?? {};
+  const { keep = DEFAULT_KEEP, type = 'core', name, content } = options ?? {};
   const src = type === 'core'
     ? join(configDir, 'config.yml')
     : join(configDir, 'config', 'defaults.yml'); // Module: defaults.yml sau khi merge
 
-  if (!existsSync(src)) {
+  // content !== undefined → dùng nội dung đã validate (không cần file tồn tại).
+  // EN: content set → use the validated content (no need for the source file).
+  const currentContent = content !== undefined
+    ? content
+    : (existsSync(src) ? readFileSync(src, 'utf8') : undefined);
+  if (currentContent === undefined) {
     throw new ConfigError(`Không thể backup — thiếu ${src}. EN: Cannot backup, missing config file.`);
   }
 
@@ -72,7 +81,6 @@ export function backupConfig(
   mkdirSync(dir, { recursive: true });
 
   // Đọc nội dung hiện tại và tính hash
-  const currentContent = readFileSync(src, 'utf8');
   const currentHash = createHash('sha256').update(currentContent).digest('hex');
 
   // Tìm bản backup mới nhất cùng loại
@@ -94,7 +102,7 @@ export function backupConfig(
     backupName = `${namePrefix}-${tsToName(new Date(), ++seq)}.bak`;
   }
   const dest = join(dir, backupName);
-  copyFileSync(src, dest);
+  writeFileSync(dest, currentContent, 'utf8');
 
   // Xóa bản cũ hơn, giữ N mới nhất (mtime giảm dần → bỏ phần cuối).
   const allBackups = listBackups(configDir, { type, name });
@@ -161,28 +169,19 @@ export function restoreConfig(
 }
 
 /**
- * Khôi phục config từ bản backup mới nhất khi validate thất bại.
- * @returns true nếu khôi phục thành công, false nếu không có backup hoặc khôi phục thất bại.
+ * Đọc nội dung bản backup mới nhất — KHÔNG ghi đè file config đang dùng.
+ * (Khi config invalid, ta DÙNG backup thay vì thay file bằng backup.)
+ * EN: Read the newest backup content — does NOT overwrite the config file in use.
+ * (When the config is invalid, we LOAD the backup instead of replacing the file with it.)
+ *
+ * @returns chuỗi YAML của backup mới nhất, hoặc null nếu không có backup.
  */
-export function restoreLatestValidConfig(
+export function loadLatestBackupContent(
   configDir: string,
-  options?: { type?: 'core' | 'module'; name?: string; logger?: { warn: (msg: string) => void } }
-): boolean {
-  const { type = 'core', name, logger } = options ?? {};
+  options?: { type?: 'core' | 'module'; name?: string }
+): string | null {
+  const { type = 'core', name } = options ?? {};
   const backups = listBackups(configDir, { type, name });
-
-  if (backups.length === 0) {
-    logger?.warn(`Không có bản backup nào để khôi phục (type: ${type}, name: ${name}).`);
-    return false;
-  }
-
-  const latestBackup = backups[0];
-  try {
-    restoreConfig(configDir, latestBackup.file, { type });
-    logger?.warn(`Đã khôi phục config từ backup: ${latestBackup.file}`);
-    return true;
-  } catch (err) {
-    logger?.warn(`Khôi phục config thất bại: ${(err as Error).message}`);
-    return false;
-  }
+  if (backups.length === 0) return null;
+  return readFileSync(join(backupsDir(configDir, type), backups[0].file), 'utf8');
 }
