@@ -146,6 +146,38 @@ describe('DiscordClient', () => {
     expect(usage.activeCount('ping')).toBe(0);
   });
 
+  it('command được dùng → log usage INFO (user, command, module, guild) tại console', async () => {
+    const logger = makeLogger();
+    const usage = new UsageTracker();
+    const discord = new DiscordClient(makeConfig(), logger, usage);
+    const handler = vi.fn(async () => {});
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = { isCommand: () => true, commandName: 'ping', user: { id: '111' }, guildId: '222' };
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining("Command '/ping' used by 111 in guild 222"),
+      expect.objectContaining({ module: 'ping' }),
+    );
+  });
+
+  it('command dùng ở DM (không guild) → log guild = DM', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    const handler = vi.fn(async () => {});
+
+    discord.registerCommand('ping', handler, { config: {}, logger, moduleName: 'ping' });
+    const interaction = { isCommand: () => true, commandName: 'ping', user: { id: '111' } };
+    // @ts-expect-error — private field
+    discord.client.emit('interactionCreate', interaction);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('in guild DM'), expect.anything());
+  });
+
   it('handler throw vẫn end qua finally — usage không kẹt', async () => {
     const logger = makeLogger();
     const usage = new UsageTracker();

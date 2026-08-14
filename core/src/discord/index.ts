@@ -134,7 +134,13 @@ export class DiscordClient {
       if (!interaction.isCommand()) return;
       if (interaction.commandName !== name) return;
 
+      // Log usage — ai dùng lệnh gì của module nào tại guild nào (§7.1: user dùng lệnh → INFO).
+      // EN: Usage log — who used which module command in which guild (§7.1: command use → INFO).
       const moduleName = ctx?.moduleName;
+      const userId = interaction.user?.id;
+      const guildId = interaction.guildId ?? null;
+      this.logger.info(`Command '/${name}' used by ${userId ?? 'unknown'} in guild ${guildId ?? 'DM'}`, { module: moduleName ?? '-' });
+
       if (moduleName && this.usage) this.usage.begin(moduleName);
       try {
         await handler(interaction, ctx ?? { config: {}, logger: this.logger });
