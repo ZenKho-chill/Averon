@@ -15,7 +15,8 @@ export interface AppConfig {
   };
   discord: {
     token?: string;
-    intents: string[];
+    /** (LEGACY) intents đã chuyển sang module.yml — module tự khai báo (§4). Còn ở đây chỉ để tương thích config cũ. */
+    intents?: string[];
     /** Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true (§8). */
     guild_id?: string;
 /** Timeout chờ login + gateway ready (ms) trước khi boot fail-fast — mặc định 30000. */

@@ -15,7 +15,8 @@ discord:
   # ⚠️ Repo này PUBLIC — KHÔNG commit token thật! Thay placeholder cục bộ.
   # EN: This repo is PUBLIC — never commit a real token! Replace the placeholder locally.
   token: "PASTE_DISCORD_TOKEN_HERE"
-  intents: [Guilds, GuildMessages, MessageContent]
+  # KHÔNG còn khai báo intents ở đây — module tự khai báo intent cần trong module.yml (§4).
+  # EN: intents are no longer declared here — modules declare their own intents in module.yml (§4).
   # Timeout chờ login + gateway ready (ms) trước khi boot fail-fast (tránh treo boot khi mạng chậm).
   # EN: Login + gateway-ready timeout (ms) before boot fails fast (avoids hanging on a slow network).
   login_timeout_ms: 30000

@@ -112,6 +112,60 @@ describe('DiscordClient', () => {
     expect(discord.client.listeners('messageCreate').length).toBe(1);
   });
 
+  it('removeEvent gỡ event handler theo (event, module) — nhiều module nghe cùng event không đụng nhau', () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    discord.registerEvent('messageCreate', vi.fn(), { moduleName: 'a' });
+    discord.registerEvent('messageCreate', vi.fn(), { moduleName: 'b' });
+    // @ts-expect-error — private field
+    expect(discord.client.listeners('messageCreate').length).toBe(2);
+
+    discord.removeEvent('messageCreate', 'a');
+    // @ts-expect-error — private field
+    expect(discord.client.listeners('messageCreate').length).toBe(1);
+    discord.removeEvent('messageCreate', 'b');
+    // @ts-expect-error — private field
+    expect(discord.client.listeners('messageCreate').length).toBe(0);
+  });
+
+  it('removeEvent (event, module) chưa đăng ký → no-op, không throw', () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    expect(() => discord.removeEvent('nonexistent', 'ping')).not.toThrow();
+  });
+
+  it('registerEvent có moduleName → usage begin/end quanh handler (kết thúc count 0)', async () => {
+    const logger = makeLogger();
+    const usage = new UsageTracker();
+    const discord = new DiscordClient(makeConfig(), logger, usage);
+    const handler = vi.fn(async () => {});
+    discord.registerEvent('voiceStateUpdate', handler, { moduleName: 'tempvoice' });
+    // @ts-expect-error — private field
+    discord.client.emit('voiceStateUpdate', {}, {});
+    await new Promise((r) => setTimeout(r, 20));
+    expect(handler).toHaveBeenCalled();
+    expect(usage.activeCount('tempvoice')).toBe(0);
+  });
+
+  it('registerEvent handler throw → log error + usage không kẹt (finally)', async () => {
+    const logger = makeLogger();
+    const usage = new UsageTracker();
+    const discord = new DiscordClient(makeConfig(), logger, usage);
+    discord.registerEvent('messageCreate', vi.fn(async () => { throw new Error('boom'); }), { moduleName: 'ping' });
+    // @ts-expect-error — private field
+    discord.client.emit('messageCreate', {});
+    await new Promise((r) => setTimeout(r, 20));
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Event'), expect.objectContaining({ module: 'ping' }));
+    expect(usage.activeCount('ping')).toBe(0);
+  });
+
+  it('hasIntent trả đúng intent client đang bật', () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger, undefined, ['Guilds', 'GuildVoiceStates']);
+    expect(discord.hasIntent('GuildVoiceStates')).toBe(true);
+    expect(discord.hasIntent('MessageContent')).toBe(false);
+  });
+
   it('removeCommand gỡ interactionCreate handler', () => {
     const logger = makeLogger();
     const discord = new DiscordClient(makeConfig(), logger);

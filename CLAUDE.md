@@ -220,6 +220,9 @@ runtime:                           # bắt buộc — quyết định cơ chế 
 
 entry: src/index.ts                # bắt buộc — entry point (tương đối với folder module)
 
+intents:                           # gateway intents module cần (vd GuildVoiceStates) — core gộp trước khi tạo client
+  - GuildVoiceStates               # discord.js KHÔNG cho thêm intent sau login → module load muộn cần intent thiếu sẽ bị warn (restart để áp dụng)
+
 load:
   after: ["database", "logger"]    # các service phải SẴN SÀNG trước khi load module này
   requires: ["logger"]             # service BẮT BUỘC — thiếu thì KHÔNG load, báo lỗi rõ
@@ -261,7 +264,9 @@ tests:
 - Field bắt buộc: `name`, `version`, `runtime.*`, `entry`. Thiếu → core **từ chối load** và log ERROR với lý do cụ thể.
 - `name` phải trùng tên folder module, kebab-case, không trùng module khác.
 - Core validate manifest bằng `config/schemas/module.schema.json` ngay ở giai đoạn REGISTERED.
+- `intents` (nếu khai báo) phải là tên GatewayIntentBits hợp lệ của discord.js — sai → từ chối load. Core gộp `CORE_INTENTS` (Guilds) + intents của mọi module trên đĩa khi tạo Discord client (§4). Intent không có sẵn trong client khi module được load muộn (runtime) → cảnh báo, cần restart.
 - Mỗi command khai báo `type` (loại lệnh Discord) và `scope` (đăng ký ở đâu). Core chỉ đăng ký lệnh vào scope được bật trong `discord.register_commands` (§8) — lệnh `scope: [guild]` không bao giờ được gửi lên global.
+- `events` được core import handler (file export `handler`) và attach listener; nhiều module có thể nghe cùng event. Khi unload/reload, listener của module đó được gỡ.
 
 ---
 
@@ -333,7 +338,8 @@ tests:
 discord:
   # ⚠️ REPO PUBLIC — KHÔNG commit token thật! Chỉ sửa trong config.yml (gitignored).
   token: "PASTE_DISCORD_TOKEN_HERE"
-  intents: [Guilds, GuildMessages, MessageContent]
+  # KHÔNG khai báo intents ở đây — module tự khai báo intent cần trong module.yml (§4).
+  # EN: no intents here — modules declare their own intents in module.yml (§4).
   # Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true.
   guild_id: "123456789012345678"    # (tùy chọn / optional)
   # Bật/tắt sync command qua REST khi boot, theo 3 scope (§8).

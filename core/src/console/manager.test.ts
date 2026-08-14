@@ -15,14 +15,15 @@ function makeLogger(): Logger {
 }
 
 /** Entry giả — loader mock trả về, tên từ basename(dir). */
-function makeEntry(name: string, commandNames: string[]): ModuleEntryWithHooks {
+function makeEntry(name: string, commandNames: string[], eventNames: string[] = [], intents: string[] = []): ModuleEntryWithHooks {
   return {
     name,
     version: '1.0.0',
     state: 'REGISTERED',
     entry: `modules/${name}/src/index.ts`,
+    intents,
     commands: commandNames.map((c) => ({ name: c, handler: `commands/${c}.ts`, handlerFn: vi.fn() })),
-    events: [],
+    events: eventNames.map((e) => ({ name: e, handler: `events/${e}.ts`, handlerFn: vi.fn() })),
     runtime: { language: 'typescript', engine: 'node', version: '>=18', transport: 'in-process' },
   };
 }
@@ -47,15 +48,17 @@ interface DepsAndMocks {
   reset: ReturnType<typeof vi.fn>;
   registerCommand: ReturnType<typeof vi.fn>;
   removeCommand: ReturnType<typeof vi.fn>;
+  registerEvent: ReturnType<typeof vi.fn>;
+  removeEvent: ReturnType<typeof vi.fn>;
 }
 
-function makeDeps(overrides: { root?: string; commandNames?: string[]; waitIdleResult?: 'idle' | 'timeout' } = {}): DepsAndMocks {
+function makeDeps(overrides: { root?: string; commandNames?: string[]; eventNames?: string[]; intents?: string[]; waitIdleResult?: 'idle' | 'timeout' } = {}): DepsAndMocks {
   const registry = new Registry();
   const logger = makeLogger();
 
   // Giả lập loader thật: loadModule đăng ký entry vào registry (flow thật làm trong registry.registerModule).
   const loadModule = vi.fn(async (dir: string) => {
-    const entry = makeEntry(basename(dir), overrides.commandNames ?? ['ping']);
+    const entry = makeEntry(basename(dir), overrides.commandNames ?? ['ping'], overrides.eventNames ?? [], overrides.intents ?? []);
     registry.registerModule(entry);
     return entry;
   });
@@ -66,13 +69,15 @@ function makeDeps(overrides: { root?: string; commandNames?: string[]; waitIdleR
   const reset = vi.fn();
   const registerCommand = vi.fn();
   const removeCommand = vi.fn();
+  const registerEvent = vi.fn();
+  const removeEvent = vi.fn();
   const handleModuleFailure = vi.fn();
 
   const deps = {
     registry,
     lifecycle: { loadModule: vi.fn(async (m: { name: string }) => registry.setModuleState(m.name, 'LOADED')), unloadModule, reloadModule: vi.fn() },
     loader: { loadModule },
-    discord: { registerCommand, removeCommand, getClient: vi.fn() },
+    discord: { registerCommand, removeCommand, registerEvent, removeEvent, hasIntent: vi.fn(() => true), getClient: vi.fn() },
     usage: { activeCount: vi.fn(() => 0), reset, waitIdle },
     crashReporter: { handleModuleFailure },
     root: overrides.root ?? makeRoot(['ping']),
@@ -80,7 +85,7 @@ function makeDeps(overrides: { root?: string; commandNames?: string[]; waitIdleR
     softStopTimeoutMs: 100,
   } as unknown as ModuleManagerDeps;
 
-  return { deps, registry, loadModule, unloadModule, waitIdle, reset, registerCommand, removeCommand };
+  return { deps, registry, loadModule, unloadModule, waitIdle, reset, registerCommand, removeCommand, registerEvent, removeEvent };
 }
 
 describe('ModuleManager.load', () => {
@@ -146,6 +151,34 @@ describe('ModuleManager.load', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain('already owned');
     expect(registry.hasModule('b')).toBe(false);
+  });
+
+  it('load module có events → attach event handler qua discord.registerEvent với moduleName', async () => {
+    const { deps, registerEvent } = makeDeps({ eventNames: ['voiceStateUpdate'] });
+    const manager = new ModuleManager(deps);
+    await manager.load('ping');
+
+    expect(registerEvent).toHaveBeenCalledWith('voiceStateUpdate', expect.any(Function), expect.objectContaining({ moduleName: 'ping' }));
+  });
+
+  it('unload module → removeEvent được gọi theo (event, module)', async () => {
+    const { deps, removeEvent } = makeDeps({ eventNames: ['voiceStateUpdate'] });
+    const manager = new ModuleManager(deps);
+    await manager.load('ping');
+    await manager.unload('ping', { force: true });
+
+    expect(removeEvent).toHaveBeenCalledWith('voiceStateUpdate', 'ping');
+  });
+
+  it('module cần intent client có → không cảnh báo; intent thiếu → warn hướng dẫn restart', async () => {
+    const { deps, registry } = makeDeps({ intents: ['GuildVoiceStates'] });
+    // client không bật GuildVoiceStates → warn
+    (deps.discord as unknown as { hasIntent: ReturnType<typeof vi.fn> }).hasIntent = vi.fn((i: string) => i === 'Guilds');
+    const manager = new ModuleManager(deps);
+    await manager.load('ping');
+
+    expect(registry.getModule('ping').intents).toEqual(['GuildVoiceStates']);
+    expect(deps.logger.warn).toHaveBeenCalledWith(expect.stringContaining("Module 'ping' cần intent 'GuildVoiceStates'"));
   });
 });
 

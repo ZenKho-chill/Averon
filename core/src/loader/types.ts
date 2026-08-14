@@ -19,6 +19,8 @@ export interface ModuleManifest {
     transport: 'in-process' | 'subprocess' | 'socket' | 'ffi';
   };
   entry: string;
+  /** Gateway intents module cần (vd GuildVoiceStates) — core gộp khi tạo Discord client (§4). */
+  intents?: string[];
   load?: {
     after?: string[];
     requires?: string[];

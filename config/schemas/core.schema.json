@@ -12,26 +12,10 @@
   "properties": {
     "discord": {
       "type": "object",
-      "required": [
-        "intents"
-      ],
+      "required": [],
       "properties": {
         "token": {
           "type": "string"
-        },
-        "intents": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": [
-              "Guilds",
-              "GuildMessages",
-              "MessageContent",
-              "GuildMembers",
-              "GuildVoiceStates",
-              "DirectMessages"
-            ]
-          }
         },
         "guild_id": {
           "type": "string",

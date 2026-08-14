@@ -50,6 +50,15 @@ export function validateSemantics(config: AppConfig, options: SemanticOptions): 
     );
   }
 
+  // 3.1. `discord.intents` đã chuyển sang module.yml (§4) — cảnh báo config cũ còn khai báo.
+  // EN: `discord.intents` moved to module.yml (§4) — warn on legacy config still declaring it.
+  if (Array.isArray(config.discord.intents) && config.discord.intents.length > 0) {
+    warnings.push(
+      'discord.intents đã chuyển sang module config — module khai báo intent riêng trong module.yml (§4), xóa field này đi. ' +
+        'EN: discord.intents moved to module config — modules declare their own intents in module.yml (§4); remove this field.',
+    );
+  }
+
   // 4. Cảnh báo path Windows hardcode trong config (không cross-platform)
   walkStrings(config, (path, value) => {
     if (typeof value === 'string' && WINDOWS_ABS_PATH_RE.test(value)) {

@@ -79,8 +79,8 @@ export class ModuleManager {
     if (state === 'FAULTED') return { ok: false, error: `module '${name}' is FAULTED — try "modules reload ${name} --force"` };
     if (state === 'DRAINING' && !opts.force) return { ok: false, error: `module '${name}' is draining — wait or retry with --force` };
 
-    // Dừng nhận command mới trước (soft-stop: không ai vào thêm nữa).
-    this.detachModuleCommands(name);
+    // Dừng nhận command + event mới trước (soft-stop: không ai vào thêm nữa).
+    this.detachModuleListeners(name);
 
     if (opts.force) {
       await this.deps.lifecycle.unloadModule(name, { force: true });
@@ -116,8 +116,8 @@ export class ModuleManager {
     if (state === 'FAULTED' && !opts.force) return { ok: false, error: `module '${name}' is FAULTED — retry with --force` };
     if (state === 'DRAINING' && !opts.force) return { ok: false, error: `module '${name}' is draining — retry with --force` };
 
-    // Dừng nhận command mới trước (soft-stop: không ai vào thêm nữa).
-    this.detachModuleCommands(name);
+    // Dừng nhận command + event mới trước (soft-stop: không ai vào thêm nữa).
+    this.detachModuleListeners(name);
 
     if (opts.force) {
       await this.deps.lifecycle.unloadModule(name, { force: true });
@@ -161,6 +161,8 @@ export class ModuleManager {
 
       await this.deps.lifecycle.loadModule(entry);
       this.attachModuleCommands(entry);
+      this.attachModuleEvents(entry);
+      this.warnMissingIntents(entry);
       this.deps.registry.setModuleState(name, 'RUNNING');
       log.info(`Module '${name}' reloaded (${entry.commands.length} commands, ${entry.events.length} events)`);
       return { ok: true, name };
@@ -187,12 +189,35 @@ export class ModuleManager {
     }
   }
 
-  /** Gỡ command của module khỏi Discord + collision map (chặn command mới khi unload/reload). */
-  private detachModuleCommands(name: string): void {
+  /** Gắn event handler của entry vào Discord (nhiều module có thể nghe cùng event). */
+  private attachModuleEvents(entry: ModuleEntryWithHooks): void {
+    for (const evt of entry.events) {
+      if (!evt.handlerFn) continue;
+      this.deps.discord.registerEvent(evt.name, evt.handlerFn, { moduleName: entry.name });
+    }
+  }
+
+  /** Cảnh báo intent module cần nhưng client chưa bật (chỉ có thể áp dụng sau khi restart — discord.js không thêm intent lúc runtime). */
+  private warnMissingIntents(entry: ModuleEntryWithHooks): void {
+    for (const intent of entry.intents ?? []) {
+      if (!this.deps.discord.hasIntent(intent)) {
+        this.deps.logger.warn(
+          `Module '${entry.name}' cần intent '${intent}' nhưng client không bật — restart bot để áp dụng. ` +
+            `EN: Module '${entry.name}' requires intent '${intent}' not enabled on the client — restart the bot to apply.`,
+        );
+      }
+    }
+  }
+
+  /** Gỡ command + event của module khỏi Discord + collision map (chặn mới khi unload/reload). */
+  private detachModuleListeners(name: string): void {
     const entry = this.deps.registry.getModule(name);
     for (const cmd of entry.commands) {
       this.deps.discord.removeCommand(cmd.name);
       this.attachedCommands.delete(cmd.name);
+    }
+    for (const evt of entry.events) {
+      this.deps.discord.removeEvent(evt.name, name);
     }
   }
 
@@ -228,6 +253,8 @@ export class ModuleManager {
 
     await this.deps.lifecycle.loadModule(entry);
     this.attachModuleCommands(entry);
+    this.attachModuleEvents(entry);
+    this.warnMissingIntents(entry);
     this.deps.registry.setModuleState(name, 'RUNNING');
     log.info(`Module '${name}' loaded (${entry.commands.length} commands, ${entry.events.length} events)`);
   }

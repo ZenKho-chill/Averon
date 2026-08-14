@@ -20,6 +20,7 @@ import type { ModuleManifest } from './types.js';
 import type { ModuleEntryWithHooks } from '../lifecycle/types.js';
 import type { CrashReporter } from '../crash/index.js';
 import { resolveModuleFile, RUNNING_FROM_DIST } from './resolve.js';
+import { isKnownIntent } from '../discord/intents.js';
 
 /** Import ESM có cache-buster (`?v=<time>-<seq>`) — Node cache `import()` theo URL, không bust thì
  *  lần load lại (reload module) nạp lại module CŨ đã cache → thay đổi code handler/entry không có hiệu lực.
@@ -49,6 +50,7 @@ export class ModuleLoader {
     }
 
     const manifest = this.parseManifest(manifestFile);
+    this.validateIntents(manifest);
     const entry = this.resolveModuleFile(moduleDir, manifest.entry);
     if (!existsSync(entry)) {
       throw new ConfigError(`Entry point không tồn tại: ${entry}. EN: Entry point not found: ${entry}`);
@@ -83,6 +85,22 @@ export class ModuleLoader {
       commands.push(withHandler);
     }
 
+    // Import handler function của từng event (vd events/messageCreate.ts export `handler`)
+    // để manager attach listener — metadata riêng không đủ để core phản hồi event.
+    const events = [];
+    for (const evt of manifest.events ?? []) {
+      const withHandler: ModuleRegistryEntry['events'][number] = { ...evt };
+      const eventHandlerPath = this.resolveModuleFile(moduleDir, evt.handler);
+      try {
+        // importModuleFresh: bust cache → reload nạp lại CODE mới nhất của event handler.
+        const h = (await importModuleFresh(pathToFileURL(eventHandlerPath).href)) as { handler?: NonNullable<ModuleRegistryEntry['events'][number]['handlerFn']> };
+        withHandler.handlerFn = h.handler;
+      } catch (err) {
+        this.crashReporter.handleModuleFailure(manifest.name, `event handler import failed (${evt.handler}): ${err instanceof Error ? err.stack : String(err)}`);
+      }
+      events.push(withHandler);
+    }
+
     // Nạp config module từ defaults.yml của module (khai báo trong manifest.config.defaults)
     const moduleConfig = this.loadModuleConfig(manifest, moduleDir);
 
@@ -101,8 +119,9 @@ export class ModuleLoader {
       config: moduleConfig.config,
       // Cache config đã merge trong entry để handler có thể lấy config mới nhất qua registry
       getConfig: () => moduleConfig.config ?? {},
+      intents: manifest.intents,
       commands,
-      events: manifest.events ?? [],
+      events,
       runtime: {
         language: manifest.runtime.language,
         engine: manifest.runtime.engine,
@@ -192,6 +211,17 @@ export class ModuleLoader {
       throw new ConfigError(`Manifest không hợp lệ: thiếu name/version/runtime/entry. EN: Invalid manifest: missing name/version/runtime/entry`);
     }
     return manifest;
+  }
+
+  /** Validate `intents` trong manifest — phải là tên GatewayIntentBits hợp lệ của discord.js. */
+  private validateIntents(manifest: ModuleManifest): void {
+    if (manifest.intents === undefined) return;
+    if (!Array.isArray(manifest.intents) || manifest.intents.some((i) => typeof i !== 'string' || !isKnownIntent(i))) {
+      throw new ConfigError(
+        `Manifest '${manifest.name}' khai báo intents không hợp lệ — phải là tên GatewayIntentBits hợp lệ (vd GuildVoiceStates). ` +
+          `EN: Manifest declares invalid intents — must be valid GatewayIntentBits names (e.g. GuildVoiceStates).`,
+      );
+    }
   }
 
   private async importEntry(entry: string, transport: ModuleManifest['runtime']['transport']): Promise<{
