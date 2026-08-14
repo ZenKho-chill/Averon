@@ -15,6 +15,8 @@ export interface AppConfig {
     intents: string[];
     /** Guild ID để sync lệnh theo guild — cần khi register_commands.guild=true (§8). */
     guild_id?: string;
+    /** Timeout chờ login + gateway ready (ms) — boot fail-fast thay vì treo vô hạn. Mặc định 30000. */
+    login_timeout_ms?: number;
     /**
      * Bật/tắt sync command lên Discord qua REST khi boot, theo 3 scope (§8).
      * - global: slash command toàn app (cache ~1h)

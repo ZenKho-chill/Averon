@@ -79,7 +79,7 @@ export function backupConfig(
   }
 
   // Tạo backup mới
-  let namePrefix = type === 'core' ? 'config' : `module-${name}`;
+  const namePrefix = type === 'core' ? 'config' : `module-${name}`;
   let seq = 0;
   let backupName = `${namePrefix}-${tsToName(new Date(), seq)}.bak`;
   while (existsSync(join(dir, backupName))) {

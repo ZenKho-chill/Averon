@@ -24,6 +24,7 @@
           "items": { "type": "string", "enum": ["Guilds", "GuildMessages", "MessageContent", "GuildMembers", "GuildVoiceStates", "DirectMessages"] }
         },
         "guild_id": { "type": "string", "pattern": "^\\d+$" },
+        "login_timeout_ms": { "type": "number", "minimum": 1000, "description": "Timeout chờ Discord login + gateway ready (ms) — mặc định 30000. EN: Login + gateway-ready timeout in ms — default 30000." },
         "register_commands": {
           "type": "object",
           "properties": {

@@ -3,6 +3,25 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [0.9.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `shared/errors`: hệ thống lỗi chuẩn cho module + core — `UserError`, `NotFoundError`, `PermissionError`, `RateLimitError`, `InvalidArgumentError` + `toUserMessage()` (VI)
+  EN: Added `shared/errors` — standard error types for modules + core plus `toUserMessage()`.
+- `core/discord`: boundary bắt lỗi command giờ **tự phản hồi cho user theo loại error** — module `throw` typed error (KHÔNG reply hardcode); lỗi nội bộ: dev hiện chi tiết (`dev.show_stacktrace`), prod che giấu internals; interaction đã ack → tự fallback `followUp` (§8, §9.1) (VI)
+  EN: `core/discord` command boundary now **auto-replies to the user by error type** — modules throw typed errors instead of hardcoding replies; internal errors show detail in dev (`dev.show_stacktrace`), hidden in prod; already-acknowledged interactions fall back to `followUp` (§8, §9.1).
+
+### Changed
+- `modules/ping` + `shared/config/module-semantic`: bỏ `validateConfig` hardcode trong module — config module validate hoàn toàn bằng JSON Schema (`config/schema.yml`), hệ thống tự xử lý nhiều loại error (required, type, enum/const, pattern, additionalProperties, oneOf...) (VI)
+  EN: Removed the hardcoded `validateConfig` from `modules/ping` and its hook in `shared/config/module-semantic` — module config is validated entirely by JSON Schema (`config/schema.yml`), which auto-handles many error types (required, type, enum/const, pattern, additionalProperties, oneOf...).
+
+### Fixed
+- `core/loader`: `root is not defined` khi config module không hợp lệ và cần restore từ backup — dùng `this.root` thay vì biến không tồn tại (VI)
+  EN: Fixed `root is not defined` in `core/loader` when module config is invalid and a backup restore is needed — now uses `this.root`.
+- `core/discord` test login: timeout 5s do không mock gateway ready — mock `client.isReady()` để login resolve ngay (VI)
+  EN: Fixed the `discord.login` test timeout caused by an un-mocked gateway ready — mocked `client.isReady()` so login resolves immediately.
+
 ## [0.8.4] — 2026-08-13
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 

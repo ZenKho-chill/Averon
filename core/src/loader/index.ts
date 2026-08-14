@@ -144,13 +144,13 @@ export class ModuleLoader {
         const schemaPath = join(moduleDir, schemaFile);
         if (existsSync(schemaPath)) {
           validateConfig(merged, loadSchema(schemaPath), [schemaFile]);
-          validateModuleSemantics(merged, manifest, manifest.name, moduleExports);
+          validateModuleSemantics(merged, manifest, manifest.name);
         }
       } catch (err) {
         this.crashReporter.handleModuleFailure(manifest.name, `Config không hợp lệ: ${(err as Error).message}`);
         // Cố gắng khôi phục từ backup
         const logger = this.registry.getService('logger');
-        const restored = restoreLatestValidConfig(join(root, 'config'), { type: 'module', name: manifest.name, logger });
+        const restored = restoreLatestValidConfig(join(this.root, 'config'), { type: 'module', name: manifest.name, logger });
         if (restored) {
           logger.info(`Module '${manifest.name}' đã khôi phục config từ backup`);
           // Load lại config sau khi khôi phục
@@ -169,12 +169,6 @@ export class ModuleLoader {
 
     const content = YAML.stringify(merged);
     return { content, config: merged };
-  }
-
-  /** Trả về nội dung YAML đã merge của module (dùng cho backup). */
-  private getModuleConfigContent(manifest: ModuleManifest, moduleDir: string): string {
-    const { content } = this.loadModuleConfig(manifest, moduleDir);
-    return content;
   }
 
   /** Map đường dẫn module file → nơi thực sự import được (source .ts hoặc bản built .js trong dist/). */

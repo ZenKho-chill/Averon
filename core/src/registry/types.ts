@@ -19,6 +19,14 @@ export interface CommandContext {
   logger: Logger;
   /** Tên module sở hữu command (dùng để đếm in-flight handler qua UsageTracker — soft-stop). */
   moduleName?: string;
+  /** Registry module — handler lấy config MỚI NHẤT qua `registry.getModule(name).getConfig()` sau reload. */
+  registry?: CommandContextRegistry;
+}
+
+/** Registry interface tối thiểu CommandContext cần (type-only — tránh import vòng core/registry). */
+export interface CommandContextRegistry {
+  hasModule(name: string): boolean;
+  getModule(name: string): ModuleRegistryEntry;
 }
 
 /** Handler command: nhận interaction + ctx (config module, logger), trả promise/void. */
@@ -30,6 +38,8 @@ export interface ModuleRegistryEntry {
   state: 'REGISTERED' | 'LOADING' | 'LOADED' | 'RUNNING' | 'DRAINING' | 'UNLOADED' | 'FAULTED';
   entry: string; // đường dẫn entry point
   config?: Record<string, unknown>; // module config đã merge (defaults + override)
+  /** Trả config merge mới nhất (cache trong entry) — handler đọc qua registry thay vì closure (§ reload-config). */
+  getConfig?: () => Record<string, unknown>;
   commands: Array<{
     name: string;
     handler: string;            // path file handler (tương đối module dir)

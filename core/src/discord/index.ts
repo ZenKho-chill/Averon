@@ -16,6 +16,7 @@ import {
   type Interaction,
 } from 'discord.js';
 import type { Logger } from '../../../shared/logger/index.js';
+import { toUserMessage } from '../../../shared/errors/index.js';
 import type { AppConfig } from '../config/index.js';
 import type { CommandContext } from '../registry/types.js';
 import type { UsageTracker } from '../registry/usage.js';
@@ -137,8 +138,10 @@ export class DiscordClient {
         await handler(interaction, ctx ?? { config: {}, logger: this.logger });
       } catch (err) {
         this.logger.error(`Command '${name}' thất bại`, { error: err });
+        // Boundary (§9.1): lỗi không làm sập process — map sang response cho user theo loại error (§8).
+        await this.respondWithError(interaction, err);
       } finally {
-        // Luôn trừ trong-flight — kể cả khi handler throw (soft-stop không kẹt).
+        // Luôn trừ in-flight — kể cả khi handler throw (soft-stop không kẹt).
         if (moduleName && this.usage) this.usage.end(moduleName);
       }
     };
@@ -153,6 +156,40 @@ export class DiscordClient {
     if (!listener) return;
     this.client.off('interactionCreate', listener as never);
     this.commandListeners.delete(name);
+  }
+
+  /**
+   * Phản hồi lỗi cho user theo loại error (§8, §9.1):
+   * - `UserError` (và subclass) → message do module thiết kế (user-safe).
+   * - Lỗi nội bộ khác → dev hiện chi tiết (`dev.show_stacktrace`), prod che giấu.
+   * Cố reply trước; nếu interaction đã ack/replied → fallback followUp. Gửi fail hoàn toàn → chỉ log.
+   */
+  private async respondWithError(interaction: Interaction, err: unknown): Promise<void> {
+    const message = toUserMessage(err, { showStacktrace: this.config.dev?.show_stacktrace ?? false });
+    // Cast để hỗ trợ interaction mock (không phải bản đầy đủ của discord.js) trong test.
+    // EN: Cast so partial interaction mocks (not full discord.js) work in tests.
+    const target = interaction as unknown as {
+      reply?: (payload: unknown) => Promise<unknown>;
+      followUp?: (payload: unknown) => Promise<unknown>;
+    };
+    const payload = { content: message, ephemeral: true };
+    const replied = target.reply ? await this.trySend(() => target.reply!(payload)) : false;
+    if (!replied) {
+      const followedUp = target.followUp ? await this.trySend(() => target.followUp!(payload)) : false;
+      if (!followedUp) {
+        this.logger.warn('Không thể gửi phản hồi lỗi cho user (interaction đã đóng?)', { error: err });
+      }
+    }
+  }
+
+  /** Gọi hàm gửi message; trả false nếu throw (interaction đã ack/đóng) — không crash boundary. */
+  private async trySend(fn: () => Promise<unknown>): Promise<boolean> {
+    try {
+      await fn();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**

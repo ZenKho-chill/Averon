@@ -156,6 +156,7 @@ export class ModuleManager {
         config: entry.config ?? {},
         logger: this.deps.logger,
         moduleName: entry.name,
+        registry: this.deps.registry,
       });
       this.attachedCommands.set(cmd.name, entry.name);
     }
