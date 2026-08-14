@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [2.1.1] — 2026-08-14
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- `modules/ping`: **latency "load cực lâu" sau khi bot khởi động** — `client.ws.ping` của discord.js chỉ có sau heartbeat ACK đầu tiên (heartbeat interval Discord ~41s), nên `/ping` hiển thị `{latency}` = `...ms` trong gần 1 phút. Fix: khi `ws.ping` chưa sẵn, module đo RTT tới endpoint công khai `discord.com/api/v10/gateway` (không cần auth), cache tạm 30s; `ws.ping` thay thế ngay khi có. `...` chỉ còn xuất hiện khi cả 2 cách đều fail. File mới `src/latency.ts` + 2 test (VI)
+  EN: **Latency "loads very slowly" after bot startup** — discord.js `client.ws.ping` only exists after the first heartbeat ACK (Discord heartbeat interval ~41s), so `/ping` showed `{latency}` = `...ms` for ~a minute. Fixed: when `ws.ping` isn't ready, the module measures RTT to the public `discord.com/api/v10/gateway` endpoint (no auth), cached for 30s; `ws.ping` takes over as soon as available. `...` now only appears when both methods fail. New `src/latency.ts` + 2 tests.
+
 ## [2.1.0] — 2026-08-14
 **Loại / Type:** MINOR — thêm tính năng mới / new feature
 

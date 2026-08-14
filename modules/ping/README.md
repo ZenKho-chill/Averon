@@ -66,7 +66,8 @@ responses:
 |---|---|
 | `{time}` | Giờ địa phương `HH:MM:SS` |
 | `{tag_user}` | Tag user `<@id>` |
-| `{latency}` | Độ trễ gateway (ms) — `...` nếu chưa đo được (ws.ping = -1, thường trong vài giây đầu sau connect) |
+| `{latency}` | Độ trễ gateway (ms). Sau khởi động, `client.ws.ping` chưa có cho tới khi heartbeat đầu tiên được ACK (~41s — Discord heartbeat interval) → module đo RTT tới `discord.com/api/v10/gateway` làm giá trị tạm, sau đó tự thay bằng `ws.ping` khi có. Chỉ `...` khi cả 2 cách đều không đo được. |
+| EN: Gateway latency (ms). Right after startup `client.ws.ping` is absent until the first heartbeat ACK (~41s — Discord heartbeat interval) → the module measures RTT to `discord.com/api/v10/gateway` as a temporary value, then switches to `ws.ping` once available. Only falls back to `...` when neither works. |
 | `{username}` | Tên user |
 | `{user_id}` | ID user |
 | `{guild}` | Tên guild |
