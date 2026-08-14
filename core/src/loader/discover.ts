@@ -47,3 +47,25 @@ export function readModuleNameVersion(moduleDir: string): { name: string; versio
     return undefined;
   }
 }
+
+/**
+ * Gộp toàn bộ intents module khai báo trong module.yml (field `intents`) trên đĩa.
+ * Dùng TRƯỚC khi tạo Discord client — discord.js không cho thêm intent sau login (§4).
+ * Manifest lỗi bị bỏ qua (loader sẽ báo riêng khi load module).
+ */
+export function collectDeclaredIntents(root: string): string[] {
+  const intents = new Set<string>();
+  for (const dir of discoverModuleDirs(root)) {
+    try {
+      const manifest = YAML.parse(readFileSync(join(dir, 'module.yml'), 'utf8')) as { intents?: unknown };
+      if (Array.isArray(manifest.intents)) {
+        for (const intent of manifest.intents) {
+          if (typeof intent === 'string') intents.add(intent);
+        }
+      }
+    } catch {
+      // bỏ qua manifest lỗi — loader sẽ báo lỗi riêng khi load module
+    }
+  }
+  return [...intents];
+}

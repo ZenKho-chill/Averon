@@ -18,8 +18,9 @@ import {
 import type { Logger } from '../../../shared/logger/index.js';
 import { toUserMessage } from '../../../shared/errors/index.js';
 import type { AppConfig } from '../config/index.js';
-import type { CommandContext } from '../registry/types.js';
+import type { CommandContext, EventHandler } from '../registry/types.js';
 import type { UsageTracker } from '../registry/usage.js';
+import { CORE_INTENTS } from './intents.js';
 
 /** Lệnh cần sync lên Discord — metadata từ module.yml. */
 export interface SyncCommand {
@@ -80,19 +81,33 @@ export class DiscordClient {
   /** Listener của từng command (lưu ref để removeCommand có thể `client.off` khi unload). */
   private readonly commandListeners = new Map<string, (interaction: Interaction) => Promise<void> | void>();
 
+  /** Listener của từng event, khóa `${moduleName ?? '*'}:${eventName}` (nhiều module nghe cùng event được).
+   *  EN: Per-event listeners keyed by `${moduleName ?? '*'}:${eventName}` (multiple modules may share an event). */
+  private readonly eventListeners = new Map<string, { listener: (...args: unknown[]) => Promise<void> | void }>();
+
+  /** Gateway intents đang bật của client (module có thể tra qua hasIntent). */
+  private readonly intents: string[];
+
   constructor(
     private readonly config: AppConfig,
     private readonly logger: Logger,
     private readonly usage?: UsageTracker,
+    intents: string[] = config.discord.intents ?? [...CORE_INTENTS],
   ) {
-    const intents = config.discord.intents.map((intent: string) => GatewayIntentBits[intent as keyof typeof GatewayIntentBits]);
-    const options: ClientOptions = { intents };
+    this.intents = intents;
+    const bitIntents = intents.map((intent: string) => GatewayIntentBits[intent as keyof typeof GatewayIntentBits]);
+    const options: ClientOptions = { intents: bitIntents };
     this.client = new Client(options);
     this.registerCommands = {
       global: config.discord.register_commands?.global ?? true,
       guild: config.discord.register_commands?.guild ?? false,
       user: config.discord.register_commands?.user ?? false,
     };
+  }
+
+  /** Kiểm tra client có bật intent hay không (dùng để cảnh báo module cần intent chưa có). */
+  hasIntent(name: string): boolean {
+    return this.intents.includes(name);
   }
 
   /** Login + đợi gateway ready. Timeout (config `discord.login_timeout_ms`, mặc định 30s) → boot fail-fast. */
@@ -107,7 +122,7 @@ export class DiscordClient {
       `Discord login không hoàn thành trong ${timeoutMs}ms (gateway chưa ready). EN: Discord login did not complete within ${timeoutMs}ms`,
       () => this.client.destroy(),
     );
-    this.logger.info('Discord client đã login thành công', { intents: this.config.discord.intents });
+    this.logger.info('Discord client đã login thành công', { intents: this.intents });
   }
 
   /** Login + đợi client ready trước khi attach command (fix latency -1ms khi khởi động). */
@@ -283,15 +298,32 @@ export class DiscordClient {
     return builder;
   }
 
-  /** Đăng ký event handler (gọi từ loader). */
-  registerEvent(name: string, handler: (...args: unknown[]) => Promise<void> | void): void {
-    this.client.on(name, async (...args) => {
+  /** Đăng ký event handler (gọi từ loader). Lưu listener ref để removeEvent khi unload;
+   *  `moduleName` (nếu có) → count in-flight qua UsageTracker (soft-stop chờ handler chạy dở). */
+  registerEvent(name: string, handler: EventHandler, ctx?: { moduleName?: string }): void {
+    const moduleName = ctx?.moduleName;
+    const key = `${moduleName ?? '*'}:${name}`;
+    const listener = async (...args: unknown[]): Promise<void> => {
+      if (moduleName && this.usage) this.usage.begin(moduleName);
       try {
         await handler(...args);
       } catch (err) {
-        this.logger.error(`Event '${name}' thất bại`, { error: err });
+        this.logger.error(`Event '${name}' thất bại`, { error: err, module: moduleName ?? '-' });
+      } finally {
+        if (moduleName && this.usage) this.usage.end(moduleName);
       }
-    });
+    };
+    this.eventListeners.set(key, { listener });
+    this.client.on(name, listener as never);
+  }
+
+  /** Gỡ event handler theo (eventName, moduleName) — bỏ listener khi unload/reload module. */
+  removeEvent(name: string, moduleName?: string): void {
+    const key = `${moduleName ?? '*'}:${name}`;
+    const entry = this.eventListeners.get(key);
+    if (!entry) return;
+    this.client.off(name, entry.listener as never);
+    this.eventListeners.delete(key);
   }
 
   /** Lấy Discord.js client gốc (dùng cho IPC hoặc module ngoại ngữ). */

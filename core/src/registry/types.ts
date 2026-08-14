@@ -34,6 +34,9 @@ export interface CommandContext {
 /** Handler command: nhận interaction + ctx (config module, logger), trả promise/void. */
 export type CommandHandler = (interaction: unknown, ctx: CommandContext) => Promise<void> | void;
 
+/** Handler event Discord (hoặc event nội bộ core): nhận args của event. */
+export type EventHandler = (...args: unknown[]) => Promise<void> | void;
+
 export interface ModuleRegistryEntry {
   name: string;
   version: string;
@@ -42,6 +45,8 @@ export interface ModuleRegistryEntry {
   config?: Record<string, unknown>; // module config đã merge (defaults + override)
   /** Cache config đã merge trong entry — handler lấy config mới nhất qua registry sau reload. */
   getConfig?: () => Record<string, unknown> | undefined;
+  /** Gateway intents module cần (khai báo trong module.yml) — gộp vào client khi boot (§4). */
+  intents?: string[];
   commands: Array<{
     name: string;
     handler: string;            // path file handler (tương đối module dir)
@@ -50,7 +55,7 @@ export interface ModuleRegistryEntry {
     type?: 'chat_input' | 'user' | 'message';
     scope?: Array<'global' | 'guild' | 'user'>;
   }>;
-  events: Array<{ name: string; handler: string }>;
+  events: Array<{ name: string; handler: string; handlerFn?: EventHandler }>;
   runtime: {
     language: string;
     engine: string;

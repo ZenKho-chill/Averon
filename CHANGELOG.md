@@ -3,6 +3,19 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [3.2.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `core/loader` + `core/discord` + `core/console`: **MODULE EVENTS được nối dây** — trước đây `events:` trong module.yml chỉ là metadata (TODO bootstrap.ts), handler không bao giờ được import/gắn → module event-based (vd `voiceStateUpdate`) không hoạt động. Giờ: loader import `evt.handler` (file export `handler`) → `handlerFn` trong registry; manager attach/detach listener khi load/reload/unload; `registerEvent`/`removeEvent` track listener theo `(module, event)` (nhiều module nghe cùng event không đụng nhau) + count in-flight qua UsageTracker (soft-stop chờ handler chạy dở). Gỡ TODO `bootstrap.ts:144`. Kèm test loader/discord/manager (VI)
+  EN: **Module events are now wired** — previously `events:` in module.yml was metadata only (TODO at bootstrap.ts), handlers were never imported/attached, so event-based modules (e.g. `voiceStateUpdate`) did not work. Now: the loader imports `evt.handler` (files export `handler`) → `handlerFn` on the registry entry; the manager attaches/detaches listeners on load/reload/unload; `registerEvent`/`removeEvent` track listeners by `(module, event)` (multiple modules may share an event) and count in-flight via UsageTracker (soft-stop waits for running handlers). Removed TODO `bootstrap.ts:144`. Tests added for loader/discord/manager.
+- `core/discord` + module manifest: **intents chuyển từ core config sang module config** — `discord.intents` trong `config.yml` bị gỡ; module khai báo intent cần qua `intents:` trong `module.yml` (vd `[GuildVoiceStates]`). Bootstrap gộp `CORE_INTENTS` (`Guilds`) + toàn bộ intents module trên đĩa trước khi tạo Discord client (discord.js không thêm intent sau login). Manifest intent sai tên GatewayIntentBits → từ chối load. Module load muộn cần intent client không bật → warn, hướng dẫn restart. `config.yml` còn khai báo `discord.intents` → cảnh báo legacy. File mới `core/src/discord/intents.ts` (VI)
+  EN: **Intents moved from core config to module config** — `discord.intents` removed from `config.yml`; modules declare needed intents via `intents:` in `module.yml` (e.g. `[GuildVoiceStates]`). Bootstrap merges `CORE_INTENTS` (`Guilds`) + all on-disk module intents before creating the Discord client (discord.js cannot add intents after login). Invalid intent names are rejected at load. A module loaded later that needs an intent the client lacks → warning, restart required. Legacy `discord.intents` in `config.yml` → warning. New file `core/src/discord/intents.ts`.
+- `scripts/new-module.mjs`: scaffold thêm template `intents:` + `events:` (commented) trong module.yml (VI)
+  EN: `scripts/new-module.mjs`: scaffold now includes `intents:` + `events:` (commented) templates in module.yml.
+- `CLAUDE.md §4` + `§6.5`: cập nhật manifest `intents`/`events` + bỏ `intents` khỏi config example (VI)
+  EN: `CLAUDE.md §4` + `§6.5`: manifest `intents`/`events` documented, `intents` removed from the config example.
+
 ## [3.1.0] — 2026-08-14
 **Loại / Type:** MINOR — thêm tính năng mới / new feature
 

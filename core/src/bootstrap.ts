@@ -12,6 +12,8 @@ import { Registry } from './registry/index.js';
 import { UsageTracker } from './registry/usage.js';
 import { CrashReporter } from './crash/index.js';
 import { ModuleLoader } from './loader/index.js';
+import { collectDeclaredIntents } from './loader/discover.js';
+import { CORE_INTENTS } from './discord/intents.js';
 import { Lifecycle } from './lifecycle/index.js';
 import { DiscordClient } from './discord/index.js';
 import { ModuleManager } from './console/manager.js';
@@ -99,9 +101,14 @@ export async function bootstrap() {
   const loader = new ModuleLoader(registry, crashReporter, root);
   const lifecycle = new Lifecycle(registry, crashReporter);
 
-  // In-flight handler counter (soft-stop) + Discord client — cần trước khi attach command
+  // In-flight handler counter (soft-stop) + Discord client — cần trước khi attach command.
+  // Intents gộp từ CORE_INTENTS + toàn bộ intents module khai báo trên đĩa — discord.js không
+  // cho thêm intent sau khi login nên phải gom TRƯỚC khi tạo client (§4).
+  // EN: Intents = CORE_INTENTS + all intents declared by modules on disk — discord.js cannot
+  // add intents after login, so they are collected BEFORE creating the client (§4).
   const usage = new UsageTracker();
-  const discord = new DiscordClient(config, logger, usage);
+  const clientIntents = [...new Set([...CORE_INTENTS, ...collectDeclaredIntents(root)])];
+  const discord = new DiscordClient(config, logger, usage, clientIntents);
   await discord.login(); // Đợi login + ready trước khi load module (fix latency -1ms)
 
   // ModuleManager: load toàn bộ module trên đĩa (discover modules/*) + gắn command listener
@@ -141,7 +148,6 @@ export async function bootstrap() {
     for (const cmd of module.commands) {
       commands.push(cmd); // dùng cho syncCommands (REST register metadata)
     }
-    // TODO: module.events — nạp handler từ evt.handler để gắn listener
   }
 
   // 6.2 Sync command lên Discord qua REST — theo 3 scope (global/guild/user) trong register_commands

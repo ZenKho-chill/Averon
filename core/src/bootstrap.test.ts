@@ -21,6 +21,7 @@ vi.mock('./discord/index.js', () => ({
     login = vi.fn().mockResolvedValue(undefined);
     registerCommand = vi.fn();
     registerEvent = vi.fn();
+    hasIntent = vi.fn(() => true);
     syncCommands = vi.fn().mockResolvedValue(undefined);
     getClient = vi.fn();
   },

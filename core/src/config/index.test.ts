@@ -23,7 +23,8 @@ describe('loadCoreConfig', () => {
     const cfg = await loadCoreConfig(configDir, 'config.example.yml');
     expect(cfg.app.name).toBe('averon');
     expect(cfg.app.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(cfg.discord.intents).toContain('Guilds');
+    // intents KHÔNG còn khai báo trong core config — module tự khai báo trong module.yml (§4).
+    expect(cfg.discord.intents).toBeUndefined();
     expect(cfg.discord.register_commands.global).toBe(true);
     expect(cfg.discord.register_commands.guild).toBe(false);
   });

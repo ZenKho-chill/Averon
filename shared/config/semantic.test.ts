@@ -6,10 +6,11 @@ import type { AppConfig } from './types.js';
 function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   // Lưu ý: `app` KHÔNG nằm trong config.yml (§10) — name/version lấy từ package.json khi boot.
   // EN: `app` is not part of config.yml (§10) — name/version come from package.json at boot.
+  // Lưu ý: `intents` KHÔNG nằm trong core config (§4) — module khai báo riêng trong module.yml.
+  // EN: `intents` is not part of core config (§4) — modules declare their own in module.yml.
   return {
     discord: {
       token: 'real-token',
-      intents: ['Guilds'],
       register_commands: { global: true, guild: false, user: false },
     },
     logging: { level: 'INFO', console_color: false },
@@ -26,7 +27,7 @@ describe('validateSemantics', () => {
 
   it('register_commands.guild=true nhưng thiếu guild_id → ConfigError', () => {
     const cfg = makeConfig({
-      discord: { token: 't', intents: ['Guilds'], register_commands: { global: false, guild: true, user: false } },
+      discord: { token: 't', register_commands: { global: false, guild: true, user: false } },
     });
     expect(() => validateSemantics(cfg, { file: 'config.yml' })).toThrow(ConfigError);
     expect(() => validateSemantics(cfg, { file: 'config.yml' })).toThrow(/guild_id/);
@@ -34,20 +35,20 @@ describe('validateSemantics', () => {
 
   it('guild=true + đủ guild_id → không throw', () => {
     const cfg = makeConfig({
-      discord: { token: 't', intents: ['Guilds'], register_commands: { global: false, guild: true, user: false }, guild_id: '123' },
+      discord: { token: 't', register_commands: { global: false, guild: true, user: false }, guild_id: '123' },
     });
     expect(() => validateSemantics(cfg, { file: 'config.yml' })).not.toThrow();
   });
 
   it('config thật (config.yml) + token placeholder → ConfigError', () => {
-    const cfg = makeConfig({ discord: { token: 'PASTE_DISCORD_TOKEN_HERE', intents: ['Guilds'], register_commands: { global: true, guild: false, user: false } } });
+    const cfg = makeConfig({ discord: { token: 'PASTE_DISCORD_TOKEN_HERE', register_commands: { global: true, guild: false, user: false } } });
     expect(() => validateSemantics(cfg, { file: 'config.yml' })).toThrow(/placeholder/);
     // allowPlaceholderToken=true (boot thử) → bỏ qua
     expect(() => validateSemantics(cfg, { file: 'config.yml', allowPlaceholderToken: true })).not.toThrow();
   });
 
   it('config mẫu (config.example.yml) + placeholder → không throw (file mẫu được phép)', () => {
-    const cfg = makeConfig({ discord: { token: 'PASTE_DISCORD_TOKEN_HERE', intents: ['Guilds'], register_commands: { global: true, guild: false, user: false } } });
+    const cfg = makeConfig({ discord: { token: 'PASTE_DISCORD_TOKEN_HERE', register_commands: { global: true, guild: false, user: false } } });
     expect(() => validateSemantics(cfg, { file: 'config.example.yml' })).not.toThrow();
   });
 

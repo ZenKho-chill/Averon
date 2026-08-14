@@ -42,12 +42,16 @@ runtime:
   version: ">=18"
   transport: in-process
 entry: src/index.ts
+# intents: [GuildVoiceStates]   # Gateway intents module cần — core gộp khi tạo client (§4)
 commands:
   - name: ${name}
     description:
       vi: "Lệnh ${name}"
       en: "${kebabToPascal(name)} command"
     handler: commands/${name}.ts
+# events:                       # Event Discord module lắng nghe (handler trong events/)
+#   - name: voiceStateUpdate
+#     handler: events/voiceStateUpdate.ts
 `;
   writeFileSync(join(moduleDir, 'module.yml'), moduleYml.trim());
 

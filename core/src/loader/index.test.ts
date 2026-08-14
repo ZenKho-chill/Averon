@@ -232,6 +232,92 @@ responses:
     }
   });
 
+  it('loadModule import event handler (handlerFn) + intents từ manifest', async () => {
+    const fx = makeFixture({
+      'module.yml': `
+name: tempvoice
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: '>=18'
+  transport: in-process
+entry: src/index.ts
+intents: [GuildVoiceStates]
+events:
+  - name: voiceStateUpdate
+    handler: events/voiceStateUpdate.ts
+`,
+      'src/index.ts': `export const onLoad = () => {};`,
+      'events/voiceStateUpdate.ts': `export async function handler() { return 'voice-ok'; }`,
+    });
+    try {
+      const registry = new Registry();
+      const crashReporter = makeCrashReporter();
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
+      const entry = await loader.loadModule(fx.dir);
+
+      expect(entry.intents).toEqual(['GuildVoiceStates']);
+      expect(entry.events).toHaveLength(1);
+      expect(entry.events[0].name).toBe('voiceStateUpdate');
+      expect(entry.events[0].handler).toBe('events/voiceStateUpdate.ts');
+      expect(entry.events[0].handlerFn).toBeTypeOf('function');
+      await expect(entry.events[0].handlerFn?.()).resolves.toBe('voice-ok');
+    } finally {
+      fx.cleanup();
+    }
+  });
+
+  it('manifest intents không hợp lệ (không phải GatewayIntentBits) → ConfigError', async () => {
+    const fx = makeFixture({
+      'module.yml': `
+name: ping
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: '>=18'
+  transport: in-process
+entry: src/index.ts
+intents: [NotARealIntent]
+`,
+      'src/index.ts': `export const onLoad = () => {};`,
+    });
+    try {
+      const registry = new Registry();
+      const crashReporter = makeCrashReporter();
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
+      await expect(loader.loadModule(fx.dir)).rejects.toThrow(/intents không hợp lệ/);
+    } finally {
+      fx.cleanup();
+    }
+  });
+
+  it('manifest intents không phải mảng → ConfigError', async () => {
+    const fx = makeFixture({
+      'module.yml': `
+name: ping
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: '>=18'
+  transport: in-process
+entry: src/index.ts
+intents: GuildVoiceStates
+`,
+      'src/index.ts': `export const onLoad = () => {};`,
+    });
+    try {
+      const registry = new Registry();
+      const crashReporter = makeCrashReporter();
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
+      await expect(loader.loadModule(fx.dir)).rejects.toThrow(/intents không hợp lệ/);
+    } finally {
+      fx.cleanup();
+    }
+  });
+
   it('entry point không tồn tại → ConfigError', async () => {
     const fx = makeFixture({
       'module.yml': `
