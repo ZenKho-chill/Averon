@@ -119,8 +119,10 @@ export class DiscordClient {
     // EN: client.login() usually resolves after ready — but wait for the ready event just in case
     // it resolves earlier, so we never attach commands before the gateway is ready.
     await new Promise<void>((resolve) => {
-      this.client.once('ready', () => {
-        this.logger.debug('Discord client đã sẵn sàng (ready event)');
+      // 'clientReady' (discord.js v14.16+; 'ready' đã deprecated, sẽ gỡ ở v15) — EN: clientReady replaces the
+      // deprecated 'ready' event name.
+      this.client.once('clientReady', () => {
+        this.logger.debug('Discord client đã sẵn sàng (clientReady event)');
         resolve();
       });
     });

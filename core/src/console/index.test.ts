@@ -149,6 +149,35 @@ describe('OperatorConsole', () => {
     expect(buf.indexOf("Unloaded module 'ping'")).toBeLessThan(buf.indexOf("Loaded module 'ping'"));
   });
 
+  it('Enter trống (dòng rỗng) → KHÔNG in "Error: empty input", chỉ bỏ qua + chạy lệnh sau', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const console = new OperatorConsole({ ...makeDeps(), input, output });
+    console.start();
+
+    input.write('\n');
+    input.write('averon help\n');
+    const pending = readUntil(output, 'averon modules');
+    const out = await pending;
+    expect(out).not.toContain('Error: empty input');
+    expect(out).toContain('averon status');
+  });
+
+  it('Enter trống KHÔNG làm hỏng lệnh tiếp theo (tuần tự)', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const console = new OperatorConsole({ ...makeDeps(), input, output });
+    console.start();
+
+    let buf = '';
+    output.on('data', (chunk: Buffer) => { buf += chunk.toString(); });
+    input.write('\n');
+    input.write('\n');
+    input.write('averon status\n');
+    await waitFor(() => buf.includes('averon v0.8.0'));
+    expect(buf).not.toContain('Error');
+  });
+
   it('EOF (piped input) → stop() gọi logger, không throw', async () => {
     const input = new PassThrough();
     const output = new PassThrough();

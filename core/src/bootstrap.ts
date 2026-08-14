@@ -16,6 +16,7 @@ import { Lifecycle } from './lifecycle/index.js';
 import { DiscordClient } from './discord/index.js';
 import { ModuleManager } from './console/manager.js';
 import { OperatorConsole } from './console/index.js';
+import { ProtectedOutput } from './console/protected-output.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -44,10 +45,13 @@ export async function bootstrap() {
     }
   }
 
-  // 3. Khởi tạo logger chính thức với config từ file
+  // 3. Khởi tạo logger chính thức với config từ file.
+  // Log ghi qua ProtectedOutput: khi console TTY hiện prompt, dòng log không còn chèn vào chỗ nhập CLI.
+  // EN: Logs route through ProtectedOutput so they never corrupt the REPL input line in TTY mode.
+  const protectedOutput = new ProtectedOutput(process.stdout, config.logging.console_color);
   const logger = createLogger({
     level: config.logging.level,
-    color: config.logging.console_color,
+    write: (line) => protectedOutput.writeLog(line),
     file: config.logging.file.enabled ? {
       dir: config.logging.file.dir,
       maxSizeMB: config.logging.file.max_size_mb,
@@ -141,6 +145,7 @@ export async function bootstrap() {
     usage,
     root,
     bootTimestamp: Date.now(),
+    protectedOutput,
   });
   if (consoleConfig.enabled) {
     operatorConsole.start();
