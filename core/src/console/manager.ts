@@ -189,11 +189,17 @@ export class ModuleManager {
     }
   }
 
-  /** Gắn event handler của entry vào Discord (nhiều module có thể nghe cùng event). */
+  /** Gắn event handler của entry vào Discord (nhiều module có thể nghe cùng event).
+   *  Truyền ctx đầy đủ như command handler — event handler đọc config/log/registry theo chuẩn. */
   private attachModuleEvents(entry: ModuleEntryWithHooks): void {
     for (const evt of entry.events) {
       if (!evt.handlerFn) continue;
-      this.deps.discord.registerEvent(evt.name, evt.handlerFn, { moduleName: entry.name });
+      this.deps.discord.registerEvent(evt.name, evt.handlerFn, {
+        config: entry.config ?? {},
+        logger: this.deps.logger,
+        moduleName: entry.name,
+        registry: this.deps.registry,
+      });
     }
   }
 

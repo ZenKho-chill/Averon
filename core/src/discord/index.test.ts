@@ -147,6 +147,21 @@ describe('DiscordClient', () => {
     expect(usage.activeCount('tempvoice')).toBe(0);
   });
 
+  it('registerEvent truyền ctx (config/logger/registry) làm tham số CUỐI cho handler — đối xứng command', async () => {
+    const logger = makeLogger();
+    const discord = new DiscordClient(makeConfig(), logger);
+    const handler = vi.fn(async () => {});
+    const ctx = { config: { hub_channel_id: '123' }, logger, moduleName: 'tempvoice', registry: {} as never };
+    discord.registerEvent('voiceStateUpdate', handler, ctx);
+    // @ts-expect-error — private field
+    discord.client.emit('voiceStateUpdate', { old: 1 }, { new: 2 });
+    await new Promise((r) => setTimeout(r, 20));
+    // args của Discord + ctx nằm cuối cùng.
+    // EN: Discord args followed by ctx as the LAST argument.
+    expect(handler).toHaveBeenCalledWith({ old: 1 }, { new: 2 }, expect.objectContaining(ctx));
+    expect(handler.mock.calls[0].at(-1)).toBe(ctx);
+  });
+
   it('registerEvent handler throw → log error + usage không kẹt (finally)', async () => {
     const logger = makeLogger();
     const usage = new UsageTracker();

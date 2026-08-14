@@ -298,15 +298,23 @@ export class DiscordClient {
     return builder;
   }
 
-  /** Đăng ký event handler (gọi từ loader). Lưu listener ref để removeEvent khi unload;
-   *  `moduleName` (nếu có) → count in-flight qua UsageTracker (soft-stop chờ handler chạy dở). */
-  registerEvent(name: string, handler: EventHandler, ctx?: { moduleName?: string }): void {
+  /**
+   * Đăng ký event handler (gọi từ loader). Lưu listener ref để removeEvent khi unload;
+   * `moduleName` (nếu có) → count in-flight qua UsageTracker (soft-stop chờ handler chạy dở).
+   * Truyền `ctx` (config module + logger + registry) làm tham số CUỐI cho handler — đối xứng
+   * với CommandContext của command handler, để module đọc config/log theo chuẩn (§5.3).
+   * EN: Registers an event handler (called by the loader). Stores the listener ref so removeEvent
+   * can detach it on unload; `moduleName` (if set) → in-flight counting via UsageTracker (soft-stop
+   * waits for running handlers). Appends `ctx` (module config + logger + registry) as the LAST
+   * handler argument — mirrors CommandContext so modules read config/log the standard way (§5.3).
+   */
+  registerEvent(name: string, handler: EventHandler, ctx?: CommandContext): void {
     const moduleName = ctx?.moduleName;
     const key = `${moduleName ?? '*'}:${name}`;
     const listener = async (...args: unknown[]): Promise<void> => {
       if (moduleName && this.usage) this.usage.begin(moduleName);
       try {
-        await handler(...args);
+        await handler(...args, ctx ?? { config: {}, logger: this.logger });
       } catch (err) {
         this.logger.error(`Event '${name}' thất bại`, { error: err, module: moduleName ?? '-' });
       } finally {
