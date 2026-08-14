@@ -27,7 +27,8 @@ modules/ping/
 Mặc định `/ping` trả `Pong!`. Admin chỉnh phản hồi **không cần đổi code** — sửa trực tiếp `modules/ping/config/defaults.yml` (config module chỉ nằm trong folder module, không có override trong `config/config.yml`):
 
 ```yaml
-random: true                  # true → chọn ngẫu nhiên 1 trong responses; false → câu đầu
+random: false               # true → chọn ngẫu nhiên 1 trong responses; false → dùng prefer_type (bên dưới)
+prefer_type: embed          # random=false: chọn response đầu tiên khớp 'plain'|'embed'. Bỏ trống → response đầu
 responses:
   - type: plain               # plain: text thuần + placeholder
     content: "Pong! ({latency}ms)"
@@ -52,6 +53,12 @@ responses:
           inline: true
       timestamp: true         # true = now | chuỗi ISO hợp lệ
 ```
+
+**Chọn response / Response picking:**
+
+- `random: true` (mặc định) → mỗi lần `/ping` chọn ngẫu nhiên 1 trong `responses`.
+- `random: false` → mặc định luôn dùng **response đầu tiên** trong danh sách; thêm `prefer_type: 'plain' | 'embed'` để luôn chọn response đầu tiên **khớp type đó** (dù nó không đứng đầu). Nếu không có response nào khớp `prefer_type` → fallback response đầu tiên.
+- EN: `random: true` (default) → each `/ping` picks one of `responses` at random. `random: false` → default uses the **first response**; set `prefer_type: 'plain' | 'embed'` to always pick the first response **matching that type** (even if not first). No match → fallback to the first response.
 
 ### Placeholder built-in
 

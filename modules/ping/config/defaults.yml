@@ -3,14 +3,18 @@
 # EN: Default config for module ping — edit this file directly (module config lives in the module folder,
 # no override in config/config.yml).
 #
-# random: true → chọn ngẫu nhiên 1 trong responses mỗi lần. false → luôn dùng response đầu tiên.
+# random: true → chọn ngẫu nhiên 1 trong responses mỗi lần. false → dùng prefer_type nếu khai
+# (response đầu khớp type), không khai thì dùng response đầu tiên.
+# EN: random: true → pick one response at random each time. false → use prefer_type if set
+# (first response matching that type), else the first response.
+# prefer_type: chọn loại phản hồi khi random=false — 'plain' hoặc 'embed' (mặc định là response đầu tiên).
+# EN: prefer_type: pick which response type to use when random=false — 'plain' or 'embed' (default: first response).
 # Mỗi response khai type: plain (text) HOẶC embed (toàn bộ field EmbedBuilder: title, description,
 # image, thumbnail, footer, author, fields, timestamp, color, url).
 # Placeholder built-in: {time} {tag_user} {latency} {username} {user_id} {guild} {guild_id}
-random: true
+random: false
+prefer_type: embed
 responses:
-  - type: plain
-    content: "Pong! ({latency}ms)"
   - type: embed
     embed:
       title: "Pong!"
@@ -20,3 +24,5 @@ responses:
         - name: "Guild"
           value: "{guild}"
           inline: true
+  - type: plain
+    content: "Pong! ({latency}ms)"

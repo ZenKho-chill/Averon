@@ -23,6 +23,8 @@ interface PingResponse {
 
 interface PingConfig {
   random?: boolean;
+  /** random=false: chọn response đầu tiên khớp type này thay vì câu đầu tiên. */
+  prefer_type?: 'plain' | 'embed';
   responses?: PingResponse[];
 }
 
@@ -44,12 +46,21 @@ function buildVars(interaction: InteractionLike): PlaceholderVars {
   };
 }
 
-/** Chọn response: random=true (hoặc nhiều câu) → ngẫu nhiên; ngược lại câu đầu. */
+/** Chọn response: random=true (mặc định) + nhiều câu → ngẫu nhiên.
+ *  random=false → nếu khai prefer_type thì lấy response ĐẦU TIÊN khớp type đó;
+ *  không khai (hoặc không khớp) → câu đầu tiên.
+ *  EN: Pick response: random=true (default) with several entries → random; random=false →
+ *  first response matching prefer_type if set; else the first response.
+ */
 function pickResponse(cfg: PingConfig): PingResponse | undefined {
   const responses = cfg.responses ?? [];
   if (responses.length === 0) return undefined;
   if (cfg.random !== false && responses.length > 1) {
     return responses[Math.floor(Math.random() * responses.length)];
+  }
+  if (cfg.prefer_type) {
+    const match = responses.find((r) => r.type === cfg.prefer_type);
+    if (match) return match;
   }
   return responses[0];
 }

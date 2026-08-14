@@ -8,6 +8,9 @@ properties:
   random:
     type: boolean
     default: true
+  prefer_type:
+    enum: [plain, embed]
+    description: "random=false: luôn chọn response đầu tiên khớp type này (thay vì câu đầu tiên) / EN: random=false: always pick the first response matching this type (instead of the first one)"
   responses:
     type: array
     items:
