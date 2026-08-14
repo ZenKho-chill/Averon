@@ -195,7 +195,7 @@ Core cấp lớp IPC thống nhất (`core/src/ipc/`). Module chỉ khai báo `r
 - **1 file duy nhất**: `config/config.yml` (gitignored, chứa token). Bot đọc đúng file này lúc boot.
 - **`config.example.yml`** (tracked) là mẫu; copy rồi sửa.
 - **Validate fail-fast**: 2 lớp — JSON Schema (`config/schemas/`) + semantic (`shared/config/semantic.ts`). Sai → in lỗi rõ field/file/dòng + **thoát mã ≠ 0**.
-- **`app.version` lấy từ `package.json`** (`shared/config.readPackageVersion`) — nguồn sự thật duy nhất, config.yml không khai báo version (§10).
+- **`app` (name + version) lấy từ `package.json`** (`shared/config.readPackageInfo`) — nguồn sự thật duy nhất; config.yml KHÔNG khai báo `app` (§10).
 - **Backup/rollback**: mỗi boot hợp lệ tự backup vào `config/backups/` (giữ 10 bản); `npm run restore:config` để rollback.
 - **Đường dẫn cross-platform**: không hard-code `D:\...` / `process.cwd()` — dùng `findProjectRoot()` (chạy đúng từ `src` lẫn `dist`).
 

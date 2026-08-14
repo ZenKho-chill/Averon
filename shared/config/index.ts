@@ -29,17 +29,22 @@ export function findProjectRoot(startDir: string): string {
   throw new ConfigError('Không tìm thấy project root (package.json). EN: Cannot find project root.');
 }
 
-/** Đọc version từ package.json — nguồn sự thật duy nhất cho app.version (CLAUDE.md §10). */
-export function readPackageVersion(root: string): string {
+/** Đọc thông tin app từ package.json — nguồn sự thật duy nhất cho name + version (CLAUDE.md §10).
+ * EN: Read app info from package.json — single source of truth for name + version.
+ * Ứng dụng dùng khi `app` KHÔNG còn khai báo trong config.yml. */
+export function readPackageInfo(root: string): { name: string; version: string } {
   const pkgPath = join(root, 'package.json');
   if (!existsSync(pkgPath)) {
     throw new ConfigError(`Không tìm thấy package.json tại ${pkgPath}. EN: package.json not found.`);
   }
-  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: unknown };
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: unknown; version?: unknown };
+  if (typeof pkg.name !== 'string' || pkg.name.length === 0) {
+    throw new ConfigError('package.json thiếu name hợp lệ. EN: package.json has no valid name.');
+  }
   if (typeof pkg.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(pkg.version)) {
     throw new ConfigError('package.json thiếu version hợp lệ (vd 0.8.0). EN: package.json has no valid version.');
   }
-  return pkg.version;
+  return { name: pkg.name, version: pkg.version };
 }
 
 /** Thư mục config mặc định: <project root>/config (tính từ module location — cross-platform). */

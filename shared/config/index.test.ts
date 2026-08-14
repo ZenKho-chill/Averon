@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, ConfigError, deepMerge, findProjectRoot, readPackageVersion } from './index.js';
+import { loadConfig, ConfigError, deepMerge, findProjectRoot, readPackageInfo } from './index.js';
 import type { AppConfig } from './types.js';
 
 /** Tạo fixture config trong thư mục temp (tự dọn sau test). */
@@ -114,13 +114,12 @@ describe('loadConfig', () => {
 describe('loadConfig — integration với config thật của dự án (§6.5)', () => {
   const configDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'config');
 
-  it('config.example.yml load + validate qua schema', () => {
+  it('config.example.yml load + validate qua schema (không có `app` — lấy từ package.json §10)', () => {
     const schemaFile = join(configDir, 'schemas', 'core.schema.json');
     const cfg = loadConfig<AppConfig>({ configDir, file: 'config.example.yml', schema: schemaFile });
-    expect(cfg.app.name).toBe('averon');
-    // app.version không còn trong config.yml — lấy từ package.json lúc boot (§10).
-    // EN: app.version is no longer in config.yml — derived from package.json at boot (§10).
-    expect(cfg.app.version).toBeUndefined();
+    // `app` KHÔNG nằm trong config.yml — loadConfig không tự điền; lúc boot dùng readPackageInfo (§10).
+    // EN: `app` is not in config.yml — loadConfig does not fill it; at boot readPackageInfo is used (§10).
+    expect(cfg.app).toBeUndefined();
     expect(cfg.discord.register_commands.global).toBe(true);
     expect(cfg.discord.register_commands.guild).toBe(false);
     expect(cfg.discord.register_commands.user).toBe(false);
@@ -151,11 +150,11 @@ describe('findProjectRoot', () => {
   });
 });
 
-describe('readPackageVersion', () => {
-  it('đọc version hợp lệ từ package.json', () => {
-    const fx = makeFixture({ 'package.json': JSON.stringify({ version: '9.9.9' }) });
+describe('readPackageInfo', () => {
+  it('đọc name + version hợp lệ từ package.json', () => {
+    const fx = makeFixture({ 'package.json': JSON.stringify({ name: 'averon', version: '9.9.9' }) });
     try {
-      expect(readPackageVersion(fx.dir)).toBe('9.9.9');
+      expect(readPackageInfo(fx.dir)).toEqual({ name: 'averon', version: '9.9.9' });
     } finally {
       fx.cleanup();
     }
@@ -164,16 +163,25 @@ describe('readPackageVersion', () => {
   it('thiếu package.json → ConfigError', () => {
     const fx = makeFixture({ 'config.yml': 'a: 1\n' });
     try {
-      expect(() => readPackageVersion(fx.dir)).toThrow(/package\.json/);
+      expect(() => readPackageInfo(fx.dir)).toThrow(/package\.json/);
     } finally {
       fx.cleanup();
     }
   });
 
   it('version không đúng format (vd abc) → ConfigError', () => {
-    const fx = makeFixture({ 'package.json': JSON.stringify({ version: 'abc' }) });
+    const fx = makeFixture({ 'package.json': JSON.stringify({ name: 'averon', version: 'abc' }) });
     try {
-      expect(() => readPackageVersion(fx.dir)).toThrow(ConfigError);
+      expect(() => readPackageInfo(fx.dir)).toThrow(ConfigError);
+    } finally {
+      fx.cleanup();
+    }
+  });
+
+  it('thiếu name → ConfigError', () => {
+    const fx = makeFixture({ 'package.json': JSON.stringify({ version: '1.0.0' }) });
+    try {
+      expect(() => readPackageInfo(fx.dir)).toThrow(/name/);
     } finally {
       fx.cleanup();
     }

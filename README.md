@@ -88,11 +88,11 @@ averon/
 
 ## Shared services
 
-- **`shared/config`** — loader 1 file YAML + validate fail-fast (JSON Schema + semantic), `findProjectRoot`, `readPackageVersion` (app.version lấy từ package.json), backup/rollback.
+- **`shared/config`** — loader 1 file YAML + validate fail-fast (JSON Schema + semantic), `findProjectRoot`, `readPackageInfo` (app name/version lấy từ package.json), backup/rollback.
 - **`shared/logger`** — 5 cấp độ (DEBUG→FATAL), console màu ở dev, file rotate theo dung lượng ở prod, che bí mật khi log.
 - **`shared/placeholders`** — `renderPlaceholders(text, vars)` thay `{key}` — dùng chung cho phản hồi module.
 
-EN: **`shared/config`** — single-file YAML loader with fail-fast validation (JSON Schema + semantic), `findProjectRoot`, `readPackageVersion` (app.version read from package.json), backup/rollback. **`shared/logger`** — 5 levels (DEBUG→FATAL), colored console in dev, size-based file rotation in prod, secret masking. **`shared/placeholders`** — `renderPlaceholders(text, vars)` replaces `{key}` — reusable across modules.
+  EN: **`shared/config`** — single-file YAML loader with fail-fast validation (JSON Schema + semantic), `findProjectRoot`, `readPackageInfo` (app name/version read from package.json), backup/rollback. **`shared/logger`** — 5 levels (DEBUG→FATAL), colored console in dev, size-based file rotation in prod, secret masking. **`shared/placeholders`** — `renderPlaceholders(text, vars)` replaces `{key}` — reusable across modules.
 
 ## CI/CD
 
