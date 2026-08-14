@@ -34,7 +34,14 @@ export interface CommandContext {
 /** Handler command: nhận interaction + ctx (config module, logger), trả promise/void. */
 export type CommandHandler = (interaction: unknown, ctx: CommandContext) => Promise<void> | void;
 
-/** Handler event Discord (hoặc event nội bộ core): nhận args của event. */
+/**
+ * Handler event Discord (hoặc event nội bộ core): nhận args của event + ctx (config module, logger)
+ * được core thêm vào CUỐI danh sách args — đối xứng với CommandContext của command handler.
+ * Module khai báo signature cụ thể theo event: `handler(oldState, newState, ctx)`.
+ * EN: Discord event (or core-internal event) handler: receives the event args plus a ctx
+ * (module config, logger) appended by core as the LAST argument — mirrors CommandContext.
+ * Modules declare a concrete signature per event: `handler(oldState, newState, ctx)`.
+ */
 export type EventHandler = (...args: unknown[]) => Promise<void> | void;
 
 export interface ModuleRegistryEntry {

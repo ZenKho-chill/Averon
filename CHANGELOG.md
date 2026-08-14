@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [3.3.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `core/discord` + `core/console`: **event handler nhận ctx đối xứng với command** — `registerEvent` truyền `{ config, logger, moduleName, registry }` làm tham số **cuối** của handler (`handler(oldState, newState, ctx)`), giúp module event-based (vd tempvoice) đọc config/log/registry theo chuẩn mà không phải hardcode hay import core nội bộ (§5.3). `attachModuleEvents` truyền đầy đủ ctx như `attachModuleCommands`. Cập nhật `docs/api/README.md` §1b (VI)
+  EN: **Event handlers now receive a command-like ctx** — `registerEvent` appends `{ config, logger, moduleName, registry }` as the handler's LAST argument (`handler(oldState, newState, ctx)`), so event-based modules (e.g. tempvoice) can read config/log/registry the standard way without hardcoding or importing core internals (§5.3). `attachModuleEvents` passes the full ctx like `attachModuleCommands`. Updated `docs/api/README.md` §1b.
+
 ## [3.2.0] — 2026-08-14
 **Loại / Type:** MINOR — thêm tính năng mới / new feature
 

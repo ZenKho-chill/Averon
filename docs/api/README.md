@@ -28,6 +28,22 @@ export async function handler(interaction: InteractionLike, ctx?: CommandContext
 
 > Nếu module cần thêm service (database, ...), mở issue/PR — đừng tự đăng ký vào core registry.
 
+## 1b. Event handler — context
+
+Event handler khai báo trong `module.yml` (`events:`) nhận **ctx đối xứng với command**: core append `ctx` làm tham số **CUỐI** của handler. Signature theo từng event của discord.js:
+
+```ts
+import type { CommandContext } from '../../../core/src/registry/types.js';
+
+// vd event `voiceStateUpdate` — discord.js truyền (oldState, newState), core thêm ctx ở cuối.
+export async function handler(oldState: unknown, newState: unknown, ctx?: CommandContext) {
+  const cfg = (ctx?.config ?? {}) as { hub_channel_id?: string };
+  ctx?.logger.info('voice update', { channelId: (newState as { channelId?: string | null })?.channelId });
+}
+```
+
+> Các field của `ctx` giống hệt `CommandContext` (§1): `config`, `logger`, `moduleName`, `registry`. Lấy config **mới nhất** sau reload: `ctx.registry?.getModule('<name>').getConfig?.()`.
+
 ## 2. `Logger` — `shared/logger`
 
 Module nhận logger qua `ctx.logger`. Interface:

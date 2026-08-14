@@ -153,12 +153,19 @@ describe('ModuleManager.load', () => {
     expect(registry.hasModule('b')).toBe(false);
   });
 
-  it('load module có events → attach event handler qua discord.registerEvent với moduleName', async () => {
+  it('load module có events → attach event handler qua discord.registerEvent với ctx đầy đủ', async () => {
     const { deps, registerEvent } = makeDeps({ eventNames: ['voiceStateUpdate'] });
     const manager = new ModuleManager(deps);
     await manager.load('ping');
 
     expect(registerEvent).toHaveBeenCalledWith('voiceStateUpdate', expect.any(Function), expect.objectContaining({ moduleName: 'ping' }));
+    // ctx truyền cho event handler đối xứng với command: có config + logger + registry.
+    // EN: event ctx mirrors command ctx: config + logger + registry.
+    const ctx = registerEvent.mock.calls[0][2];
+    expect(ctx).toHaveProperty('config');
+    expect(ctx).toHaveProperty('logger');
+    expect(ctx).toHaveProperty('registry');
+    expect(deps.logger.info).toHaveBeenCalledWith(expect.stringMatching(/Module 'ping' loaded \(1 commands, 1 events\)/));
   });
 
   it('unload module → removeEvent được gọi theo (event, module)', async () => {
