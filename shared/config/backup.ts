@@ -2,8 +2,9 @@
  * shared/config/backup — backup bản config hợp lệ + rollback (CLAUDE.md §6.4).
  * EN: config backup + rollback — saves the last stable config each boot.
  *
- * Mỗi lần boot với config hợp lệ → copy config.yml vào <configDir>/backups/config-<ts>.yml,
- * giữ N bản gần nhất. Dùng `scripts/restore-config.ts` để list + rollback.
+ * Core: mỗi lần boot với config hợp lệ → copy config.yml vào <root>/config/backups/.
+ * Module: copy <moduleDir>/config/defaults.yml vào <moduleDir>/config/backups/ (cô lập trong
+ * chính folder module). Giữ N bản gần nhất. Dùng `scripts/restore-config.ts` để list + rollback.
  */
 import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -14,10 +15,17 @@ import { ConfigError } from './errors.js';
 export const DEFAULT_KEEP = 10;
 
 /**
- * Thư mục backup chung cho cả core và module: <project root>/config/backups/
- * Trong môi trường test: sử dụng thư mục tạm trong configDir
+ * Thư mục backup. Core: <project root>/config/backups/.
+ * Module: <moduleDir>/config/backups/ (nằm trong chính folder module — cô lập, Golden Rule §5.3).
+ * EN: Core backups go to <project root>/config/backups/. Module backups live inside the module's
+ * own config folder — <moduleDir>/config/backups/ (isolation).
+ * Trong môi trường test: sử dụng thư mục tạm trong configDir.
  */
-function backupsDir(configDir: string): string {
+function backupsDir(configDir: string, type: 'core' | 'module' = 'core'): string {
+  if (type === 'module') {
+    return join(configDir, 'config', 'backups');
+  }
+
   // Trong môi trường test: configDir là thư mục tạm (không có package.json)
   if (configDir.includes('Temp') || configDir.includes('tmp')) {
     return join(configDir, 'backups');
@@ -60,7 +68,7 @@ export function backupConfig(
     throw new ConfigError(`Không thể backup — thiếu ${src}. EN: Cannot backup, missing config file.`);
   }
 
-  const dir = backupsDir(configDir);
+  const dir = backupsDir(configDir, type);
   mkdirSync(dir, { recursive: true });
 
   // Đọc nội dung hiện tại và tính hash
@@ -105,7 +113,7 @@ export function listBackups(
   options?: { type?: 'core' | 'module'; name?: string }
 ): Array<{ file: string; mtime: string; mtimeMs: number }> {
   const { type, name } = options ?? {};
-  const dir = backupsDir(configDir);
+  const dir = backupsDir(configDir, type ?? 'core');
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => {
@@ -130,7 +138,7 @@ export function getLatestBackupHash(
   const backups = listBackups(configDir, options);
   if (!backups.length) return null;
 
-  const dir = backupsDir(configDir);
+  const dir = backupsDir(configDir, options?.type ?? 'core');
   const latestContent = readFileSync(join(dir, backups[0].file), 'utf8');
   return createHash('sha256').update(latestContent).digest('hex');
 }
@@ -142,7 +150,7 @@ export function restoreConfig(
   options?: { type?: 'core' | 'module' }
 ): void {
   const { type = 'core' } = options ?? {};
-  const src = join(backupsDir(configDir), backupFile);
+  const src = join(backupsDir(configDir, type), backupFile);
   if (!existsSync(src)) {
     throw new ConfigError(`Không tìm thấy backup: ${backupFile}. EN: Backup not found: ${backupFile}`);
   }

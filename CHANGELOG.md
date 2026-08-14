@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [1.0.1] — 2026-08-14
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- **Backup config module lưu nhầm chung folder với core**: trước đây `shared/config/backup` đẩy mọi backup về `<root>/config/backups/` — giờ module backup nằm trong chính folder module (`modules/<name>/config/backups/`), cô lập theo Golden Rule (§5.3). Đồng bộ `restore-config.ts` (list/rollback module dùng `modules/<name>/`), `core/loader` restore module, `.gitignore` (VI)
+  EN: Module config backups used to be stored in the same shared folder as core backups (`<root>/config/backups/`) — now they live inside the module's own folder (`modules/<name>/config/backups/`), isolated per the Golden Rule (§5.3). Synced `restore-config.ts` (module list/rollback targets `modules/<name>/`), the `core/loader` module restore path, and `.gitignore`.
+
 ## [1.0.0] — 2026-08-14
 **Loại / Type:** MAJOR — breaking change / breaking change
 

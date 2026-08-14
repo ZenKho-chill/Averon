@@ -65,7 +65,8 @@ describe('backupConfig', () => {
       writeFileSync(join(configDir, 'defaults.yml'), 'key: value2\n'); // Sửa nội dung
       const path2 = backupConfig(moduleDir, { type: 'module', name: 'test' }); // Lần 2: khác → tạo backup mới
       expect(path2).not.toBeNull();
-      // Kiểm tra file backup được tạo trong thư mục chung
+      // Backup nằm trong chính folder module: <moduleDir>/config/backups/ — KHÔNG ở config/backups/ chung
+      expect(path2).toContain(join('config', 'backups'));
       const backups = listBackups(moduleDir, { type: 'module', name: 'test' });
       expect(backups.length).toBe(2);
     } finally {
