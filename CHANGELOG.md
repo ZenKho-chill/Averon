@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [1.0.4] — 2026-08-14
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- `shared/logger`: **`logging.console_color` không có tác dụng với `[INFO]`/`[WARN]`** — `colorizeLevel` dùng regex `/\[(DEBUG|INFO|WARN|ERROR|FATAL)\]/` nhưng `formatLine` pad level thành 5 ký tự (`[INFO ]`, `[WARN ]` — có khoảng trắng trước `]`) nên regex không match 2 level này; chỉ ERROR/FATAL/DEBUG (đủ 5 ký tự) có màu. Sửa regex thành `\s*` trước `]` — giờ đủ 5 level có màu; thêm test regression cho từng level (VI)
+  EN: `logging.console_color` had no effect on `[INFO]`/`[WARN]` lines — `colorizeLevel` used `/\[(DEBUG|INFO|WARN|ERROR|FATAL)\]/` but `formatLine` pads levels to 5 chars (`[INFO ]`, `[WARN ]`, trailing space before `]`), so the regex never matched those two; only ERROR/FATAL/DEBUG (already 5 chars) got colored. The regex now allows trailing whitespace (`\s*`) — all 5 levels colorize; added a regression test per level.
+
 ## [1.0.3] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 

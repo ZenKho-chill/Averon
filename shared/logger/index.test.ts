@@ -90,6 +90,15 @@ describe('colorizeLevel', () => {
     expect(colored).toContain('\x1b[31m');
     expect(colored).not.toBe(plain);
   });
+
+  it('tô màu CẢ level bị padEnd(5) — [INFO ] và [WARN ] (bug: regex cũ bỏ sót)', () => {
+    for (const level of ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] as const) {
+      const line = formatLine(level, 'core/x', '', 'msg');
+      const colored = colorizeLevel(line);
+      expect(colored, level).not.toBe(line);
+      expect(colored, level).toContain('\x1b[0m'); // có reset sau level
+    }
+  });
 });
 
 describe('RotatingFileSink (file + rotate theo size — §7.3)', () => {
