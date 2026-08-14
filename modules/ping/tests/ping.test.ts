@@ -33,6 +33,13 @@ describe('ping command', () => {
     expect(interaction.reply).toHaveBeenCalledWith('Pong! (42ms)');
   });
 
+  it('ws.ping chưa đo được (-1) → {latency} hiển thị ... thay vì -1', async () => {
+    const interaction = makeInteraction({ client: { ws: { ping: -1 } } });
+    const ctx = makeCtx({ responses: [{ type: 'plain', content: 'Pong! ({latency}ms)' }] });
+    const result = await handler(interaction as never, ctx);
+    expect(result).toBe('Pong! (...ms)');
+  });
+
   it('type=plain placeholder {tag_user} {time} {guild} thay đúng', async () => {
     const interaction = makeInteraction();
     const ctx = makeCtx({ responses: [{ type: 'plain', content: '{tag_user} in {guild} at {time}' }] });

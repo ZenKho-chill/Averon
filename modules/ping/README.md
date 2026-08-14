@@ -61,7 +61,7 @@ modules:
 |---|---|
 | `{time}` | Giờ địa phương `HH:MM:SS` |
 | `{tag_user}` | Tag user `<@id>` |
-| `{latency}` | Độ trễ gateway (ms) |
+| `{latency}` | Độ trễ gateway (ms) — `...` nếu chưa đo được (ws.ping = -1, thường trong vài giây đầu sau connect) |
 | `{username}` | Tên user |
 | `{user_id}` | ID user |
 | `{guild}` | Tên guild |
