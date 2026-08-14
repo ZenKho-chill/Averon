@@ -40,7 +40,17 @@ export function validateSemantics(config: AppConfig, options: SemanticOptions): 
     );
   }
 
-  // 3. Cảnh báo path Windows hardcode trong config (không cross-platform)
+  // 3. Section `app` đã bị gỡ khỏi config.yml (§10) — name/version lấy từ package.json.
+  // EN: `app` section was removed from config.yml — name/version come from package.json.
+  const configWithLegacyApp = config as unknown as Record<string, unknown>;
+  if (configWithLegacyApp.app !== undefined) {
+    warnings.push(
+      'app.* đã bị gỡ khỏi config.yml — name + version tự lấy từ package.json (§10), xóa section app đi. ' +
+        'EN: app.* was removed from config.yml — name + version are derived from package.json; remove the app section.',
+    );
+  }
+
+  // 4. Cảnh báo path Windows hardcode trong config (không cross-platform)
   walkStrings(config, (path, value) => {
     if (typeof value === 'string' && WINDOWS_ABS_PATH_RE.test(value)) {
       warnings.push(`Cảnh báo: ${path} chứa path Windows hardcode '${value}' — dùng path tương đối. EN: Windows hardcoded path.`);

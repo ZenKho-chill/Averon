@@ -54,7 +54,7 @@ logger.child(overrides: { source?: string; context?: string }): Logger   // logg
 | `validateConfig(config, schema, path)` | Validate object theo JSON Schema. |
 | `deepMerge(base, override)` | Merge sâu object (dùng cho config module). |
 | `findProjectRoot(startDir)` | Tìm thư mục chứa `package.json` (walk-up). Chạy đúng cả từ src lẫn dist. |
-| `readPackageVersion(root)` | Đọc version từ `package.json` — nguồn `app.version` duy nhất. |
+| `readPackageInfo(root)` | Đọc `{name, version}` từ `package.json` — nguồn duy nhất cho `app` (§10, config không khai báo `app`). |
 | `backupConfig(dir)` / `listBackups(dir)` / `restoreConfig(dir, file)` | Backup + rollback config. |
 
 ```ts

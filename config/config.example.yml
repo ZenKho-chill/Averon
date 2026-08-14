@@ -8,10 +8,8 @@
 # EN: config.yml (untracked) is the real file the bot reads at boot.
 # ==================================================
 
-app:
-  name: averon
-  # version TỰ LẤY từ package.json (nguồn sự thật duy nhất, §10) — không cần khai báo ở đây.
-  # EN: version is derived from package.json (single source of truth, §10) — no need to declare it here.
+# app: KHÔNG khai báo ở đây nữa — name + version TỰ LẤY từ package.json (nguồn sự thật duy nhất, §10).
+# EN: `app` is no longer declared here — name + version are derived from package.json (single source of truth, §10).
 
 discord:
   # ⚠️ Repo này PUBLIC — KHÔNG commit token thật! Thay placeholder cục bộ.

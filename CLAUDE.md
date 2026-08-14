@@ -327,9 +327,8 @@ tests:
 ### 6.5 Ví dụ config (`config/config.example.yml`)
 
 ```yaml
-app:
-  name: averon
-  # version tự lấy từ package.json (§10) — không cần khai báo ở đây
+# app: KHÔNG khai báo — name + version TỰ LẤY từ package.json (nguồn sự thật duy nhất, §10).
+# EN: `app` not declared — name + version are derived from package.json (single source of truth, §10).
 
 discord:
   # ⚠️ REPO PUBLIC — KHÔNG commit token thật! Chỉ sửa trong config.yml (gitignored).

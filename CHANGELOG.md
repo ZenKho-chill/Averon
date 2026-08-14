@@ -3,6 +3,17 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [3.0.0] — 2026-08-14
+**Loại / Type:** MAJOR — breaking config change (gỡ section `app` khỏi config.yml) / breaking config change (`app` section removed from config.yml)
+
+### Changed
+- `shared/config`: `app` (name + version) **KHÔNG còn khai báo trong config.yml** — name + version **lấy hoàn toàn từ package.json** (nguồn sự thật duy nhất, chống drift §10). Đổi `readPackageVersion` → `readPackageInfo(root)` trả `{ name, version }`; `loadCoreConfig()` điền `config.app` từ package.json thay vì ghi đè từ hàm đọc version. Schema `core.schema.json` bỏ `app` khỏi `required`/`properties` (config cũ để lại `app` vẫn load được, kèm cảnh báo) (VI)
+  EN: `app` (name + version) is **no longer declared in config.yml** — name + version are **taken entirely from package.json** (single source of truth, prevents drift §10). Replaced `readPackageVersion` with `readPackageInfo(root)` returning `{ name, version }`; `loadCoreConfig()` fills `config.app` from package.json instead of overriding via the version-only function. Removed `app` from `core.schema.json` `required`/`properties` (a legacy `app` section still loads, with a warning).
+- `config/config.example.yml`, `CLAUDE.md §6.5`: gỡ mục khai báo `app` trong ví dụ (VI)
+  EN: `config/config.example.yml`, `CLAUDE.md §6.5`: removed the `app` declaration from the sample config.
+- `shared/config/semantic`: thêm cảnh báo khi config vẫn còn section `app` cũ — name/version giờ lấy từ package.json (VI)
+  EN: `shared/config/semantic`: added a warning when a legacy `app` section is still present — name/version now come from package.json.
+
 ## [2.2.0] — 2026-08-14
 **Loại / Type:** MINOR — thay đổi hành vi / behavior change
 

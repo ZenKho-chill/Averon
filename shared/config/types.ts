@@ -4,7 +4,10 @@
  */
 import type { LogLevel } from '../logger/levels.js';
 
-/** Cấu hình ứng dụng — khớp config/schemas/core.schema.json (§6.5). */
+/** Cấu hình ứng dụng — khớp config/schemas/core.schema.json (§6.5).
+ * Lưu ý: `app` KHÔNG khai báo trong config.yml — khi boot được điền từ package.json (§10).
+ * EN: Note: `app` is not declared in config.yml — it is filled from package.json at boot (§10).
+ */
 export interface AppConfig {
   app: {
     name: string;

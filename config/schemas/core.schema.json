@@ -4,31 +4,12 @@
   "title": "Averon core config",
   "type": "object",
   "required": [
-    "app",
     "discord",
     "logging",
     "crash",
     "dev"
   ],
   "properties": {
-    "app": {
-      "type": "object",
-      "required": [
-        "name"
-      ],
-      "description": "app.version KHÔNG khai báo ở đây — tự lấy từ package.json khi boot (§10). EN: app.version is derived from package.json at boot — not declared here.",
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
-          "type": "string",
-          "pattern": "^\\d+\\.\\d+\\.\\d+$",
-          "description": "Optional — bị ghi đè bằng version package.json nếu khai báo. EN: Optional — overridden by package.json version if set."
-        }
-      }
-    },
     "discord": {
       "type": "object",
       "required": [
