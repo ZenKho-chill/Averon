@@ -10,6 +10,10 @@ EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, 
 - `core/console` + `core/config`: prompt console đổi từ `averon> ` → `averon` (bỏ hậu tố `> ` không cần thiết) — sync default (`core/config`), config files (`config.yml`, `config.example.yml`), test, docs/README (VI)
   EN: Console prompt changed from `averon> ` to `averon` (dropped the unneeded `> ` suffix) — synced the default, config files, tests, and docs/README.
 
+### Fixed
+- `core/bootstrap`: `console.prompt` trong config trước đây bị bỏ qua — bootstrap không truyền prompt vào `OperatorConsole` nên prompt thật luôn là default hardcode `averon`. Giờ truyền `prompt: getConsoleConfig(config).prompt` → config là nguồn sự thật, default chỉ là fallback. Kèm test `getConsoleConfig` (override/default/tắt) (VI)
+  EN: `console.prompt` from config used to be ignored — bootstrap never passed it to `OperatorConsole`, so the prompt was always the hardcoded `averon` default. Now bootstrap passes `prompt: getConsoleConfig(config).prompt`, making config the source of truth with the code default as fallback. Added `getConsoleConfig` tests (override/default/disabled).
+
 ## [1.0.2] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 
