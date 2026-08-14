@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [3.1.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `core/discord`: **log usage command lên console** — khi user Discord dùng lệnh của module, log `[INFO] Command '/<name>' used by <userId> in guild <guildId>` kèm meta `{ module }` (guild = `DM` nếu không trong guild). Đúng CLAUDE.md §7.1 (`user dùng lệnh → INFO`) + §7.4 (chỉ log `userId`, không log nội dung nhạy cảm) (VI)
+  EN: **Command usage logging to console** — when a Discord user runs a module command, logs `[INFO] Command '/<name>' used by <userId> in guild <guildId>` with `{ module }` meta (`DM` when not in a guild). Per CLAUDE.md §7.1 (command use → INFO) + §7.4 (only `userId` is logged, never sensitive content).
+
 ## [3.0.1] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 
