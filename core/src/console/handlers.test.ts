@@ -29,7 +29,7 @@ function makeConfig(): AppConfig {
     logging: { level: 'INFO', console_color: false, file: { enabled: false, dir: 'logs/', max_size_mb: 20, keep_files: 7 } },
     crash: { max_failures: 5, fail_window_ms: 300000, watchdog: { enabled: false, max_restarts: 5, window_min: 5 } },
     dev: { hot_reload: false, show_stacktrace: false },
-    console: { enabled: true, prompt: 'averon> ', soft_stop_timeout_ms: 100 },
+    console: { enabled: true, prompt: 'averon', soft_stop_timeout_ms: 100 },
   };
 }
 

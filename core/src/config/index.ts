@@ -13,7 +13,7 @@ export type { AppConfig, ConsoleConfig };
 /** Giá trị mặc định config console — dùng khi config.yml không có section console (AJV không `useDefaults`). */
 export const DEFAULT_CONSOLE_CONFIG: ConsoleConfig = {
   enabled: true,
-  prompt: 'averon> ',
+  prompt: 'averon',
   soft_stop_timeout_ms: 15000,
 };
 

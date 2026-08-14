@@ -58,7 +58,7 @@ dev:
 # EN: Operator console — type `averon ...` in the terminal to manage the bot.
 console:
   enabled: true
-  prompt: "averon> "
+  prompt: "averon"
   # Thời gian chờ soft-stop khi unload module đang có in-flight handler (ms). Vượt → báo retry --force.
   # EN: Soft-stop wait when unloading a busy module (ms). Timeout → retry with --force.
   soft_stop_timeout_ms: 15000

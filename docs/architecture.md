@@ -52,7 +52,7 @@ Module **không bao giờ phụ thuộc module khác**; nếu cần dùng chung 
 | `usage` | `core/src/registry/usage.ts` | `UsageTracker` — đếm in-flight handler theo module (phục vụ soft-stop) |
 | `discord` | `core/src/discord/` | Wrap Discord gateway: login, `registerCommand`/`removeCommand`, `syncCommands` (REST) |
 | `crash` | `core/src/crash/` | Anti-crash: global handler, quarantine module, crash report |
-| `console` | `core/src/console/` | Operator console: stdin REPL `averon> ` + `ModuleManager` (status/load/unload/reload) |
+| `console` | `core/src/console/` | Operator console: stdin REPL `averon` + `ModuleManager` (status/load/unload/reload) |
 
 ### Luồng khởi động / Boot flow
 
@@ -137,7 +137,7 @@ export const onUnload = (): void => { /* cleanup: đóng handle, clear interval 
 
 ## 5. Operator console
 
-Subsystem `core/console/` — REPL đọc **stdin**, prompt `averon> `, cho phép quản lý bot đang chạy. Đây là **core subsystem** (điều khiển lifecycle = control-plane của core), không phải module: §5.3 cấm module điều khiển module khác.
+Subsystem `core/console/` — REPL đọc **stdin**, prompt `averon`, cho phép quản lý bot đang chạy. Đây là **core subsystem** (điều khiển lifecycle = control-plane của core), không phải module: §5.3 cấm module điều khiển module khác.
 
 Lệnh:
 

@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [1.0.3] — 2026-08-14
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Changed
+- `core/console` + `core/config`: prompt console đổi từ `averon> ` → `averon` (bỏ hậu tố `> ` không cần thiết) — sync default (`core/config`), config files (`config.yml`, `config.example.yml`), test, docs/README (VI)
+  EN: Console prompt changed from `averon> ` to `averon` (dropped the unneeded `> ` suffix) — synced the default, config files, tests, and docs/README.
+
 ## [1.0.2] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 
