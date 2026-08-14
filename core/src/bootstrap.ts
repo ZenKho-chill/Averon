@@ -5,7 +5,7 @@
  * Pipeline: config.load → logger.init → anti-crash handlers → module loader → discord.login → watchdog.start
  */
 import { loadCoreConfig, getConsoleConfig } from './config/index.js';
-import { backupConfig, restoreLatestValidConfig } from '../../shared/config/backup.js';
+import { backupConfig, loadLatestBackupContent } from '../../shared/config/backup.js';
 import { findProjectRoot } from '../../shared/config/index.js';
 import { createLogger } from '../../shared/logger/index.js';
 import { Registry } from './registry/index.js';
@@ -34,13 +34,16 @@ export async function bootstrap() {
     config = await loadCoreConfig();
   } catch (err) {
     tempLogger.error(`Config tổng không hợp lệ: ${(err as Error).message}`);
-    tempLogger.warn('Đang cố gắng khôi phục từ bản backup mới nhất...');
-    const restored = restoreLatestValidConfig(join(root, 'config'), { type: 'core', logger: tempLogger });
-    if (restored) {
-      config = await loadCoreConfig(); // Thử load lại sau khi khôi phục
-      tempLogger.info('Config đã được khôi phục thành công, tiếp tục khởi động...');
+    // KHÔNG ghi đè config.yml bằng backup — chỉ DÙNG nội dung backup mới nhất cho lần boot này,
+    // để user thấy config.yml còn lỗi và sửa. EN: don't overwrite config.yml with the backup —
+    // just LOAD the newest backup for this boot, so the user still sees the broken file and fixes it.
+    tempLogger.warn('Đang dùng config từ bản backup mới nhất (config.yml không bị ghi đè)...');
+    const backupContent = loadLatestBackupContent(join(root, 'config'), { type: 'core' });
+    if (backupContent !== null) {
+      config = await loadCoreConfig(undefined, undefined, true, backupContent);
+      tempLogger.error('Config đang chạy từ bản backup (config.yml vẫn lỗi). Sửa config/config.yml rồi restart để dùng config thật.');
     } else {
-      tempLogger.error('Không thể khôi phục config từ backup. Vui lòng kiểm tra lại config.yml hoặc khôi phục thủ công.');
+      tempLogger.error('Không có bản backup nào để dùng. Sửa config/config.yml hoặc chạy `npm run restore:config`.');
       process.exit(1);
     }
   }

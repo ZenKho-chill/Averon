@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
 import YAML from 'yaml';
 import { ConfigError } from '../../../shared/config/index.js';
 import { loadSchema, validateConfig } from '../../../shared/config/validator.js';
-import { restoreLatestValidConfig } from '../../../shared/config/backup.js';
+import { loadLatestBackupContent } from '../../../shared/config/backup.js';
 import { validateModuleSemantics } from '../../../shared/config/module-semantic.js';
 import type { Registry } from '../registry/index.js';
 import type { ModuleRegistryEntry } from '../registry/types.js';
@@ -152,15 +152,26 @@ export class ModuleLoader {
         }
       } catch (err) {
         this.crashReporter.handleModuleFailure(manifest.name, `Config không hợp lệ: ${(err as Error).message}`);
-        // Cố gắng khôi phục từ backup
+        // KHÔNG ghi đè defaults.yml bằng backup — chỉ DÙNG nội dung backup mới nhất (validate lại trước).
+        // EN: don't overwrite defaults.yml with the backup — just LOAD the newest backup (re-validated first).
         const logger = this.registry.getService('logger');
-        const restored = restoreLatestValidConfig(moduleDir, { type: 'module', name: manifest.name, logger });
-        if (restored) {
-          logger.info(`Module '${manifest.name}' đã khôi phục config từ backup`);
-          // Load lại config sau khi khôi phục
-          return this.loadModuleConfig(manifest, moduleDir);
-        } else {
+        const backupContent = loadLatestBackupContent(moduleDir, { type: 'module', name: manifest.name });
+        if (backupContent === null) {
           throw new ConfigError(`Config module '${manifest.name}' không hợp lệ: ${(err as Error).message}`);
+        }
+        try {
+          const backupParsed = (YAML.parse(backupContent) ?? {}) as Record<string, unknown>;
+          if (schemaFile && Object.keys(backupParsed).length > 0) {
+            const schemaPath = join(moduleDir, schemaFile);
+            if (existsSync(schemaPath)) {
+              validateConfig(backupParsed, loadSchema(schemaPath), [schemaFile]);
+              validateModuleSemantics(backupParsed, manifest, manifest.name);
+            }
+          }
+          merged = backupParsed;
+          logger.warn(`Module '${manifest.name}' đang dùng config từ bản backup gần nhất (defaults.yml vẫn lỗi). Sửa defaults.yml rồi reload.`);
+        } catch (backupErr) {
+          throw new ConfigError(`Config module '${manifest.name}' không hợp lệ (cả bản backup): ${(backupErr as Error).message}`);
         }
       }
     }

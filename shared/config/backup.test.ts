@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { backupConfig, listBackups, restoreConfig, restoreLatestValidConfig } from './backup.js';
+import { backupConfig, listBackups, restoreConfig, loadLatestBackupContent } from './backup.js';
 
 /** Fixture: thư mục config tạm có config.yml. */
 function makeConfigDir(content = 'app:\n  name: averon\n'): { dir: string; cleanup: () => void } {
@@ -115,31 +115,42 @@ describe('listBackups', () => {
     }
   });
 
-describe('restoreLatestValidConfig', () => {
-  it('khôi phục từ backup mới nhất khi không có backup → trả về false', () => {
+describe('loadLatestBackupContent', () => {
+  it('không có backup → trả về null', () => {
     const { dir, cleanup } = makeConfigDir();
     try {
-      const logger = { warn: vi.fn() };
-      const restored = restoreLatestValidConfig(dir, { type: 'core', logger });
-      expect(restored).toBe(false);
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Không có bản backup nào'));
+      expect(loadLatestBackupContent(dir)).toBeNull();
     } finally {
       cleanup();
     }
   });
 
-  it('khôi phục thành công từ backup mới nhất → trả về true', () => {
+  it('trả nội dung backup mới nhất NHƯNG KHÔNG ghi đè config.yml', () => {
     const { dir, cleanup } = makeConfigDir('app:\n  name: ORIGINAL\n');
     try {
-      backupConfig(dir); // Tạo backup
-      writeFileSync(join(dir, 'config.yml'), 'app:\n  name: CHANGED\n'); // Sửa config
-      const logger = { warn: vi.fn() };
-      const restored = restoreLatestValidConfig(dir, { type: 'core', logger });
-      expect(restored).toBe(true);
-      expect(readFileSync(join(dir, 'config.yml'), 'utf8')).toContain('ORIGINAL');
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Đã khôi phục config từ backup'));
+      backupConfig(dir); // Backup chứa ORIGINAL
+      writeFileSync(join(dir, 'config.yml'), 'app:\n  name: CHANGED\n'); // Config.yml hiện tại
+      const content = loadLatestBackupContent(dir);
+      expect(content).toContain('ORIGINAL');
+      // load KHÔNG đụng vào config.yml — file vẫn là CHANGED
+      expect(readFileSync(join(dir, 'config.yml'), 'utf8')).toContain('CHANGED');
     } finally {
       cleanup();
+    }
+  });
+
+  it('lọc theo type module + name', () => {
+    const moduleDir = mkdtempSync(join(tmpdir(), 'averon-module-'));
+    const configDir = join(moduleDir, 'config');
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(join(configDir, 'defaults.yml'), 'key: value1\n');
+    try {
+      backupConfig(moduleDir, { type: 'module', name: 'ping' });
+      expect(loadLatestBackupContent(moduleDir, { type: 'module', name: 'ping' })).toContain('value1');
+      // Không có backup core → null
+      expect(loadLatestBackupContent(moduleDir)).toBeNull();
+    } finally {
+      rmSync(moduleDir, { recursive: true, force: true });
     }
   });
 });

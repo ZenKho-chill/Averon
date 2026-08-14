@@ -1,6 +1,6 @@
 {
   "name": "averon",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "A modular multi-language Discord bot / Discord bot đa chức năng theo hướng module hóa",
   "private": true,
   "type": "module",

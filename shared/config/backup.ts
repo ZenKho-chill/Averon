@@ -161,28 +161,19 @@ export function restoreConfig(
 }
 
 /**
- * Khôi phục config từ bản backup mới nhất khi validate thất bại.
- * @returns true nếu khôi phục thành công, false nếu không có backup hoặc khôi phục thất bại.
+ * Đọc nội dung bản backup mới nhất — KHÔNG ghi đè file config đang dùng.
+ * (Khi config invalid, ta DÙNG backup thay vì thay file bằng backup.)
+ * EN: Read the newest backup content — does NOT overwrite the config file in use.
+ * (When the config is invalid, we LOAD the backup instead of replacing the file with it.)
+ *
+ * @returns chuỗi YAML của backup mới nhất, hoặc null nếu không có backup.
  */
-export function restoreLatestValidConfig(
+export function loadLatestBackupContent(
   configDir: string,
-  options?: { type?: 'core' | 'module'; name?: string; logger?: { warn: (msg: string) => void } }
-): boolean {
-  const { type = 'core', name, logger } = options ?? {};
+  options?: { type?: 'core' | 'module'; name?: string }
+): string | null {
+  const { type = 'core', name } = options ?? {};
   const backups = listBackups(configDir, { type, name });
-
-  if (backups.length === 0) {
-    logger?.warn(`Không có bản backup nào để khôi phục (type: ${type}, name: ${name}).`);
-    return false;
-  }
-
-  const latestBackup = backups[0];
-  try {
-    restoreConfig(configDir, latestBackup.file, { type });
-    logger?.warn(`Đã khôi phục config từ backup: ${latestBackup.file}`);
-    return true;
-  } catch (err) {
-    logger?.warn(`Khôi phục config thất bại: ${(err as Error).message}`);
-    return false;
-  }
+  if (backups.length === 0) return null;
+  return readFileSync(join(backupsDir(configDir, type), backups[0].file), 'utf8');
 }
