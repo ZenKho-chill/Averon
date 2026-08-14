@@ -93,7 +93,7 @@ interface InteractionLike {
 
 export async function handler(interaction: InteractionLike, ctx?: CommandContext) {
   const logger = ctx?.logger;          // logger qua context — không console.log
-  const cfg = ctx?.config ?? {};       // config module đã merge (defaults + override)
+  const cfg = ctx?.config ?? {};       // config module (defaults.yml của module)
 
   logger?.info('/example used', { user: interaction.user?.id });
   await interaction.reply('Hello!');
@@ -107,7 +107,7 @@ export async function handler(interaction: InteractionLike, ctx?: CommandContext
 
 | Field | Ý nghĩa / Meaning |
 |---|---|
-| `config` | Config module sau khi merge (defaults + override từ `config/config.yml → modules.<name>`) |
+| `config` | Config module sau khi validate (`modules/<name>/config/defaults.yml`) |
 | `logger` | Logger chuẩn của core (5 cấp độ, có source/context) |
 | `moduleName` | Tên module sở hữu command — core dùng để đếm in-flight (soft-stop) |
 
@@ -123,8 +123,9 @@ Bất kỳ tùy chỉnh nào của module phải có config — **không hard-co
 
 ```
 config/defaults.yml  →  validate bằng config/schema.yml (JSON Schema)
-  →  merge override từ config/config.yml → modules.<name>  (admin chỉnh, không cần đổi code)
 ```
+
+Config module chỉ nằm trong folder module (`modules/<name>/config/`) — **không** có override trong `config/config.yml`. Admin chỉnh hành vi module bằng cách sửa thẳng `defaults.yml`.
 
 Ví dụ `modules/ping` (`config/defaults.yml`):
 

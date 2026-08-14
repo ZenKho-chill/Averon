@@ -10,7 +10,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import YAML from 'yaml';
-import { ConfigError, deepMerge } from '../../../shared/config/index.js';
+import { ConfigError } from '../../../shared/config/index.js';
 import { loadSchema, validateConfig } from '../../../shared/config/validator.js';
 import { restoreLatestValidConfig } from '../../../shared/config/backup.js';
 import { validateModuleSemantics } from '../../../shared/config/module-semantic.js';
@@ -35,8 +35,6 @@ export class ModuleLoader {
   constructor(
     private readonly registry: Registry,
     private readonly crashReporter: CrashReporter,
-    /** Override config module từ config tổng: `{ ping: {...} }` (section modules.<name>). */
-    private readonly moduleConfigOverrides: Record<string, unknown> = {},
     /** Project root (nơi có modules/ và dist/) — cần khi chạy bản build để map sang dist. */
     private readonly root: string = process.cwd(),
     /** true = chạy bản build (npm start) → import file đã biên dịch trong dist/. */
@@ -85,7 +83,7 @@ export class ModuleLoader {
       commands.push(withHandler);
     }
 
-    // Nạp config module: defaults.yml (nếu khai báo) merge override từ config tổng
+    // Nạp config module từ defaults.yml của module (khai báo trong manifest.config.defaults)
     const moduleConfig = this.loadModuleConfig(manifest, moduleDir);
 
     // Cache config đã merge để tránh merge lại mỗi lần load (fix reload chậm + race condition config cũ/mới)
@@ -114,7 +112,7 @@ export class ModuleLoader {
     return moduleEntry;
   }
 
-  /** Nạp config module: defaults.yml (khai báo trong manifest.config.defaults) merge override từ config tổng.
+  /** Nạp config module: defaults.yml (khai báo trong manifest.config.defaults) → validate → trả về.
    * Trả về cả nội dung YAML đã merge (dùng cho backup) và config object.
    */
   private loadModuleConfig(manifest: ModuleManifest, moduleDir: string): {
@@ -159,12 +157,6 @@ export class ModuleLoader {
           throw new ConfigError(`Config module '${manifest.name}' không hợp lệ: ${(err as Error).message}`);
         }
       }
-    }
-
-    // Override từ config tổng (config/config.yml → modules.<name>) — admin chỉnh
-    const override = this.moduleConfigOverrides[manifest.name];
-    if (override && typeof override === 'object') {
-      merged = deepMerge(merged, override as Record<string, unknown>) as Record<string, unknown>;
     }
 
     const content = YAML.stringify(merged);

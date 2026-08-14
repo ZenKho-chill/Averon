@@ -45,7 +45,7 @@ Module **không bao giờ phụ thuộc module khác**; nếu cần dùng chung 
 |---|---|---|
 | `bootstrap` | `core/src/bootstrap.ts` | Pipeline khởi động: config → logger → anti-crash → load module → discord.login → syncCommands → operator console |
 | `config` | `core/src/config/` | Load + validate config tổng (`config/config.yml`), lấy `app.version` từ `package.json` |
-| `loader` | `core/src/loader/` | Parse `module.yml`, validate manifest, import entry, nạp config module (defaults + override) |
+| `loader` | `core/src/loader/` | Parse `module.yml`, validate manifest, import entry, nạp config module (defaults + schema validate) |
 | `discover` | `core/src/loader/discover.ts` | Quét `modules/*` trên đĩa để tìm module (glob các folder có `module.yml`) |
 | `lifecycle` | `core/src/lifecycle/` | Quản lý trạng thái module + gọi hook `onLoad`/`onUnload` |
 | `registry` | `core/src/registry/` | Service registry (DI) + module registry |
@@ -122,7 +122,7 @@ commands:
 
 ### Config module
 
-Core nạp theo chuỗi: `defaults.yml` → validate bằng `schema.yml` (JSON Schema) → **merge override** từ config tổng `config/config.yml → modules.<name>`. Admin chỉnh được hành vi module **không cần đổi code** (vd: custom `/ping` response).
+Core nạp config module trực tiếp từ folder module: `config/defaults.yml` → validate bằng `config/schema.yml` (JSON Schema). Admin chỉnh được hành vi module **không cần đổi code** — sửa thẳng `modules/<name>/config/defaults.yml` (vd: custom `/ping` response).
 
 ### Entry point & hooks
 

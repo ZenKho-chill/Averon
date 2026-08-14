@@ -1,5 +1,7 @@
-# Config mặc định cho module ping — admin override trong config/config.yml → modules.ping
-# EN: Default config for module ping — admin overrides in config/config.yml → modules.ping
+# Config mặc định cho module ping — chỉnh trực tiếp file này (config module nằm trong folder module,
+# không có override trong config/config.yml).
+# EN: Default config for module ping — edit this file directly (module config lives in the module folder,
+# no override in config/config.yml).
 #
 # random: true → chọn ngẫu nhiên 1 trong responses mỗi lần. false → luôn dùng response đầu tiên.
 # Mỗi response khai type: plain (text) HOẶC embed (toàn bộ field EmbedBuilder: title, description,

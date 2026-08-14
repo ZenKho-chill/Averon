@@ -59,7 +59,7 @@ export const onUnload = () => console.log('ping unloaded');`,
     try {
       const registry = new Registry();
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
       const moduleEntry = await loader.loadModule(fx.dir);
 
       expect(moduleEntry.name).toBe('ping');
@@ -105,7 +105,7 @@ commands:
     try {
       const registry = new Registry();
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir, true);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir, true);
       const moduleEntry = await loader.loadModule(join(fx.dir, 'modules', 'ping'));
 
       // entry trỏ sang bản biên dịch, không phải source
@@ -131,7 +131,7 @@ version: 1.0.0
     try {
       const registry = new Registry();
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
       await expect(loader.loadModule(fx.dir)).rejects.toThrow(/thiếu name\/version\/runtime\/entry/);
     } finally {
       fx.cleanup();
@@ -177,7 +177,7 @@ responses:
       const registry = new Registry();
       registry.registerService('logger', makeLogger() as never);
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
       await expect(loader.loadModule(fx.dir)).rejects.toThrow(/\/responses\/0/);
     } finally {
       fx.cleanup();
@@ -223,7 +223,7 @@ responses:
       const registry = new Registry();
       registry.registerService('logger', makeLogger() as never);
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
       const entry = await loader.loadModule(fx.dir);
       expect(entry.name).toBe('ping');
       expect(registry.getModule('ping').state).toBe('REGISTERED');
@@ -248,7 +248,7 @@ entry: src/nonexistent.ts
     try {
       const registry = new Registry();
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
       await expect(loader.loadModule(fx.dir)).rejects.toThrow(/Entry point không tồn tại/);
     } finally {
       fx.cleanup();
@@ -272,7 +272,7 @@ entry: src/index.py
     try {
       const registry = new Registry();
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
       await expect(loader.loadModule(fx.dir)).rejects.toThrow(/not supported yet/);
     } finally {
       fx.cleanup();
@@ -300,7 +300,7 @@ commands:
     try {
       const registry = new Registry();
       const crashReporter = makeCrashReporter();
-      const loader = new ModuleLoader(registry, crashReporter as never, undefined, fx.dir);
+      const loader = new ModuleLoader(registry, crashReporter as never, fx.dir);
 
       // Load lần đầu — handler bản v1
       const entry1 = await loader.loadModule(fx.dir);
