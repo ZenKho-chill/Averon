@@ -108,4 +108,40 @@ describe('ping command', () => {
     expect(await handler(makeInteraction() as never, ctx)).toBe('First');
     expect(await handler(makeInteraction() as never, ctx)).toBe('First');
   });
+
+  it('random=false + prefer_type=embed → chọn response embed dù plain đứng đầu', async () => {
+    const ctx = makeCtx({
+      random: false,
+      prefer_type: 'embed',
+      responses: [
+        { type: 'plain', content: 'First' },
+        { type: 'embed', embed: { title: 'Embedded' } },
+      ],
+    });
+    const result = await handler(makeInteraction() as never, ctx);
+    expect(result).toMatch(/^embed:Embedded$/);
+  });
+
+  it('random=false + prefer_type=embed nhưng không có response embed → fallback response đầu', async () => {
+    const ctx = makeCtx({
+      random: false,
+      prefer_type: 'embed',
+      responses: [{ type: 'plain', content: 'OnlyPlain' }],
+    });
+    expect(await handler(makeInteraction() as never, ctx)).toBe('OnlyPlain');
+  });
+
+  it('random=true → prefer_type không ảnh hưởng (vẫn ngẫu nhiên)', async () => {
+    const responses = [
+      { type: 'plain', content: 'A' },
+      { type: 'embed', embed: { title: 'B' } },
+    ];
+    const seen = new Set<string>();
+    const ctx = makeCtx({ random: true, prefer_type: 'embed', responses });
+    for (let i = 0; i < 30; i++) {
+      seen.add((await handler(makeInteraction() as never, ctx)) as string);
+    }
+    expect(seen.has('A')).toBe(true);
+    expect(seen.has('embed:B')).toBe(true);
+  });
 });

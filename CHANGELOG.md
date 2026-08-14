@@ -3,12 +3,20 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [2.1.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `modules/ping`: config mới `prefer_type` (`'plain' | 'embed'`) — khi `random: false`, `/ping` chọn response đầu tiên khớp type đó thay vì luôn lấy response đầu tiên (hữu ích khi response embed không đứng đầu danh sách). Không khai → giữ nguyên hành vi cũ (response đầu tiên); không có response khớp → fallback response đầu tiên. Update schema, defaults, README; kèm 3 test (VI)
+  EN: New `prefer_type` config (`'plain' | 'embed'`) in `modules/ping` — when `random: false`, `/ping` picks the first response matching that type instead of always the first one (useful when the embed isn't first in the list). Unset → previous behavior (first response); no match → fallback to the first response. Schema, defaults, README updated; 3 tests added.
+
 ## [2.0.1] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 
 ### Fixed
 - `core/loader`: **config module không được truyền tới handler — `/ping` luôn trả plain fallback "Pong!"** — `loadModule` gán nhầm wrapper `{ content, config }` (trả về từ `loadModuleConfig`) vào `entry.config`/`getConfig()` thay vì `moduleConfig.config` (merged config thật). Handler đọc `cfg.responses` → `undefined` → `pickResponse` fallback → reply "Pong!", nên mọi thay đổi `defaults.yml` (đổi plain→embed, `random: false`, thứ tự response) đều không có tác dụng dù đã `modules reload ping`. Fix: `config: moduleConfig.config`, `getConfig: () => moduleConfig.config ?? {}`. Kèm regression test (VI)
   EN: Module config was never delivered to handlers — `/ping` always replied the plain "Pong!" fallback. `loadModule` assigned the `{ content, config }` wrapper (returned by `loadModuleConfig`) to `entry.config`/`getConfig()` instead of the real merged config (`moduleConfig.config`). Handlers read `cfg.responses` → `undefined` → `pickResponse` fallback → "Pong!", so any `defaults.yml` change (plain→embed, `random: false`, response order) had no effect even after `modules reload ping`. Fixed: `config: moduleConfig.config`, `getConfig: () => moduleConfig.config ?? {}`. Added a regression test.
+
 
 ## [2.0.0] — 2026-08-14
 **Loại / Type:** MAJOR — breaking change (gỡ prefix lệnh) / breaking change (command prefix removed)
