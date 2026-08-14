@@ -3,6 +3,15 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [1.1.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới (backward-compatible) / new feature
+
+### Added
+- `core/console`: **gõ lệnh thẳng không cần prefix `averon`** — `status`, `help`, `modules list|status|load|unload|reload` hoạt động ngay; prefix `averon` vẫn được chấp nhận (optional): `averon status` == `status` (VI)
+  EN: Console commands can now be typed **without the `averon` prefix** — `status`, `help`, `modules list|status|load|unload|reload` work directly; the `averon` prefix is still accepted (optional): `averon status` == `status`.
+- Test: bare commands qua `parser.test.ts` (status/help/modules load/unload/reload) + end-to-end `index.test.ts` (gõ thẳng `status`) (VI)
+  EN: Tests: bare commands in `parser.test.ts` (status/help/modules load/unload/reload) + end-to-end `index.test.ts` (bare `status`).
+
 ## [1.0.4] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 

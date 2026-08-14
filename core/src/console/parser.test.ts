@@ -2,9 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { parseConsoleCommand } from './parser.js';
 
 describe('parseConsoleCommand', () => {
-  it('parse averon status / help', () => {
+  it('parse averon status / help (vẫn hoạt động — prefix optional)', () => {
     expect(parseConsoleCommand('averon status')).toEqual({ ok: true, command: { kind: 'status' } });
     expect(parseConsoleCommand('averon help')).toEqual({ ok: true, command: { kind: 'help' } });
+  });
+
+  it('Bare command — KHÔNG cần prefix averon: status / help / modules', () => {
+    expect(parseConsoleCommand('status')).toEqual({ ok: true, command: { kind: 'status' } });
+    expect(parseConsoleCommand('  status  ')).toEqual({ ok: true, command: { kind: 'status' } });
+    expect(parseConsoleCommand('help')).toEqual({ ok: true, command: { kind: 'help' } });
+    expect(parseConsoleCommand('modules list')).toEqual({ ok: true, command: { kind: 'modulesList' } });
+    expect(parseConsoleCommand('modules status')).toEqual({ ok: true, command: { kind: 'modulesStatus' } });
+    expect(parseConsoleCommand('modules load ping')).toEqual({ ok: true, command: { kind: 'modulesLoad', module: 'ping' } });
+    expect(parseConsoleCommand('modules unload ping --force')).toEqual({ ok: true, command: { kind: 'modulesUnload', module: 'ping', force: true } });
+    expect(parseConsoleCommand('modules reload ping')).toEqual({ ok: true, command: { kind: 'modulesReload', module: 'ping', force: false } });
   });
 
   it('quick command -help / -h = shorthand cho averon help (có whitespace)', () => {
@@ -39,10 +50,10 @@ describe('parseConsoleCommand', () => {
     expect(parseConsoleCommand('averon modules reload ping')).toEqual({ ok: true, command: { kind: 'modulesReload', module: 'ping', force: false } });
   });
 
-  it('reject: thiếu prefix averon', () => {
-    const r = parseConsoleCommand('status');
+  it('reject: chỉ gõ `averon` (thiếu command)', () => {
+    const r = parseConsoleCommand('averon');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain('averon');
+    if (!r.ok) expect(r.error).toContain('missing command');
   });
 
   it('reject: dòng rỗng', () => {

@@ -86,6 +86,18 @@ describe('OperatorConsole', () => {
     expect(out).toContain('Discord: ready');
   });
 
+  it('gõ thẳng "status" (không prefix averon) cũng chạy', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const console = new OperatorConsole({ ...makeDeps(), input, output });
+    console.start();
+
+    const pending = readUntil(output, 'averon v0.8.0');
+    input.write('status\n');
+    const out = await pending;
+    expect(out).toContain('Discord: ready');
+  });
+
   it('lệnh lạ → Error output', async () => {
     const input = new PassThrough();
     const output = new PassThrough();
@@ -103,8 +115,19 @@ describe('OperatorConsole', () => {
     const console = new OperatorConsole({ ...makeDeps(), input, output });
     console.start();
 
-    const pending = readUntil(output, 'averon modules');
+    const pending = readUntil(output, 'modules list');
     input.write('averon help\n');
+    await pending;
+  });
+
+  it('help liệt kê lệnh', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const console = new OperatorConsole({ ...makeDeps(), input, output });
+    console.start();
+
+    const pending = readUntil(output, 'modules list');
+    input.write('help\n');
     await pending;
   });
 
@@ -167,8 +190,8 @@ describe('OperatorConsole', () => {
     console.start();
 
     input.write('\n');
-    input.write('averon help\n');
-    const pending = readUntil(output, 'averon modules');
+    input.write('help\n');
+    const pending = readUntil(output, 'modules list');
     const out = await pending;
     expect(out).not.toContain('Error: empty input');
     expect(out).toContain('averon status');

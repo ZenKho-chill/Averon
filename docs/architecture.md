@@ -94,7 +94,7 @@ Unload/reload **không `--force`** là soft-stop:
 5. **Timeout** (mặc định `console.soft_stop_timeout_ms: 15000`) → giữ DRAINING, báo admin "retry `--force`".
 6. `--force` → bỏ qua chờ, `onUnload` nuốt lỗi → UNLOADED ngay.
 
-> `DRAINING` > 0 (IN_PROGRESS handler) hiển thị trong `averon modules status` (cột ACTIVE).
+> `DRAINING` > 0 (IN_PROGRESS handler) hiển thị trong `modules status` (cột ACTIVE).
 
 ## 4. Module manifest (`module.yml`)
 
@@ -141,15 +141,18 @@ Subsystem `core/console/` — REPL đọc **stdin**, prompt `averon> `, cho phé
 
 Lệnh:
 
+``` 
+status                          # tên/version app, uptime, Discord (ws/ping/guilds), số module
+modules list                    # module trên đĩa (glob modules/*): NAME | VERSION | LOADED
+modules status                  # module trong registry: NAME | VERSION | STATE | QUARANTINED | ACTIVE | CMDS
+modules load <name>             # load từ đĩa; cho phép module đã UNLOADED (gỡ entry cũ, load fresh)
+modules unload <name> [--force] # soft-stop (DRAINING → chờ idle → UNLOADED) | force
+modules reload <name> [--force] # soft/force reload (tái dùng entry registry)
+help                            # help đầy đủ
+-help / -h                      # quick help (không cần prefix)
 ```
-averon status                        # tên/version app, uptime, Discord (ws/ping/guilds), số module
-averon modules list                  # module trên đĩa (glob modules/*): NAME | VERSION | LOADED
-averon modules status                # module trong registry: NAME | VERSION | STATE | QUARANTINED | ACTIVE | CMDS
-averon modules load <name>           # load từ đĩa; cho phép module đã UNLOADED (gỡ entry cũ, load fresh)
-averon modules unload <name> [--force]  # soft-stop (DRAINING → chờ idle → UNLOADED) | force
-averon modules reload <name> [--force]  # soft/force reload (tái dùng entry registry)
-averon help                          # help đầy đủ
--help / -h                           # quick help (không cần prefix)
+
+Lệnh gõ thẳng **không cần prefix** (`status`, `modules list`, ...). Prefix `averon` vẫn được chấp nhận (optional): `averon status` == `status`.
 ```
 
 Thành phần:
