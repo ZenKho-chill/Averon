@@ -202,11 +202,16 @@ describe('load/unload/reload handlers', () => {
 });
 
 describe('handleHelp', () => {
-  it('liệt kê các lệnh averon', () => {
+  it('liệt kê các lệnh KHÔNG prefix — gõ thẳng status / modules', () => {
     const out = handleHelp();
-    expect(out).toContain('averon status');
-    expect(out).toContain('averon modules unload');
-    expect(out).toContain('averon modules reload');
+    expect(out).toContain('status');
+    expect(out).toContain('modules unload');
+    expect(out).toContain('modules reload');
+  });
+
+  it('KHÔNG còn nhắc prefix `averon` (đã bị gỡ)', () => {
+    const out = handleHelp();
+    expect(out).not.toMatch(/averon\s+status/);
   });
 
   it('có quick command -help / -h', () => {

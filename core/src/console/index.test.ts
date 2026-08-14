@@ -74,16 +74,28 @@ describe('renderPrompt (prompt: config chỉ chứa tên gốc, `> ` tự thêm)
 });
 
 describe('OperatorConsole', () => {
-  it('start + line "averon status" → output có app version + discord', async () => {
+  it('start + line "status" → output có app version + discord', async () => {
     const input = new PassThrough();
     const output = new PassThrough();
     const console = new OperatorConsole({ ...makeDeps(), input, output });
     console.start();
 
     const pending = readUntil(output, 'averon v0.8.0');
-    input.write('averon status\n');
+    input.write('status\n');
     const out = await pending;
     expect(out).toContain('Discord: ready');
+  });
+
+  it('gõ "averon status" (prefix cũ) → báo lỗi prefix removed', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const console = new OperatorConsole({ ...makeDeps(), input, output });
+    console.start();
+
+    const pending = readUntil(output, 'Error:');
+    input.write('averon status\n');
+    const out = await pending;
+    expect(out).toContain("'averon' prefix removed");
   });
 
   it('lệnh lạ → Error output', async () => {
@@ -93,22 +105,22 @@ describe('OperatorConsole', () => {
     console.start();
 
     const pending = readUntil(output, 'Error:');
-    input.write('averon nope\n');
+    input.write('nope\n');
     await pending;
   });
 
-  it('averon help liệt kê lệnh', async () => {
+  it('help liệt kê lệnh', async () => {
     const input = new PassThrough();
     const output = new PassThrough();
     const console = new OperatorConsole({ ...makeDeps(), input, output });
     console.start();
 
-    const pending = readUntil(output, 'averon modules');
-    input.write('averon help\n');
+    const pending = readUntil(output, 'modules list');
+    input.write('help\n');
     await pending;
   });
 
-  it('-help (quick command) hiện help giống averon help', async () => {
+  it('-help (quick command) hiện help', async () => {
     const input = new PassThrough();
     const output = new PassThrough();
     const console = new OperatorConsole({ ...makeDeps(), input, output });
@@ -117,7 +129,7 @@ describe('OperatorConsole', () => {
     const pending = readUntil(output, '-help / -h');
     input.write('-help\n');
     const out = await pending;
-    expect(out).toContain('averon status');
+    expect(out).toContain('modules list');
     expect(out).toContain('-h');
   });
 
@@ -127,7 +139,7 @@ describe('OperatorConsole', () => {
     const console = new OperatorConsole({ ...makeDeps(), input, output });
     console.start();
 
-    const pending = readUntil(output, 'averon status');
+    const pending = readUntil(output, 'modules list');
     input.write('-h\n');
     const out = await pending;
     expect(out).toContain('-help / -h');
@@ -149,8 +161,8 @@ describe('OperatorConsole', () => {
     let buf = '';
     output.on('data', (chunk: Buffer) => { buf += chunk.toString(); });
 
-    input.write('averon modules unload ping\n');
-    input.write('averon modules load ping\n');
+    input.write('modules unload ping\n');
+    input.write('modules load ping\n');
     // unload đang chờ gate → nếu load chạy SONG SONG sẽ ra "Loaded" ngay; serialize thì phải ĐỢI.
     await new Promise((r) => setTimeout(r, 60));
     expect(buf).not.toContain("Loaded module 'ping'");
@@ -167,11 +179,11 @@ describe('OperatorConsole', () => {
     console.start();
 
     input.write('\n');
-    input.write('averon help\n');
-    const pending = readUntil(output, 'averon modules');
+    input.write('help\n');
+    const pending = readUntil(output, 'modules list');
     const out = await pending;
     expect(out).not.toContain('Error: empty input');
-    expect(out).toContain('averon status');
+    expect(out).toContain('modules list');
   });
 
   it('Enter trống KHÔNG làm hỏng lệnh tiếp theo (tuần tự)', async () => {
@@ -184,7 +196,7 @@ describe('OperatorConsole', () => {
     output.on('data', (chunk: Buffer) => { buf += chunk.toString(); });
     input.write('\n');
     input.write('\n');
-    input.write('averon status\n');
+    input.write('status\n');
     await waitFor(() => buf.includes('averon v0.8.0'));
     expect(buf).not.toContain('Error');
   });

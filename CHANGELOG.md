@@ -3,6 +3,17 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [2.0.0] — 2026-08-14
+**Loại / Type:** MAJOR — breaking change (gỡ prefix lệnh) / breaking change (command prefix removed)
+
+### Changed (breaking)
+- `core/console`: **gỡ hẳn prefix `averon` khỏi lệnh** — trước đây phải gõ `averon status`/`averon modules ...`; giờ gõ thẳng `status`, `help`, `modules list`, `modules load <name>`, ... Gõ `averon ...` → báo lỗi hướng dẫn rõ ràng: `'averon' prefix removed — type commands directly: status, modules list, help` (VI)
+  EN: The `averon` prefix is fully removed from console commands — previously `averon status`/`averon modules ...`; now type bare `status`, `help`, `modules list`, `modules load <name>`, ... Typing `averon ...` returns a clear hint: `'averon' prefix removed — type commands directly: status, modules list, help`.
+- `core/console`: help text không còn nhắc prefix (`averon status` không xuất hiện); error message trong `manager.ts` đổi sang `modules load/reload ...` (VI)
+  EN: Help text no longer mentions the prefix; `manager.ts` error hints now say `modules load/reload ...`.
+- Test: parser + end-to-end hoạt động với lệnh thẳng; test `averon ...` bị reject (VI)
+  EN: Tests: bare commands via parser + end-to-end; `averon ...` is rejected.
+
 ## [1.0.4] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 

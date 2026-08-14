@@ -1,16 +1,16 @@
 /**
- * core/console/parser — parse dòng lệnh `averon ...` (thuần, dễ test).
- * EN: core/console/parser — parse `averon ...` command lines (pure).
+ * core/console/parser — parse dòng lệnh console (thuần, dễ test).
+ * EN: core/console/parser — parse console command lines (pure).
  *
- * Grammar:
- *   averon status
- *   averon help
- *   -help | -h                 (quick: shorthand cho 'averon help')
- *   averon modules list
- *   averon modules status
- *   averon modules load <name>
- *   averon modules unload <name> [--force]
- *   averon modules reload <name> [--force]
+ * Grammar (lệnh gõ thẳng, KHÔNG có prefix `averon` — prefix đã bị gỡ):
+ *   status
+ *   help
+ *   -help | -h                 (quick: shorthand cho 'help')
+ *   modules list
+ *   modules status
+ *   modules load <name>
+ *   modules unload <name> [--force]
+ *   modules reload <name> [--force]
  * `--force` chỉ hợp lệ cho unload/reload (KHÔNG cho load).
  */
 export type ConsoleCommand =
@@ -33,18 +33,21 @@ export function parseConsoleCommand(line: string): ParseResult {
 
   const tokens = trimmed.split(/\s+/);
 
-  // Quick command: gõ thẳng `-help` / `-h` không cần prefix `averon`.
-  // EN: Quick commands — bare `-help` / `-h`, no `averon` prefix needed.
+  // Quick command: gõ thẳng `-help` / `-h`.
+  // EN: Quick commands — bare `-help` / `-h`.
   if (tokens[0] === '-help' || tokens[0] === '-h') {
     if (tokens.length > 1) return { ok: false, error: `'${tokens[0]}' takes no arguments — got: ${tokens.slice(1).join(' ')}` };
     return { ok: true, command: { kind: 'help' } };
   }
 
-  if (tokens[0] !== 'averon') {
-    return { ok: false, error: `unknown prefix '${tokens[0]}' — commands start with 'averon' (quick: '-help' / '-h')` };
+  // Prefix `averon` ĐÃ BỊ GỠ — người quen gõ `averon status` cũ được báo rõ ràng.
+  // EN: `averon` prefix was REMOVED — users typing `averon status` get a clear message.
+  if (tokens[0] === 'averon') {
+    return { ok: false, error: "'averon' prefix removed — type commands directly: status, modules list, help" };
   }
-  const rest = tokens.slice(1);
-  if (rest.length === 0) return { ok: false, error: 'missing command — try "averon help"' };
+
+  const rest = tokens;
+  if (rest.length === 0) return { ok: false, error: 'empty input' };
 
   const [head, ...tail] = rest;
 
@@ -57,7 +60,7 @@ export function parseConsoleCommand(line: string): ParseResult {
     return { ok: true, command: { kind: 'help' } };
   }
   if (head === 'modules') {
-    if (tail.length === 0) return { ok: false, error: "missing subcommand — try 'averon modules list' or 'averon modules status'" };
+    if (tail.length === 0) return { ok: false, error: "missing subcommand — try 'modules list' or 'modules status'" };
     const [sub, ...rest2] = tail;
     if (!SUBCOMMANDS.has(sub)) {
       return { ok: false, error: `unknown subcommand '${sub}' — valid: ${[...SUBCOMMANDS].join(' | ')}` };
@@ -70,7 +73,7 @@ export function parseConsoleCommand(line: string): ParseResult {
     if (!ACTION_WITH_NAME.has(sub)) return { ok: false, error: `internal: unexpected subcommand '${sub}'` };
 
     const name = rest2[0];
-    if (!name) return { ok: false, error: `missing module name — try 'averon modules ${sub} <name>${sub !== 'load' ? ' [--force]' : ''}'` };
+    if (!name) return { ok: false, error: `missing module name — try 'modules ${sub} <name>${sub !== 'load' ? ' [--force]' : ''}'` };
     const forceToken = rest2[1];
     const extra = rest2[2];
     if (extra) return { ok: false, error: `too many arguments — got: ${rest2.join(' ')}` };
@@ -89,5 +92,5 @@ export function parseConsoleCommand(line: string): ParseResult {
     };
   }
 
-  return { ok: false, error: `unknown command '${head}' — try "averon help"` };
+  return { ok: false, error: `unknown command '${head}' — try "help"` };
 }

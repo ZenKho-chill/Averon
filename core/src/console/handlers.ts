@@ -109,13 +109,13 @@ export async function handleModulesReload(d: ConsoleHandlerDeps, name: string, f
 
 export function handleHelp(): string {
   return [
-    'averon status                        — bot status',
-    'averon modules list                  — modules on disk',
-    'averon modules status                — registered modules (state/quarantine/active)',
-    'averon modules load <name>           — load module from disk',
-    'averon modules unload <name> [--force]  — soft-stop (wait in-flight) or force unload',
-    'averon modules reload <name> [--force]  — soft or force reload',
-    'averon help                          — this help',
-    '-help / -h                           — quick help (shorthand)',
+    'status                          — bot status',
+    'modules list                    — modules on disk',
+    'modules status                  — registered modules (state/quarantine/active)',
+    'modules load <name>             — load module from disk',
+    'modules unload <name> [--force] — soft-stop (wait in-flight) or force unload',
+    'modules reload <name> [--force] — soft or force reload',
+    'help                            — this help',
+    '-help / -h                      — quick help (shorthand)',
   ].join('\n');
 }

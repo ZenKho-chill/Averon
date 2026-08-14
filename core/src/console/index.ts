@@ -1,9 +1,9 @@
 /**
- * core/console — operator console: REPL đọc stdin, chạy lệnh `averon ...` (CLAUDE.md § console).
- * EN: core/console — operator console: stdin REPL for `averon ...` commands.
+ * core/console — operator console: REPL đọc stdin, chạy lệnh `status`, `modules ...` (CLAUDE.md § console).
+ * EN: core/console — operator console: stdin REPL for `status`, `modules ...` commands.
  *
  * - input/output injectable (mặc định process.stdin/stdout) để test bằng PassThrough.
- * - TTY: hiện prompt `averon`. Non-TTY (piped/CI/watchdog): đọc dòng tới EOF, không prompt,
+ * - TTY: hiện prompt `averon> `. Non-TTY (piped/CI/watchdog): đọc dòng tới EOF, không prompt,
  *   không fatal — bot vẫn chạy bình thường.
  */
 import { createInterface, type Interface } from 'node:readline';
