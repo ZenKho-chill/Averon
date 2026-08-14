@@ -148,7 +148,7 @@ export class ModuleLoader {
         this.crashReporter.handleModuleFailure(manifest.name, `Config không hợp lệ: ${(err as Error).message}`);
         // Cố gắng khôi phục từ backup
         const logger = this.registry.getService('logger');
-        const restored = restoreLatestValidConfig(join(this.root, 'config'), { type: 'module', name: manifest.name, logger });
+        const restored = restoreLatestValidConfig(moduleDir, { type: 'module', name: manifest.name, logger });
         if (restored) {
           logger.info(`Module '${manifest.name}' đã khôi phục config từ backup`);
           // Load lại config sau khi khôi phục

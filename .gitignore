@@ -13,8 +13,10 @@ crash-reports/
 *.log
 
 # ===== Config backups =====
-# Thư mục backup chung cho cả core và module
+# Core backup ở config/backups/; module backup nằm trong folder module (isolation).
+# EN: Core backups in config/backups/; module backups live in the module folder.
 config/backups/
+modules/*/config/backups/
 
 # ===== Secrets (KHÔNG commit token thật / never commit real tokens) =====
 # File config thật (chứa token) KHÔNG track — chỉ track config.example.yml.

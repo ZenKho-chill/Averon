@@ -14,7 +14,7 @@ import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const configDir = join(root, 'config'); // Thư mục backup chung: config/backups/
+const configDir = join(root, 'config'); // Core backup: config/backups/
 
 const args = yargs(hideBin(process.argv))
   .option('module', {
@@ -29,11 +29,16 @@ const args = yargs(hideBin(process.argv))
 
 const backupFile = args._[0] as string | undefined;
 
+// Core backup ở config/backups/; module backup nằm trong chính folder module:
+// modules/<name>/config/backups/ (isolation). EN: Core backups in config/backups/; module
+// backups live inside the module's own folder — modules/<name>/config/backups/.
+const targetDir = args.module ? join(root, 'modules', args.module) : configDir;
+
 // Mode 1: list
 if (!backupFile) {
   const backups = args.module
-    ? listBackups(configDir, { type: 'module', name: args.module })
-    : listBackups(configDir, { type: 'core' });
+    ? listBackups(targetDir, { type: 'module', name: args.module })
+    : listBackups(targetDir, { type: 'core' });
   if (backups.length === 0) {
     console.log(args.module
       ? `[restore-config] Module '${args.module}' chưa có bản backup nào — boot bot 1 lần để tạo backup đầu tiên.`
@@ -53,8 +58,8 @@ let target = backupFile;
 if (/^\d+$/.test(backupFile)) {
   const idx = Number(backupFile) - 1;
   const backups = args.module
-    ? listBackups(configDir, { type: 'module', name: args.module })
-    : listBackups(configDir, { type: 'core' });
+    ? listBackups(targetDir, { type: 'module', name: args.module })
+    : listBackups(targetDir, { type: 'core' });
   const found = backups[idx];
   if (!found) {
     console.error(args.module
@@ -67,14 +72,14 @@ if (/^\d+$/.test(backupFile)) {
 
 if (!args.yes) {
   console.warn(args.module
-    ? `⚠️  Sẽ ghi đè config/module/${args.module}/config/defaults.yml bằng backup: ${target}`
+    ? `⚠️  Sẽ ghi đè modules/${args.module}/config/defaults.yml bằng backup: ${target}`
     : `⚠️  Sẽ ghi đè config/config.yml bằng backup: ${target}`);
   console.warn('Chạy lại với --yes để xác nhận. EN: Re-run with --yes to confirm.');
   process.exit(1);
 }
 
 try {
-  restoreConfig(configDir, target, { type: args.module ? 'module' : 'core' });
+  restoreConfig(targetDir, target, { type: args.module ? 'module' : 'core' });
   console.log(args.module
     ? `[restore-config] OK — đã khôi phục config module '${args.module}' từ ${target}`
     : `[restore-config] OK — đã khôi phục config.yml từ ${target}`);
