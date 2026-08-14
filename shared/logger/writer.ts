@@ -12,7 +12,7 @@ export interface LogSink {
 
 /** Tô màu token [LEVEL] trong dòng log (chỉ console dev). */
 export function colorizeLevel(line: string): string {
-  return line.replace(/\[(DEBUG|INFO|WARN|ERROR|FATAL)\]/g, (match, level: LogLevel) => {
+  return line.replace(/\[(DEBUG|INFO|WARN|ERROR|FATAL)\s*\]/g, (match, level: LogLevel) => {
     return `${LEVEL_COLORS[level]}${match}${COLOR_RESET}`;
   });
 }

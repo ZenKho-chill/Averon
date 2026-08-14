@@ -3,7 +3,7 @@ import { PassThrough } from 'node:stream';
 import type { AppConfig } from '../config/index.js';
 import { Registry } from '../registry/index.js';
 import type { Logger } from '../../../shared/logger/index.js';
-import { OperatorConsole } from './index.js';
+import { OperatorConsole, renderPrompt } from './index.js';
 import type { ConsoleHandlerDeps } from './handlers.js';
 
 function makeLogger(): Logger {
@@ -61,6 +61,17 @@ async function waitFor(cond: () => boolean, timeoutMs = 1500): Promise<void> {
     await new Promise((r) => setTimeout(r, 10));
   }
 }
+
+describe('renderPrompt (prompt: config chỉ chứa tên gốc, `> ` tự thêm)', () => {
+  it('mặc định / config `averon` → render `averon> `', () => {
+    expect(renderPrompt(undefined)).toBe('averon> ');
+    expect(renderPrompt('averon')).toBe('averon> ');
+  });
+
+  it('config khác → vẫn tự thêm hậu tố `> `', () => {
+    expect(renderPrompt('mybot')).toBe('mybot> ');
+  });
+});
 
 describe('OperatorConsole', () => {
   it('start + line "averon status" → output có app version + discord', async () => {
