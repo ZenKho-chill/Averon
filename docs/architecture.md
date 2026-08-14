@@ -137,7 +137,7 @@ export const onUnload = (): void => { /* cleanup: đóng handle, clear interval 
 
 ## 5. Operator console
 
-Subsystem `core/console/` — REPL đọc **stdin**, prompt `averon`, cho phép quản lý bot đang chạy. Đây là **core subsystem** (điều khiển lifecycle = control-plane của core), không phải module: §5.3 cấm module điều khiển module khác.
+Subsystem `core/console/` — REPL đọc **stdin**, prompt `averon> `, cho phép quản lý bot đang chạy. Đây là **core subsystem** (điều khiển lifecycle = control-plane của core), không phải module: §5.3 cấm module điều khiển module khác.
 
 Lệnh:
 

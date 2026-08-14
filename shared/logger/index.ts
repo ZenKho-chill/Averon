@@ -50,7 +50,7 @@ export function formatLine(
   const timestamp = formatTimestamp(new Date());
   const contextPart = context ? ` [${context}]` : '';
   const metaPart = meta && Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
-  return `[${timestamp}] [${level.padEnd(5)}] [${source}]${contextPart} ${message}${metaPart}`;
+  return `[${timestamp}] [${level}] [${source}]${contextPart} ${message}${metaPart}`;
 }
 
 export class Logger {

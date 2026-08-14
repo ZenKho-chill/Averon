@@ -29,6 +29,16 @@ export interface OperatorConsoleOptions extends ConsoleHandlerDeps {
   protectedOutput?: ProtectedOutput;
 }
 
+/**
+ * Tên prompt từ config + hậu tố `> `. Config (`console.prompt`) chỉ khai báo tên gốc
+ * (vd `averon`) — dấu `> ` tự thêm để nhìn rõ đang ở màn nhập lệnh.
+ * EN: Prompt base from config plus the `> ` suffix. `console.prompt` holds only the base
+ * name (e.g. `averon`) — `> ` is appended so it reads clearly as an input line.
+ */
+export function renderPrompt(base?: string): string {
+  return `${base ?? 'averon'}> `;
+}
+
 export class OperatorConsole {
   private readonly input: Readable;
   private readonly output: Writable;
@@ -41,7 +51,9 @@ export class OperatorConsole {
   constructor(private readonly opts: OperatorConsoleOptions) {
     this.input = opts.input ?? process.stdin;
     this.output = opts.output ?? process.stdout;
-    this.prompt = opts.prompt ?? 'averon';
+    // Config `console.prompt` là tên gốc (vd `averon`) — `> ` được tự thêm khi render.
+    // EN: config `console.prompt` is the base name (e.g. `averon`) — `> ` is appended automatically.
+    this.prompt = renderPrompt(opts.prompt);
   }
 
   get isClosed(): boolean {

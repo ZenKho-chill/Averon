@@ -381,7 +381,7 @@ Tối thiểu 5 cấp, dùng chung cho core + module:
 
 ### 7.2 Format chuẩn
 ```
-[2026-08-11T14:03:22.123Z] [INFO ] [core/loader] [modules/example] Loading module 'example'
+[2026-08-11T14:03:22.123Z] [INFO] [core/loader] [modules/example] Loading module 'example'
  ^ timestamp ISO8601           ^level ^nguồn         ^context            ^message
 ```
 - **Timestamp**: ISO 8601 kèm timezone, độ chính xác ms.

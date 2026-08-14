@@ -7,8 +7,10 @@ EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, 
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 
 ### Fixed
-- `shared/logger`: **`logging.console_color` không có tác dụng với `[INFO]`/`[WARN]`** — `colorizeLevel` dùng regex `/\[(DEBUG|INFO|WARN|ERROR|FATAL)\]/` nhưng `formatLine` pad level thành 5 ký tự (`[INFO ]`, `[WARN ]` — có khoảng trắng trước `]`) nên regex không match 2 level này; chỉ ERROR/FATAL/DEBUG (đủ 5 ký tự) có màu. Sửa regex thành `\s*` trước `]` — giờ đủ 5 level có màu; thêm test regression cho từng level (VI)
-  EN: `logging.console_color` had no effect on `[INFO]`/`[WARN]` lines — `colorizeLevel` used `/\[(DEBUG|INFO|WARN|ERROR|FATAL)\]/` but `formatLine` pads levels to 5 chars (`[INFO ]`, `[WARN ]`, trailing space before `]`), so the regex never matched those two; only ERROR/FATAL/DEBUG (already 5 chars) got colored. The regex now allows trailing whitespace (`\s*`) — all 5 levels colorize; added a regression test per level.
+- `shared/logger`: **`[INFO ]`/`[WARN ]` có khoảng trắng thừa trước `]`** — `formatLine` pad level bằng `padEnd(5)`; bỏ padding → level xuất hiện tự nhiên `[DEBUG]`/`[INFO]`/`[WARN]`/`[ERROR]`/`[FATAL]`. Hệ quả phụ: `colorizeLevel` cũng do đó mà bỏ sót INFO/WARN — regex đã cho phép khoảng trắng (`\s*`) để tô màu đủ 5 level dù có/không pad. Kèm regression test cho cả 5 level (VI)
+  EN: `[INFO ]`/`[WARN ]` had a stray space before `]` — `formatLine` padded the level with `padEnd(5)`; padding removed so levels render naturally as `[DEBUG]`/`[INFO]`/`[WARN]`/`[ERROR]`/`[FATAL]`. Side effect: `colorizeLevel` had also been skipping INFO/WARN because of that padding — its regex now allows optional whitespace (`\s*`), coloring all 5 levels whether padded or not. Added a per-level regression test.
+- `core/console` + `core/config`: **prompt console thiếu `>` — khó phân biệt đang ở màn nhập lệnh** — config `console.prompt` giữ nguyên là tên gốc (`averon`); dấu `> ` **tự động thêm khi render** (`renderPrompt` trong `OperatorConsole`) → hiển thị `averon> `. Thêm test cho `renderPrompt` (VI)
+  EN: The console prompt was missing `>` — hard to tell you're at the input line — config `console.prompt` keeps only the base name (`averon`); the `> ` suffix is **appended automatically at render time** (`renderPrompt` in `OperatorConsole`) → displays `averon> `. Added `renderPrompt` tests.
 
 ## [1.0.3] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only

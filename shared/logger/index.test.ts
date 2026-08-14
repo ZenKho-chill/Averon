@@ -20,7 +20,7 @@ function captureLogger(options: { level?: string; source?: string; context?: str
 describe('formatLine', () => {
   it('đúng format §7.2: [ts] [LEVEL ] [source] [context] message', () => {
     const line = formatLine('INFO', 'core/loader', 'modules/example', 'hello');
-    expect(line).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[INFO \] \[core\/loader\] \[modules\/example\] hello$/);
+    expect(line).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[INFO\] \[core\/loader\] \[modules\/example\] hello$/);
   });
 
   it('thêm meta dạng JSON khi có', () => {
@@ -91,7 +91,7 @@ describe('colorizeLevel', () => {
     expect(colored).not.toBe(plain);
   });
 
-  it('tô màu CẢ level bị padEnd(5) — [INFO ] và [WARN ] (bug: regex cũ bỏ sót)', () => {
+  it('tô màu CẢ 5 level — kể cả [INFO]/[WARN] không bị bỏ sót', () => {
     for (const level of ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] as const) {
       const line = formatLine(level, 'core/x', '', 'msg');
       const colored = colorizeLevel(line);
