@@ -3,6 +3,17 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [1.0.2] — 2026-08-14
+**Loại / Type:** PATCH — chỉ fix bug / bugfix only
+
+### Fixed
+- `core/discord`: fix `DeprecationWarning` — event `ready` đã được rename thành `clientReady` (discord.js v14.16+, sẽ gỡ `ready` ở v15); chờ `clientReady` khi login (VI)
+  EN: Fixed the `ready` → `clientReady` `DeprecationWarning` (discord.js v14.16+; `ready` removed in v15) when waiting for the gateway after login.
+- `core/console`: **log không còn chèn vào dòng nhập CLI** — thêm `ProtectedOutput`: khi console TTY hiện prompt, mỗi dòng log xoá dòng hiện tại → in log → render lại prompt (bootstrap tạo guard + logger ghi qua nó) (VI)
+  EN: Logs no longer corrupt the CLI input line — added `ProtectedOutput`: while the TTY prompt is shown, each log line clears the current line, prints, then re-renders the prompt (bootstrap wires the guard into the logger).
+- `core/console`: **bấm Enter không có lệnh → không còn in `Error: empty input`** — dòng trống được bỏ qua im lặng, chỉ nhắc lại prompt (VI)
+  EN: Pressing Enter with no input no longer prints `Error: empty input` — empty lines are silently ignored and the prompt is re-shown.
+
 ## [1.0.1] — 2026-08-14
 **Loại / Type:** PATCH — chỉ fix bug / bugfix only
 

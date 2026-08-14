@@ -9,6 +9,7 @@
 import { createInterface, type Interface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
 import { parseConsoleCommand } from './parser.js';
+import type { ProtectedOutput } from './protected-output.js';
 import {
   handleHelp,
   handleModulesList,
@@ -24,6 +25,8 @@ export interface OperatorConsoleOptions extends ConsoleHandlerDeps {
   input?: Readable;
   output?: Writable;
   prompt?: string;
+  /** Bảo vệ prompt khỏi log ghi đè (bootstrap tạo + truyền vào logger). Optional — test không dùng. */
+  protectedOutput?: ProtectedOutput;
 }
 
 export class OperatorConsole {
@@ -61,7 +64,15 @@ export class OperatorConsole {
     });
     rl.on('close', () => this.stop());
 
-    if (terminal) rl.prompt();
+    if (terminal) {
+      // Bật bảo vệ prompt — log của core (qua ProtectedOutput) không còn chèn vào dòng nhập CLI.
+      // EN: enable prompt protection — core logs (via ProtectedOutput) no longer corrupt the input line.
+      this.opts.protectedOutput?.setActive(true);
+      this.opts.protectedOutput?.setRenderer(() => {
+        if (!this.closed) this.rl?.prompt();
+      });
+      rl.prompt();
+    }
   }
 
   stop(): void {
@@ -73,6 +84,13 @@ export class OperatorConsole {
 
   private async handleLine(line: string): Promise<void> {
     try {
+      // Bỏ qua Enter trống — không in `Error: empty input`, chỉ nhắc lại prompt.
+      // EN: ignore empty lines — no `Error: empty input`, just re-prompt.
+      if (!line.trim()) {
+        this.rearmPrompt();
+        return;
+      }
+
       const parsed = parseConsoleCommand(line);
       if (!parsed.ok) {
         this.write(`Error: ${parsed.error}\n`);
@@ -95,6 +113,10 @@ export class OperatorConsole {
       this.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
     }
 
+    this.rearmPrompt();
+  }
+
+  private rearmPrompt(): void {
     const terminal = Boolean((this.input as { isTTY?: boolean }).isTTY);
     if (terminal && !this.closed) this.rl?.prompt();
   }
