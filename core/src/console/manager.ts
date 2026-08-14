@@ -143,6 +143,9 @@ export class ModuleManager {
       const dir = resolveModuleDir(this.deps.root, name);
       if (!dir) return { ok: false, error: `module '${name}' not found on disk (modules/${name}/module.yml missing)` };
 
+      const log = this.deps.logger.child({ source: 'core/loader', context: `modules/${name}` });
+      log.info(`Reloading module '${name}'`);
+
       this.deps.registry.unregisterModule(name);
       const entry = await this.deps.loader.loadModule(dir);
 
@@ -159,6 +162,7 @@ export class ModuleManager {
       await this.deps.lifecycle.loadModule(entry);
       this.attachModuleCommands(entry);
       this.deps.registry.setModuleState(name, 'RUNNING');
+      log.info(`Module '${name}' reloaded (${entry.commands.length} commands, ${entry.events.length} events)`);
       return { ok: true, name };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -197,6 +201,8 @@ export class ModuleManager {
     const info = readModuleNameVersion(dir);
     if (!info) throw new Error(`cannot read module.yml in ${dir}`);
     const { name } = info;
+    const log = this.deps.logger.child({ source: 'core/loader', context: `modules/${name}` });
+    log.info(`Loading module '${name}' v${info.version}`);
 
     const existing = this.deps.registry.hasModule(name) ? this.deps.registry.getModule(name) : undefined;
     // Chỉ chặn khi module đang chạy/đang draining — UNLOADED thì được load lại (fix loop load↔reload).
@@ -223,5 +229,6 @@ export class ModuleManager {
     await this.deps.lifecycle.loadModule(entry);
     this.attachModuleCommands(entry);
     this.deps.registry.setModuleState(name, 'RUNNING');
+    log.info(`Module '${name}' loaded (${entry.commands.length} commands, ${entry.events.length} events)`);
   }
 }
