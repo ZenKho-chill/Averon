@@ -176,10 +176,6 @@
           "minimum": 0
         }
       }
-    },
-    "modules": {
-      "type": "object",
-      "description": "Override config của từng module theo tên: { ping: {...} }. Loader merge lên defaults của module."
     }
   }
 }

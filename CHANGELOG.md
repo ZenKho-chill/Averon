@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [1.0.0] — 2026-08-14
+**Loại / Type:** MAJOR — breaking change / breaking change
+
+### Changed (breaking)
+- **Gỡ override config module khỏi core config**: bỏ section `modules.<name>` trong `config/config.yml` (schema, loader, bootstrap). Config module giờ **chỉ nằm trong folder module** (`modules/<name>/config/defaults.yml`) — admin chỉnh thẳng file đó, không còn override từ core config (VI)
+  EN: **Removed the per-module config override from the core config**: dropped the `modules.<name>` section in `config/config.yml` (schema, loader, bootstrap). Module config now **lives only in the module folder** (`modules/<name>/config/defaults.yml`) — admins edit that file directly; no more override from the core config.
+
 ## [0.9.0] — 2026-08-14
 **Loại / Type:** MINOR — thêm tính năng mới / new feature
 

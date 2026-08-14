@@ -24,35 +24,33 @@ modules/ping/
 
 ## Tùy chỉnh phản hồi / Custom responses
 
-Mặc định `/ping` trả `Pong!`. Admin chỉnh phản hồi **không cần đổi code** — sửa `config/config.yml` → section `modules: ping:` (override merge lên `config/defaults.yml`):
+Mặc định `/ping` trả `Pong!`. Admin chỉnh phản hồi **không cần đổi code** — sửa trực tiếp `modules/ping/config/defaults.yml` (config module chỉ nằm trong folder module, không có override trong `config/config.yml`):
 
 ```yaml
-modules:
-  ping:
-    random: true                  # true → chọn ngẫu nhiên 1 trong responses; false → câu đầu
-    responses:
-      - type: plain               # plain: text thuần + placeholder
-        content: "Pong! ({latency}ms)"
-      - type: embed               # embed: toàn bộ field EmbedBuilder
-        embed:
-          title: "Pong!"
-          description: "Latency: {latency}ms | {tag_user} | {time}"
-          color: "#5865F2"        # màu hex "#RRGGBB" / "RRGGBB" (hoặc số decimal)
-          image: "https://example.com/pong.png"    # tùy chọn
-          thumbnail: "https://example.com/thumb.png"
-          url: "https://example.com"
-          footer:
-            text: "Averon"
-            icon_url: "https://example.com/icon.png"
-          author:
-            name: "Averon"
-            url: "https://example.com"
-            icon_url: "https://example.com/author.png"
-          fields:
-            - name: "Guild"
-              value: "{guild}"
-              inline: true
-          timestamp: true         # true = now | chuỗi ISO hợp lệ
+random: true                  # true → chọn ngẫu nhiên 1 trong responses; false → câu đầu
+responses:
+  - type: plain               # plain: text thuần + placeholder
+    content: "Pong! ({latency}ms)"
+  - type: embed               # embed: toàn bộ field EmbedBuilder
+    embed:
+      title: "Pong!"
+      description: "Latency: {latency}ms | {tag_user} | {time}"
+      color: "#5865F2"        # màu hex "#RRGGBB" / "RRGGBB" (hoặc số decimal)
+      image: "https://example.com/pong.png"    # tùy chọn
+      thumbnail: "https://example.com/thumb.png"
+      url: "https://example.com"
+      footer:
+        text: "Averon"
+        icon_url: "https://example.com/icon.png"
+      author:
+        name: "Averon"
+        url: "https://example.com"
+        icon_url: "https://example.com/author.png"
+      fields:
+        - name: "Guild"
+          value: "{guild}"
+          inline: true
+      timestamp: true         # true = now | chuỗi ISO hợp lệ
 ```
 
 ### Placeholder built-in
