@@ -30,6 +30,9 @@ describe('WebUiServer HTTP', () => {
 
     manager = makeManagerMock();
     const discord = makeDiscordMock();
+    // oauth2Login({ admin: false }) dùng userId '222-user' → đưa user này vào cache để guild chung
+    // hiển thị được. EN: oauth2Login({ admin: false }) uses userId '222-user' → add to member cache.
+    discord.guild.members.cache.set('222-user', {});
     const registrySvc = {
       getAllModules: () => [
         { name: 'ping', version: '1.0.0', state: 'RUNNING', commands: [{ name: 'ping', handler: 'x' }], events: [] },
@@ -267,15 +270,6 @@ describe('WebUiServer HTTP', () => {
     expect(spy.called).toBe(true);
   });
 
-  it('GET /api/admin/config → token bị mask', async () => {
-    await startServer(ADMIN_OAUTH);
-    const sid = await oauth2Login({ admin: true });
-    const { status, body } = await request('/api/admin/config', authed(sid));
-    expect(status).toBe(200);
-    const core = body.core as { content: string };
-    expect(core.content).not.toContain('test-token-123');
-  });
-
   it('GET / → trả index.html (text/html)', async () => {
     await startServer();
     const res = await fetch(`http://127.0.0.1:${port}/`);
@@ -308,6 +302,35 @@ describe('WebUiServer HTTP', () => {
     await startServer();
     const { status } = await request('/api/user/guilds');
     expect(status).toBe(401);
+  });
+
+  it('GET /api/user/guilds → guild chung kèm userCanManage', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: false }); // user-222
+    const { status, body } = await request('/api/user/guilds', authed(sid));
+    expect(status).toBe(200);
+    const guilds = body.guilds as Array<{ name: string; memberCount: number; userCanManage: boolean }>;
+    expect(guilds).toHaveLength(1);
+    expect(guilds[0].name).toBe('Test Guild');
+    expect(typeof guilds[0].userCanManage).toBe('boolean');
+  });
+
+  it('GET /api/admin/logs → log từ tailer (buffer)', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const { status, body } = await request('/api/admin/logs?limit=5', authed(sid));
+    expect(status).toBe(200);
+    expect(Array.isArray(body.logs)).toBe(true);
+  });
+
+  it('GET /api/admin/usage → thống kê usage command', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const { status, body } = await request('/api/admin/usage', authed(sid));
+    expect(status).toBe(200);
+    expect(typeof (body as { total: number }).total).toBe('number');
+    expect(Array.isArray((body as { perModule: unknown[] }).perModule)).toBe(true);
+    expect(Array.isArray((body as { perCommand: unknown[] }).perCommand)).toBe(true);
   });
 
   it('route không tồn tại → 404', async () => {

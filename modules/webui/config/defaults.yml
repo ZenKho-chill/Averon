@@ -21,7 +21,7 @@ public_home: true
 # invite_url: "https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=0"
 # admin_user_ids: danh sách Discord user ID được xem là admin khi đăng nhập qua Discord OAuth2.
 # EN: Discord user IDs treated as admins when logging in via Discord OAuth2.
-admin_user_ids: []
+admin_user_ids: ["917970047325077615"]
 # oauth2: Discord OAuth2 cho user dashboard. client_id + redirect_uri KHÔNG phải secret.
 # client_secret là secret — đặt trong config/config.yml (mục webui.oauth2.client_secret, file
 # đã gitignored), KHÔNG đặt trong file này (file tracked, repo PUBLIC).

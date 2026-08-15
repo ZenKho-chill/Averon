@@ -80,7 +80,7 @@
           <div class="step">
             <span class="step-num mono">03</span>
             <h3>Quản lý mọi thứ từ web</h3>
-            <p>Dashboard quản trị để theo dõi trạng thái bot, xem log và chỉnh config có validate.</p>
+            <p>Dashboard quản trị để theo dõi trạng thái bot, xem log realtime và quản lý module.</p>
           </div>
         </div>
       </section>
@@ -100,7 +100,7 @@
           <div class="feature">
             <div class="feature-main">
               <h3>Dashboard quản trị</h3>
-              <p>Xem trạng thái bot, log và danh sách module ngay trên web. Chỉnh config có validate, không lo làm hỏng gì.</p>
+              <p>Xem trạng thái bot, log realtime, thống kê lệnh và danh sách module ngay trên web.</p>
             </div>
             <span class="feature-tag mono">webui</span>
           </div>
@@ -154,7 +154,7 @@
           </div>
         </div>
         <h3>Guild chung với bot</h3>
-        <ul id="user-guilds" class="list"></ul>
+        <div id="user-guilds" class="guilds"></div>
       </div>
     </section>
 
@@ -163,8 +163,8 @@
       <div class="tabs">
         <button class="tab active" data-tab="status">Status</button>
         <button class="tab" data-tab="modules">Modules</button>
-        <button class="tab" data-tab="config">Config</button>
         <button class="tab" data-tab="logs">Logs</button>
+        <button class="tab" data-tab="usage">Usage</button>
       </div>
 
       <div id="panel-status" class="panel">
@@ -184,20 +184,28 @@
         </table>
       </div>
 
-      <div id="panel-config" class="panel hidden">
-        <label for="config-target">Config file</label>
-        <select id="config-target"></select>
-        <textarea id="config-content" rows="18" spellcheck="false"></textarea>
-        <div class="row">
-          <button id="config-reload" class="btn">Đọc lại</button>
-          <button id="config-save" class="btn btn-primary">Lưu</button>
-        </div>
-        <p id="config-result" class="small hidden"></p>
-      </div>
-
       <div id="panel-logs" class="panel hidden">
         <button id="logs-refresh" class="btn btn-outline">Refresh</button>
         <pre id="logs-view" class="logs"></pre>
+      </div>
+
+      <div id="panel-usage" class="panel hidden">
+        <p class="muted small">Thống kê lệnh được dùng (từ log — từ khi server khởi động).</p>
+        <div class="stats" id="usage-summary"></div>
+        <div class="usage-grid">
+          <div>
+            <h3>Theo module</h3>
+            <table class="table"><thead><tr><th>Module</th><th>Lần dùng</th></tr></thead><tbody id="usage-modules"></tbody></table>
+          </div>
+          <div>
+            <h3>Theo lệnh</h3>
+            <table class="table"><thead><tr><th>Lệnh</th><th>Lần dùng</th></tr></thead><tbody id="usage-commands"></tbody></table>
+          </div>
+          <div>
+            <h3>Theo guild</h3>
+            <table class="table"><thead><tr><th>Guild</th><th>Lần dùng</th></tr></thead><tbody id="usage-guilds"></tbody></table>
+          </div>
+        </div>
       </div>
     </section>
   </main>

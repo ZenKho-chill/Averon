@@ -98,15 +98,14 @@ function enterAdmin() {
   refreshAdminStatus();
   connectWs();
   startAdminTimers();
-  loadConfigTargets();
 }
 
 function selectTab(name) {
   $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  ['status', 'modules', 'config', 'logs'].forEach((p) => $(`#panel-${p}`).classList.toggle('hidden', p !== name));
+  ['status', 'modules', 'logs', 'usage'].forEach((p) => $(`#panel-${p}`).classList.toggle('hidden', p !== name));
   if (name === 'modules') refreshModules();
-  if (name === 'config') loadConfigTargets();
   if (name === 'logs') loadLogs();
+  if (name === 'usage') loadUsage();
 }
 
 function startAdminTimers() {
@@ -136,6 +135,7 @@ function connectWs() {
       if (msg.type === 'snapshot') {
         renderAdminStatus(msg.status);
         renderModules(msg.modules);
+        if (msg.logs && msg.logs.length) appendLogs(msg.logs);
       }
     } catch { /* bỏ qua */ }
   };
@@ -199,59 +199,6 @@ async function moduleAction(name, action) {
   }
 }
 
-// ── Config management ──
-let configsCache = null;
-
-async function loadConfigTargets() {
-  try {
-    const res = await api('/api/admin/config');
-    configsCache = res;
-    const sel = $('#config-target');
-    sel.innerHTML = '';
-    const add = (label, value) => {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      sel.appendChild(opt);
-    };
-    add(res.core.path, 'core');
-    for (const m of res.modules) add(m.path, m.path);
-    sel.value = 'core';
-    renderConfigFor('core');
-  } catch { /* noop */ }
-}
-
-function renderConfigFor(value) {
-  if (!configsCache) return;
-  if (value === 'core') {
-    $('#config-content').value = configsCache.core.content;
-  } else {
-    const mod = configsCache.modules.find((m) => m.path === value);
-    $('#config-content').value = mod ? mod.content : '';
-  }
-}
-
-async function saveConfig() {
-  const sel = $('#config-target');
-  const value = sel.value;
-  const body = value === 'core'
-    ? { scope: 'core', content: $('#config-content').value }
-    : { scope: 'module', name: value.split('/')[2], content: $('#config-content').value };
-  const resultEl = $('#config-result');
-  hide(resultEl);
-  try {
-    const res = await api('/api/admin/config', { method: 'POST', body: JSON.stringify(body) });
-    resultEl.textContent = res.message;
-    resultEl.classList.toggle('error', !res.ok);
-    show(resultEl);
-    await loadConfigTargets();
-  } catch (err) {
-    resultEl.textContent = err.message;
-    resultEl.classList.add('error');
-    show(resultEl);
-  }
-}
-
 // ── Logs ──
 async function loadLogs() {
   try {
@@ -261,7 +208,52 @@ async function loadLogs() {
   } catch { /* noop */ }
 }
 
+/** Append dòng log mới (realtime qua WS) — chỉ khi đang xem tab Logs. */
+function appendLogs(lines) {
+  const panel = $('#panel-logs');
+  if (panel.classList.contains('hidden')) return;
+  const view = $('#logs-view');
+  for (const l of lines) {
+    const isMarker = l.line.startsWith('===');
+    view.textContent += (view.textContent ? '\n' : '') + l.line;
+    if (isMarker && view.textContent.split('\n').length > 400) {
+      view.textContent = view.textContent.split('\n').slice(-300).join('\n');
+    }
+  }
+  view.scrollTop = view.scrollHeight;
+}
+
+// ── Usage stats ──
+async function loadUsage() {
+  try {
+    const s = await api('/api/admin/usage');
+    $('#usage-summary').innerHTML =
+      `<div class="stat"><span class="stat-value">${s.total}</span><span class="stat-label">Tổng lệnh đã dùng</span></div>` +
+      `<div class="stat"><span class="stat-value">${s.perModule.length}</span><span class="stat-label">Module có hoạt động</span></div>` +
+      `<div class="stat"><span class="stat-value">${s.perGuild.length}</span><span class="stat-label">Guild</span></div>`;
+    renderUsageRows('#usage-modules', s.perModule);
+    renderUsageRows('#usage-commands', s.perCommand);
+    renderUsageRows('#usage-guilds', s.perGuild);
+  } catch { /* noop */ }
+}
+
+function renderUsageRows(sel, rows) {
+  const body = $(sel);
+  body.innerHTML = '';
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="2" class="muted">Chưa có dữ liệu.</td></tr>';
+    return;
+  }
+  for (const r of rows.slice(0, 50)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="mono">${esc(r.name)}</span></td><td>${r.count}</td>`;
+    body.appendChild(tr);
+  }
+}
+
 // ── User dashboard ──
+let userInviteUrl = '';
+
 async function enterUser() {
   showView('user');
   try {
@@ -271,17 +263,29 @@ async function enterUser() {
     $('#user-name').textContent = me.session.username || 'Người dùng';
     $('#user-id').textContent = me.session.userId ? `ID: ${me.session.userId}` : '';
     $('#user-avatar').textContent = (me.session.username || '?').slice(0, 1).toUpperCase();
+    const status = await api('/api/status');
+    userInviteUrl = typeof status.inviteUrl === 'string' && status.inviteUrl ? status.inviteUrl : '';
     const { guilds } = await api('/api/user/guilds');
-    const ul = $('#user-guilds');
-    ul.innerHTML = '';
+    const wrap = $('#user-guilds');
+    wrap.innerHTML = '';
     if (!guilds.length) {
-      ul.innerHTML = '<li class="muted">Chưa có guild chung nào với bot.</li>';
-    } else {
-      for (const g of guilds) {
-        const li = document.createElement('li');
-        li.textContent = `${g.name} (${g.memberCount} thành viên)`;
-        ul.appendChild(li);
-      }
+      wrap.innerHTML = '<p class="muted">Chưa có guild chung nào với bot.</p>';
+      return;
+    }
+    for (const g of guilds) {
+      const card = document.createElement('div');
+      card.className = 'guild-card';
+      card.innerHTML =
+        `<div class="guild-icon">${g.iconUrl ? `<img src="${esc(g.iconUrl)}" alt="" loading="lazy">` : esc((g.name || '?').slice(0, 1).toUpperCase())}</div>` +
+        `<div class="guild-info">` +
+        `<div class="strong">${esc(g.name)}</div>` +
+        `<div class="muted small">${g.memberCount} thành viên</div>` +
+        `</div>` +
+        `<div class="guild-actions">` +
+        (g.userCanManage ? '<span class="badge badge-ok">Bạn quản lý guild này</span>' : '') +
+        (userInviteUrl ? `<a class="btn btn-xs btn-outline" target="_blank" rel="noopener" href="${esc(userInviteUrl)}&guild_id=${encodeURIComponent(g.id)}&disable_guild_select=true">Invite bot</a>` : '') +
+        `</div>`;
+      wrap.appendChild(card);
     }
   } catch (err) {
     setText('#user-id', err.message);
@@ -317,9 +321,6 @@ async function boot() {
   $('#home-admin-2').addEventListener('click', (e) => { e.preventDefault(); openLoginPopup(); });
 
   $$('.tab').forEach((t) => t.addEventListener('click', () => selectTab(t.dataset.tab)));
-  $('#config-target').addEventListener('change', (e) => renderConfigFor(e.target.value));
-  $('#config-reload').addEventListener('click', loadConfigTargets);
-  $('#config-save').addEventListener('click', saveConfig);
   $('#logs-refresh').addEventListener('click', loadLogs);
   $('#modules-body').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act]');
