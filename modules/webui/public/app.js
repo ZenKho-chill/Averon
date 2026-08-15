@@ -289,7 +289,23 @@ async function enterUser() {
 }
 
 // ── Boot ──
+// Mở login Discord OAuth2 trong popup thay vì redirect cả trang.
+// EN: Run Discord OAuth2 in a popup instead of redirecting the whole page.
+function openLoginPopup() {
+  window.open('/oauth2/login', 'averon-login', 'width=520,height=640');
+}
+
 async function boot() {
+  // Nhận session từ popup login (callback redirect về /#session=... trong popup).
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin) return;
+    const d = e.data || {};
+    if (d.type === 'averon-oauth' && typeof d.session === 'string' && d.session) {
+      saveSession(d.session);
+      location.reload();
+    }
+  });
+
   $('#btn-logout').addEventListener('click', async () => {
     try { await api('/api/logout', { method: 'POST' }); } catch { /* noop */ }
     stopAdminTimers();
@@ -297,7 +313,9 @@ async function boot() {
     showView('home');
     loadHome();
   });
-  $('#btn-discord-login').addEventListener('click', () => { location.href = '/oauth2/login'; });
+  $('#btn-discord-login').addEventListener('click', openLoginPopup);
+  $('#home-admin').addEventListener('click', (e) => { e.preventDefault(); openLoginPopup(); });
+  $('#home-admin-2').addEventListener('click', (e) => { e.preventDefault(); openLoginPopup(); });
 
   $$('.tab').forEach((t) => t.addEventListener('click', () => selectTab(t.dataset.tab)));
   $('#config-target').addEventListener('change', (e) => renderConfigFor(e.target.value));
@@ -310,9 +328,17 @@ async function boot() {
   });
 
   // Xử lý callback OAuth2: /#session=<token>
+  // - Trong popup (window.opener tồn tại): gửi session về cửa sổ chính rồi đóng popup.
+  //   EN: In the popup (window.opener exists): hand the session back to the opener and close.
+  // - Mở trực tiếp trên tab: lưu session và tiếp tục như bình thường.
   const hash = location.hash;
   if (hash.startsWith('#session=')) {
     const token = hash.slice('#session='.length);
+    if (window.opener) {
+      window.opener.postMessage({ type: 'averon-oauth', session: token }, location.origin);
+      window.close();
+      return;
+    }
     saveSession(token);
     history.replaceState(null, '', location.pathname);
   }

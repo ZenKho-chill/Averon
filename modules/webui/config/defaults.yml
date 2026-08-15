@@ -29,5 +29,5 @@ admin_user_ids: []
 # client_secret is a secret — put it in config/config.yml (webui.oauth2.client_secret, gitignored),
 # never here (this file is tracked in a PUBLIC repo).
 oauth2:
-  client_id: ""
-  redirect_uri: ""
+  client_id: "1381461005158191185"
+  redirect_uri: "http://localhost:3000/oauth2/callback"
