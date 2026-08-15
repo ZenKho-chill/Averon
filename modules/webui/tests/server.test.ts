@@ -51,13 +51,18 @@ describe('WebUiServer HTTP', () => {
       publicHome: true,
       adminUserIds: [],
       oauth2: { clientId: '', redirectUri: '', clientSecret: '' },
-      apiToken: 'test-admin-token',
       ...overrides,
     };
     server = new WebUiServer({ registry, settings, logger: makeLogger() });
     port = await server.start();
     return server;
   }
+
+  /** Settings OAuth2 đủ dùng cho login admin/user trong test. */
+  const ADMIN_OAUTH = {
+    adminUserIds: ['111-admin'],
+    oauth2: { clientId: 'cid', redirectUri: 'http://localhost:3000/cb', clientSecret: 'sec' },
+  };
 
   afterEach(async () => {
     await server?.stop();
@@ -80,8 +85,36 @@ describe('WebUiServer HTTP', () => {
     return { status: res.status, body };
   }
 
-  function authed(init: RequestInit = {}): RequestInit {
-    return { ...init, headers: { ...(init.headers ?? {}), Authorization: 'Bearer test-admin-token' } };
+  function authed(sessionId: string, init: RequestInit = {}): RequestInit {
+    return { ...init, headers: { ...(init.headers ?? {}), Authorization: `Bearer ${sessionId}` } };
+  }
+
+  /**
+   * Đăng nhập qua OAuth2 thật (mock fetch Discord) → trả session id.
+   * EN: Real OAuth2 login (Discord fetch mocked) → returns the session id.
+   */
+  const REAL_FETCH = globalThis.fetch;
+  async function oauth2Login(opts: { admin: boolean }): Promise<string> {
+    const targetId = opts.admin ? '111-admin' : '222-user';
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === 'https://discord.com/api/oauth2/token') {
+        return new Response(JSON.stringify({ access_token: 'mock-access' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === 'https://discord.com/api/users/@me') {
+        return new Response(JSON.stringify({ id: targetId, username: 'tuan', avatar: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return REAL_FETCH(input, init);
+    };
+    try {
+      const login = await fetch(`http://127.0.0.1:${port}/oauth2/login`, { redirect: 'manual' });
+      const state = new URL(login.headers.get('location') ?? '').searchParams.get('state') ?? '';
+      const cb = await fetch(`http://127.0.0.1:${port}/oauth2/callback?code=mock&state=${encodeURIComponent(state)}`, { redirect: 'manual' });
+      const loc = cb.headers.get('location') ?? '';
+      return loc.match(/session=([0-9a-f]+)/)?.[1] ?? '';
+    } finally {
+      globalThis.fetch = REAL_FETCH;
+    }
   }
 
   it('GET /api/status công khai (không cần auth)', async () => {
@@ -127,76 +160,95 @@ describe('WebUiServer HTTP', () => {
       publicHome: true,
       adminUserIds: [],
       oauth2: { clientId: '', redirectUri: '', clientSecret: '' },
-      apiToken: 'test-admin-token',
     };
     const second = new WebUiServer({ registry, settings, logger: makeLogger() });
     await expect(second.start()).rejects.toThrow(/EADDRINUSE|address already in use/);
   });
 
-  it('admin route không có token → 401', async () => {
-    await startServer();
+  it('admin route không có session → 401', async () => {
+    await startServer(ADMIN_OAUTH);
     const { status } = await request('/api/admin/status');
     expect(status).toBe(401);
   });
 
-  it('admin route với Bearer api_token → 200 + dữ liệu', async () => {
-    await startServer();
-    const { status, body } = await request('/api/admin/status', authed());
+  it('admin route với admin session (OAuth2 + admin_user_ids) → 200 + dữ liệu', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    expect(sid).toBeTruthy();
+    const { status, body } = await request('/api/admin/status', authed(sid));
     expect(status).toBe(200);
     expect(body.discord?.ping).toBe(42);
     expect(body.modules?.registered).toBe(1);
   });
 
-  it('admin route với token sai → 401', async () => {
-    await startServer();
+  it('admin route với user session → 403 (cần admin)', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: false });
+    const { status } = await request('/api/admin/status', authed(sid));
+    expect(status).toBe(403);
+  });
+
+  it('admin route với session sai → 401', async () => {
+    await startServer(ADMIN_OAUTH);
     const { status } = await request('/api/admin/status', { headers: { Authorization: 'Bearer wrong' } });
     expect(status).toBe(401);
   });
 
-  it('POST /api/login: sai token → 403; đúng → session', async () => {
+  it('POST /api/login đã bị gỡ (OAuth2-only) → 404', async () => {
     await startServer();
-    const bad = await request('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'nope' }) });
-    expect(bad.status).toBe(403);
-
-    const ok = await request('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'test-admin-token' }) });
-    expect(ok.status).toBe(200);
-    const sessionId = (ok.body.session as { id: string })?.id;
-    expect(sessionId).toBeTruthy();
-
-    const me = await request('/api/me', { headers: { Authorization: `Bearer ${sessionId}` } });
-    expect(me.status).toBe(200);
-    expect((me.body.session as { kind: string }).kind).toBe('admin');
+    const { status } = await request('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'x' }) });
+    expect(status).toBe(404);
   });
 
-  it('api_token chưa cấu hình → login trả hướng dẫn 401', async () => {
-    await startServer({ apiToken: '' });
-    const { status } = await request('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'x' }) });
-    expect(status).toBe(401);
+  it('OAuth2 login: user trong admin_user_ids → session admin', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const me = await request('/api/me', authed(sid));
+    expect(me.status).toBe(200);
+    expect((me.body.session as { kind: string }).kind).toBe('admin');
+    expect((me.body.session as { userId: string }).userId).toBe('111-admin');
+  });
+
+  it('OAuth2 login: user ngoài admin_user_ids → session user', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: false });
+    const me = await request('/api/me', authed(sid));
+    expect(me.status).toBe(200);
+    expect((me.body.session as { kind: string }).kind).toBe('user');
+  });
+
+  it('OAuth2 chưa cấu hình → /oauth2/login trả 400', async () => {
+    await startServer();
+    const res = await fetch(`http://127.0.0.1:${port}/oauth2/login`, { redirect: 'manual' });
+    expect(res.status).toBe(400);
   });
 
   it('POST /api/admin/modules/:name/reload → gọi manager, trả kết quả', async () => {
-    await startServer();
-    const { status, body } = await request('/api/admin/modules/ping/reload', authed({ method: 'POST' }));
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const { status, body } = await request('/api/admin/modules/ping/reload', authed(sid, { method: 'POST' }));
     expect(status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.message).toContain('ping');
   });
 
   it('POST /api/admin/modules/:name/unload với ?force=true → force', async () => {
-    await startServer();
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
     const spy = { called: false };
     manager.unload = async (name: string, opts: { force?: boolean }) => {
       spy.called = opts.force === true;
       return { ok: true, outcome: 'unloaded', name };
     };
-    const { status } = await request('/api/admin/modules/ping/unload?force=true', authed({ method: 'POST' }));
+    const { status } = await request('/api/admin/modules/ping/unload?force=true', authed(sid, { method: 'POST' }));
     expect(status).toBe(200);
     expect(spy.called).toBe(true);
   });
 
   it('GET /api/admin/config → token bị mask', async () => {
-    await startServer();
-    const { status, body } = await request('/api/admin/config', authed());
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const { status, body } = await request('/api/admin/config', authed(sid));
     expect(status).toBe(200);
     const core = body.core as { content: string };
     expect(core.content).not.toContain('test-token-123');

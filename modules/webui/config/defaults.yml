@@ -2,9 +2,9 @@
 # EN: Default config for module webui — edit this file then reload the module to apply.
 #
 # host: địa chỉ bind. 127.0.0.1 = local-only (mặc định, an toàn nhất). 0.0.0.0 = truy cập từ xa
-# — KHI ĐÓ BẮT BUỘC cấu hình auth (api_token hoặc Discord OAuth2), nếu không web sẽ không phục vụ.
+# — KHI ĐÓ BẮT BUỘC cấu hình Discord OAuth2 (oauth2), nếu không web sẽ không phục vụ.
 # EN: bind host. 127.0.0.1 = local-only (default, safest). 0.0.0.0 = reachable remotely —
-# THEN auth (api_token or Discord OAuth2) is REQUIRED, otherwise the web server won't serve.
+# THEN Discord OAuth2 is REQUIRED, otherwise the web server won't serve.
 host: "127.0.0.1"
 # port: cổng HTTP. Đổi cổng → sửa ở đây rồi reload module webui.
 # EN: HTTP port. Change here then reload the webui module.

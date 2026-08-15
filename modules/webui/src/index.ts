@@ -27,8 +27,8 @@ export async function onLoad(registry?: RegistryLike): Promise<void> {
 
   if (!hasEnoughAuth(settings)) {
     throw new Error(
-      'webui: host public (không phải localhost) nhưng chưa cấu hình auth — đặt webui.api_token hoặc ' +
-        'oauth2.client_secret trong config/config.yml. EN: public host requires auth (webui.api_token or oauth2).',
+      'webui: host public (không phải localhost) nhưng chưa cấu hình auth — đặt ' +
+        'oauth2.client_secret trong config/config.yml. EN: public host requires auth (Discord OAuth2).',
     );
   }
 

@@ -20,8 +20,7 @@
       <a href="#how" class="nav-link">Cách bắt đầu</a>
       <a href="#features" class="nav-link">Tính năng</a>
       <span id="nav-session" class="muted small"></span>
-      <button id="btn-admin-login" class="btn btn-ghost hidden">Admin</button>
-      <button id="btn-discord-login" class="btn btn-ghost hidden">Discord login</button>
+      <button id="btn-discord-login" class="btn btn-ghost hidden">Login</button>
       <button id="btn-logout" class="btn btn-ghost hidden">Logout</button>
     </nav>
   </header>
@@ -43,7 +42,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.5 3l-.6 1.2a13.3 13.3 0 0 0-5.8 0L8.5 3a19.8 19.8 0 0 0-4.8 1.4A20.4 20.4 0 0 0 .1 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.9 12.9 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2a19.9 19.9 0 0 0 6-3 20.3 20.3 0 0 0-2.2-13.7zM8.7 15.3c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg>
             Add to Discord
           </a>
-          <button id="home-admin" class="btn btn-outline btn-lg">Admin dashboard</button>
+          <a id="home-admin" class="btn btn-outline btn-lg" href="/oauth2/login">Admin dashboard</a>
         </div>
       </div>
 
@@ -132,7 +131,7 @@
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.5 3l-.6 1.2a13.3 13.3 0 0 0-5.8 0L8.5 3a19.8 19.8 0 0 0-4.8 1.4A20.4 20.4 0 0 0 .1 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.9 12.9 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2a19.9 19.9 0 0 0 6-3 20.3 20.3 0 0 0-2.2-13.7zM8.7 15.3c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg>
               Add to Discord
             </a>
-            <button id="home-admin-2" class="btn btn-outline btn-lg">Admin dashboard</button>
+            <a id="home-admin-2" class="btn btn-outline btn-lg" href="/oauth2/login">Admin dashboard</a>
           </div>
         </div>
       </section>
@@ -141,20 +140,6 @@
         <span class="brand-mark">A</span>
         <p id="home-version" class="mono small"></p>
       </footer>
-    </section>
-
-    <!-- ═══════════ LOGIN ADMIN / ADMIN LOGIN ═══════════ -->
-    <section id="view-admin-login" class="hidden">
-      <div class="card center-card">
-        <h2>Admin login</h2>
-        <p class="muted small">Nhập API token được cấu hình trong <code>webui.api_token</code>.</p>
-        <form id="admin-login-form">
-          <label for="admin-token">API token</label>
-          <input id="admin-token" type="password" autocomplete="current-password" placeholder="Nhập webui.api_token" required>
-          <button type="submit" class="btn btn-primary btn-block">Login</button>
-          <p id="admin-login-error" class="error small hidden"></p>
-        </form>
-      </div>
     </section>
 
     <!-- ═══════════ USER DASHBOARD ═══════════ -->

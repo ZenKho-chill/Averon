@@ -7,16 +7,14 @@ import { hasEnoughAuth, readSecrets, resolveWebSettings } from '../src/config.js
 import { makeAppConfig, makeRegistry } from './helpers.js';
 
 describe('readSecrets', () => {
-  it('đọc api_token + oauth2.client_secret từ core config (gitignored)', () => {
-    const app = makeAppConfig({ webui: { api_token: 'secret-token', oauth2: { client_secret: 'client-secret-xyz' } } });
+  it('đọc oauth2.client_secret từ core config (gitignored)', () => {
+    const app = makeAppConfig({ webui: { oauth2: { client_secret: 'client-secret-xyz' } } });
     const secrets = readSecrets(app);
-    expect(secrets.apiToken).toBe('secret-token');
     expect(secrets.oauth2ClientSecret).toBe('client-secret-xyz');
   });
 
   it('thiếu section webui → chuỗi rỗng (không crash)', () => {
     const secrets = readSecrets(makeAppConfig());
-    expect(secrets.apiToken).toBe('');
     expect(secrets.oauth2ClientSecret).toBe('');
   });
 });
@@ -56,28 +54,21 @@ describe('resolveWebSettings', () => {
 describe('hasEnoughAuth', () => {
   it('localhost không cần auth (dev-safe)', () => {
     const settings = {
-      host: '127.0.0.1', apiToken: '', oauth2: { clientSecret: '' },
+      host: '127.0.0.1', oauth2: { clientSecret: '' },
     } as never;
     expect(hasEnoughAuth(settings)).toBe(true);
   });
 
   it('host public + không auth → FAIL (từ chối phục vụ)', () => {
     const settings = {
-      host: '0.0.0.0', apiToken: '', oauth2: { clientSecret: '' },
+      host: '0.0.0.0', oauth2: { clientSecret: '' },
     } as never;
     expect(hasEnoughAuth(settings)).toBe(false);
   });
 
-  it('host public + api_token → OK', () => {
-    const settings = {
-      host: '0.0.0.0', apiToken: 'x', oauth2: { clientSecret: '' },
-    } as never;
-    expect(hasEnoughAuth(settings)).toBe(true);
-  });
-
   it('host public + oauth2 client_secret → OK', () => {
     const settings = {
-      host: '0.0.0.0', apiToken: '', oauth2: { clientSecret: 'y' },
+      host: '0.0.0.0', oauth2: { clientSecret: 'y' },
     } as never;
     expect(hasEnoughAuth(settings)).toBe(true);
   });

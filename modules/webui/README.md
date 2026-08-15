@@ -20,7 +20,7 @@ EN: Bot homepage + system-admin dashboard + user dashboard, served by a **plain 
 
 | Key | Mặc định | Ý nghĩa / EN |
 |---|---|---|
-| `host` | `127.0.0.1` | Địa chỉ bind. Khác localhost (vd `0.0.0.0`) → bắt buộc có auth (api_token hoặc oauth2 client_secret). |
+| `host` | `127.0.0.1` | Địa chỉ bind. Khác localhost (vd `0.0.0.0`) → bắt buộc có Discord OAuth2 (oauth2 client_secret). |
 | `port` | `3000` | Cổng HTTP. |
 | `static_dir` | `public` | Thư mục frontend tĩnh (tương đối với folder module). |
 | `public_home` | `true` | Cho phép trang chủ public (không cần đăng nhập). `false` → buộc login. |
@@ -34,13 +34,11 @@ Repo này PUBLIC — secret đặt trong config tổng, KHÔNG nằm trong modul
 
 | Key | Ý nghĩa / EN |
 |---|---|
-| `webui.api_token` | Admin API token cho admin dashboard (xác thực timing-safe). |
-| `webui.oauth2.client_secret` | Discord OAuth2 client secret. |
+| `webui.oauth2.client_secret` | Discord OAuth2 client secret (bắt buộc khi host không phải localhost). |
 
 ```yaml
 # config/config.yml
 webui:
-  api_token: "my-admin-token"
   oauth2:
     client_secret: "discord-oauth2-client-secret"
 ```
@@ -48,11 +46,11 @@ webui:
 ## Cách dùng / Usage
 
 1. Cài `ws` (đã có trong workspace root `package.json`).
-2. Thêm secret `webui.*` vào `config/config.yml`.
+2. Thêm secret `webui.oauth2.client_secret` vào `config/config.yml`.
 3. Điền non-secret (host/port/admin_user_ids/oauth2 client_id + redirect_uri) trong `modules/webui/config/defaults.yml`.
 4. Restart bot → mở `http://127.0.0.1:3000`.
 
-- **Admin dashboard**: login bằng API token (`webui.api_token`) hoặc Discord OAuth2 (nếu `admin_user_ids` chứa user ID của bạn) → xem status/modules/config/logs, load/unload/reload module, sửa config (trang web hiện ảnh được đã được **mask secret**, lưu thật vào đĩa).
+- **Admin dashboard**: login **Discord OAuth2** (tài khoản trong `admin_user_ids` = admin) → xem status/modules/config/logs, load/unload/reload module, sửa config (trang web hiển thị **mask secret**, lưu thật vào đĩa).
 - **User dashboard**: login Discord OAuth2 → xem server (guilds) mà bot và bạn cùng ở.
 - **Trang chủ**: status bot (online/modules) public, cập nhật realtime qua WebSocket.
 
@@ -62,23 +60,22 @@ webui:
 |---|---|---|
 | `GET /` | public | Homepage / admin dashboard SPA |
 | `GET /api/status` | public | Status public: online, modules count |
-| `POST /api/login` | body `{ token }` | Login admin bằng API token |
-| `POST /api/logout` | cookie | Đăng xuất |
-| `GET /api/me` | cookie | Session hiện tại |
-| `GET /oauth2/login` · `GET /oauth2/callback` | — | Discord OAuth2 flow |
+| `POST /api/logout` | session | Đăng xuất |
+| `GET /api/me` | session | Session hiện tại |
+| `GET /oauth2/login` · `GET /oauth2/callback` | — | Discord OAuth2 flow (login duy nhất) |
 | `GET /api/admin/status` · `modules` · `config` · `logs` | admin | Dữ liệu dashboard admin |
 | `POST /api/admin/modules/:name/:action` | admin | `load` / `unload` / `reload` module |
 | `POST /api/admin/config` | admin | Lưu core hoặc module config (validate trước khi ghi) |
 | `GET /api/user/guilds` | user | Guilds dùng chung bot ↔ user |
-| `WS /ws?token=…` | admin token | Realtime snapshot (status + modules) mỗi 3s |
+| `WS /ws?token=…` | admin session | Realtime snapshot (status + modules) mỗi 3s |
 
 ## Bảo mật / Security
 
-- Secret (`api_token`, `client_secret`) KHÔNG bao giờ được trả ra web — config hiển thị được mask theo key pattern `/(token|secret|password)/i`.
-- So sánh token **timing-safe** (`crypto.timingSafeEqual`); session id random 32-byte, cookie `HttpOnly; SameSite=Lax`.
+- Secret (`client_secret`) KHÔNG bao giờ được trả ra web — config hiển thị được mask theo key pattern `/(token|secret|password)/i`.
+- Auth 100% qua **Discord OAuth2** (không có API token) — admin = user trong `admin_user_ids`; session id random 32-byte.
 - OAuth2 dùng `state` (ngẫu nhiên, 1 lần dùng) chống CSRF.
-- Static file chống path traversal (guard `..` + normalize); WS token sai → đóng `4001`.
-- Host non-localhost mà thiếu auth → boot từ chối (fail-fast).
+- Static file chống path traversal (guard `..` + normalize); WS session sai → đóng `4001`.
+- Host non-localhost mà thiếu OAuth2 → boot từ chối (fail-fast).
 - Config lưu qua web được **validate lại** bằng schema của core/module trước khi ghi đĩa.
 
 ## Test
@@ -87,5 +84,5 @@ webui:
 npx vitest run modules/webui
 ```
 
-Che: `config` (resolve settings + secrets), `auth` (safeEqual, session, OAuth2 state), `api` (mask, status/modules/actions, read/save config, logs), `server` (HTTP routes, auth middleware, static, traversal, WS).
-EN: Covers config resolution/secrets, auth (timing-safe compare, sessions, OAuth2 state), api (masking, status/modules/actions, read/save config, logs), server (HTTP routes, auth middleware, static, traversal, WebSocket).
+Che: `config` (resolve settings + secrets), `auth` (session, OAuth2 state), `api` (mask, status/modules/actions, read/save config, logs), `server` (HTTP routes, auth middleware, static, traversal, WS).
+EN: Covers config resolution/secrets, auth (sessions, OAuth2 state), api (masking, status/modules/actions, read/save config, logs), server (HTTP routes, auth middleware, static, traversal, WebSocket).

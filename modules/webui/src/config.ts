@@ -9,13 +9,11 @@ import type { AppConfig } from '../../../core/src/config/index.js';
 
 /** Secret webui đọc từ config/config.yml (gitignored) — KHÔNG bao giờ trả ra web (§7.4). */
 export interface WebUiSecrets {
-  /** API token cho admin dashboard / EN: admin dashboard API token. */
-  apiToken: string;
   /** Discord OAuth2 client secret / EN: Discord OAuth2 client secret. */
   oauth2ClientSecret: string;
 }
 
-/** Settings đã hợp nhất cho webui module. */
+/** Settings hợp nhất cho webui module. Auth chỉ qua Discord OAuth2 — không còn API token. */
 export interface WebUiSettings {
   host: string;
   port: number;
@@ -25,10 +23,8 @@ export interface WebUiSettings {
   oauth2: { clientId: string; redirectUri: string; clientSecret: string };
 }
 
-/** Settings hợp nhất + admin API token (secret — chỉ dùng so sánh, KHÔNG trả ra web). */
-export interface ResolvedWebUiSettings extends WebUiSettings {
-  apiToken: string;
-}
+/** Settings hợp nhất (auth 100% Discord OAuth2). */
+export type ResolvedWebUiSettings = WebUiSettings;
 
 /** Secret key pattern — các field chứa bí mật phải được mask khi hiển thị qua web. */
 const SECRET_KEY_RE = /(token|secret|password)/i;
@@ -44,9 +40,8 @@ export function isSecretKey(key: string): boolean {
  * (public repo), so secrets live under `webui` in config/config.yml (gitignored) instead.
  */
 export function readSecrets(appConfig: AppConfig): WebUiSecrets {
-  const webui = (appConfig as AppConfig & { webui?: { api_token?: string; oauth2?: { client_secret?: string } } }).webui;
+  const webui = (appConfig as AppConfig & { webui?: { oauth2?: { client_secret?: string } } }).webui;
   return {
-    apiToken: webui?.api_token ?? '',
     oauth2ClientSecret: webui?.oauth2?.client_secret ?? '',
   };
 }
@@ -74,13 +69,12 @@ export function resolveWebSettings(registry: RegistryLike): ResolvedWebUiSetting
       redirectUri: typeof oauth2.redirect_uri === 'string' ? oauth2.redirect_uri : '',
       clientSecret: secrets.oauth2ClientSecret,
     },
-    apiToken: secrets.apiToken,
   };
 }
 
-/** Auth đã đủ chưa: local-only + không token → OK (admin dashboard đơn giản). Non-local → bắt buộc. */
+/** Auth đã đủ chưa: local-only → OK (dev-safe). Non-local → bắt buộc Discord OAuth2. */
 export function hasEnoughAuth(settings: ResolvedWebUiSettings): boolean {
   const isLocal = settings.host === '127.0.0.1' || settings.host === 'localhost' || settings.host === '::1';
   if (isLocal) return true;
-  return settings.apiToken.length > 0 || settings.oauth2.clientSecret.length > 0;
+  return settings.oauth2.clientSecret.length > 0;
 }

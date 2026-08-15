@@ -1,20 +1,9 @@
 /**
- * Test auth — timing-safe so sánh, session, OAuth2 state/URL.
- * EN: Auth tests — timing-safe comparison, sessions, OAuth2 state/URL.
+ * Test auth — session + OAuth2 state/URL.
+ * EN: Auth tests — sessions and OAuth2 state/URL.
  */
 import { describe, it, expect } from 'vitest';
-import { AuthStore, buildAuthorizeUrl, safeEqual } from '../src/auth.js';
-
-describe('safeEqual', () => {
-  it('so sánh timing-safe: khớp → true, lệch → false, rỗng vs khác → false', () => {
-    expect(safeEqual('abc', 'abc')).toBe(true);
-    expect(safeEqual('abc', 'abd')).toBe(false);
-    expect(safeEqual('abc', '')).toBe(false);
-    expect(safeEqual('', 'x')).toBe(false);
-    // Hai chuỗi rỗng bằng nhau → true (đúng ngữ nghĩa); runtime không bao giờ gọi với rỗng.
-    expect(safeEqual('', '')).toBe(true);
-  });
-});
+import { AuthStore, buildAuthorizeUrl } from '../src/auth.js';
 
 describe('AuthStore', () => {
   it('tạo + lấy + xóa session', () => {

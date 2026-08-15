@@ -1,12 +1,11 @@
 /**
- * modules/webui/auth — session + OAuth2 Discord + so sánh token an toàn thời gian (§5.1).
- * EN: modules/webui/auth — sessions, Discord OAuth2, timing-safe token comparison.
+ * modules/webui/auth — session + Discord OAuth2 (login duy nhất của hệ thống).
+ * EN: modules/webui/auth — sessions and Discord OAuth2 (the only login method).
  *
- * - Admin: API token (config/config.yml `webui.api_token`) hoặc Discord OAuth2 (user trong
- *   admin_user_ids). So sánh bằng timingSafeEqual — chống brute-force timing attack.
+ * - Admin: Discord OAuth2 + user nằm trong admin_user_ids (config module defaults.yml).
  * - User: Discord OAuth2 (scope identify). Session lưu in-memory (Map) — không cần DB.
  */
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 export interface SessionInfo {
   id: string;
@@ -15,13 +14,6 @@ export interface SessionInfo {
   username?: string;
   avatar?: string | null;
   createdAt: number;
-}
-
-/** So sánh chuỗi timing-safe (hash SHA-256 đệm độ dài bằng nhau). */
-export function safeEqual(a: string, b: string): boolean {
-  const ha = createHash('sha256').update(a ?? '').digest();
-  const hb = createHash('sha256').update(b ?? '').digest();
-  return timingSafeEqual(ha, hb);
 }
 
 export class AuthStore {

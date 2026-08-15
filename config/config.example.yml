@@ -74,9 +74,6 @@ console:
 # Bỏ comment (uncomment) và điền giá trị thật khi dùng module webui.
 # EN: Uncomment and fill in real values when using the webui module.
 # webui:
-#   # Admin API token — dùng để đăng nhập admin dashboard (xác thực timing-safe).
-#   # EN: Admin API token used to log into the admin dashboard (timing-safe auth).
-#   api_token: "PASTE_ADMIN_API_TOKEN_HERE"
 #   oauth2:
 #     # Client secret của Discord OAuth2 app (Discord Developer Portal → OAuth2).
 #     # EN: Discord OAuth2 app client secret (Discord Developer Portal → OAuth2).

@@ -1,6 +1,6 @@
 /**
- * Test WebSocket — admin token hợp lệ nhận snapshot, token sai bị đóng.
- * EN: WebSocket tests — valid admin token receives snapshots, invalid token is closed.
+ * Test WebSocket — admin session hợp lệ nhận snapshot, session sai bị đóng.
+ * EN: WebSocket tests — valid admin session receives snapshots, invalid session is closed.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { copyFileSync, mkdirSync } from 'node:fs';
@@ -12,6 +12,7 @@ import { cleanupTempRoot, makeAppConfig, makeDiscordMock, makeLogger, makeManage
 import type { ResolvedWebUiSettings } from '../src/config.js';
 
 const REAL_PUBLIC = join(findProjectRoot(process.cwd()), 'modules', 'webui', 'public');
+const REAL_FETCH = globalThis.fetch;
 
 function connect(port: number, token: string): Promise<{ ws: WebSocket; first?: unknown; closeCode?: number }> {
   return new Promise((resolve) => {
@@ -56,11 +57,32 @@ describe('WebUiServer WebSocket', () => {
     });
     const settings: ResolvedWebUiSettings = {
       host: '127.0.0.1', port: 0, staticDir: 'public', publicHome: true,
-      adminUserIds: [], oauth2: { clientId: '', redirectUri: '', clientSecret: '' },
-      apiToken: 'test-admin-token',
+      adminUserIds: ['111-admin'], oauth2: { clientId: 'cid', redirectUri: 'http://localhost:3000/cb', clientSecret: 'sec' },
     };
     server = new WebUiServer({ registry, settings, logger: makeLogger() });
     port = await server.start();
+  }
+
+  /** Đăng nhập OAuth2 (fetch Discord mock) → trả admin session id. */
+  async function adminSession(): Promise<string> {
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === 'https://discord.com/api/oauth2/token') {
+        return new Response(JSON.stringify({ access_token: 'mock-access' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === 'https://discord.com/api/users/@me') {
+        return new Response(JSON.stringify({ id: '111-admin', username: 'tuan', avatar: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return REAL_FETCH(input, init);
+    };
+    try {
+      const login = await fetch(`http://127.0.0.1:${port}/oauth2/login`, { redirect: 'manual' });
+      const state = new URL(login.headers.get('location') ?? '').searchParams.get('state') ?? '';
+      const cb = await fetch(`http://127.0.0.1:${port}/oauth2/callback?code=mock&state=${encodeURIComponent(state)}`, { redirect: 'manual' });
+      return cb.headers.get('location')?.match(/session=([0-9a-f]+)/)?.[1] ?? '';
+    } finally {
+      globalThis.fetch = REAL_FETCH;
+    }
   }
 
   afterEach(async () => {
@@ -72,9 +94,11 @@ describe('WebUiServer WebSocket', () => {
     }
   });
 
-  it('token hợp lệ → nhận snapshot status+modules', async () => {
+  it('admin session hợp lệ → nhận snapshot status+modules', async () => {
     await startServer();
-    const { ws, first } = await connect(port, 'test-admin-token');
+    const sid = await adminSession();
+    expect(sid).toBeTruthy();
+    const { ws, first } = await connect(port, sid);
     expect(first).toBeTruthy();
     const msg = first as { type?: string; status?: { online?: boolean }; modules?: unknown[] };
     expect(msg.type).toBe('snapshot');
@@ -85,13 +109,13 @@ describe('WebUiServer WebSocket', () => {
     await new Promise((r) => setTimeout(r, 150));
   });
 
-  it('token sai → bị đóng (close code 4001)', async () => {
+  it('session sai → bị đóng (close code 4001)', async () => {
     await startServer();
     const { closeCode } = await connect(port, 'wrong-token');
     expect(closeCode).toBe(4001);
   });
 
-  it('không token → bị đóng', async () => {
+  it('không session → bị đóng', async () => {
     await startServer();
     const { closeCode } = await connect(port, '');
     expect(closeCode).toBe(4001);

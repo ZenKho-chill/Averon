@@ -34,7 +34,7 @@ function tempRoot(): string {
 
 describe('maskYamlContent', () => {
   it('mask giá trị của token/secret/password, giữ nguyên phần còn lại', () => {
-    const content = 'discord:\n  token: "super-secret-123"\nlogging:\n  level: INFO\nwebui:\n  api_token: "abc123"';
+    const content = 'discord:\n  token: "super-secret-123"\nlogging:\n  level: INFO\nwebui:\n  oauth2:\n    client_secret: "abc123"';
     const masked = maskYamlContent(content);
     expect(masked).not.toContain('super-secret-123');
     expect(masked).not.toContain('abc123');

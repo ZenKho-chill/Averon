@@ -4,7 +4,7 @@
  *
  * Routes:
  *   Công khai (public):   GET  /api/status, / , static assets
- *   Auth (admin/user):    POST /api/login, POST /api/logout, GET /api/me
+ *   Auth (admin/user):    POST /api/logout, GET /api/me (login duy nhất = Discord OAuth2)
  *   Admin:                GET /api/admin/* , POST /api/admin/modules/:name/:action,
  *                         POST /api/admin/config, GET /api/admin/logs, /ws (realtime)
  *   User (OAuth2):        GET /api/user/guilds
@@ -18,7 +18,7 @@ import { WebSocketServer } from 'ws';
 import type { Logger } from '../../../shared/logger/index.js';
 import type { RegistryLike } from '../../../core/src/registry/types.js';
 import type { ResolvedWebUiSettings } from './config.js';
-import { AuthStore, buildAuthorizeUrl, exchangeCode, fetchDiscordUser, safeEqual, type SessionInfo } from './auth.js';
+import { AuthStore, buildAuthorizeUrl, exchangeCode, fetchDiscordUser, type SessionInfo } from './auth.js';
 import * as api from './api.js';
 
 const MIME: Record<string, string> = {
@@ -105,7 +105,7 @@ export class WebUiServer {
     });
     wss.on('connection', (socket, req) => {
       const token = new URL(req.url ?? '/', 'http://localhost').searchParams.get('token') ?? '';
-      if (!this.authorizeAdminToken(token)) {
+      if (!this.authorizeAdminSession(token)) {
         socket.close(4001, 'unauthorized');
         return;
       }
@@ -135,19 +135,15 @@ export class WebUiServer {
     return url.searchParams.get('token') ?? '';
   }
 
-  /** Token hợp lệ cho admin: session admin hoặc api_token (timing-safe). */
-  private authorizeAdminToken(token: string): SessionInfo | null {
+  /** Admin hợp lệ: session kind=admin (chỉ tạo qua Discord OAuth2 + admin_user_ids). */
+  private authorizeAdminSession(token: string): SessionInfo | null {
     if (!token) return null;
     const session = this.auth.getSession(token);
-    if (session?.kind === 'admin') return session;
-    if (this.settings.apiToken && safeEqual(token, this.settings.apiToken)) {
-      return { id: token, kind: 'admin', createdAt: 0 };
-    }
-    return null;
+    return session?.kind === 'admin' ? session : null;
   }
 
   private requireAuth(req: IncomingMessage, res: ServerResponse, minKind: 'admin' | 'user'): SessionInfo | null {
-    const session = this.authorizeAdminToken(this.extractToken(req)) ?? this.auth.getSession(this.extractToken(req));
+    const session = this.auth.getSession(this.extractToken(req));
     if (!session) {
       this.json(res, 401, { ok: false, message: 'Unauthorized' });
       return null;
@@ -199,10 +195,6 @@ export class WebUiServer {
           avatar: session.avatar ?? null,
         },
       });
-      return;
-    }
-    if (method === 'POST' && pathname === '/api/login') {
-      await this.handleLogin(req, res);
       return;
     }
     if (method === 'POST' && pathname === '/api/logout') {
@@ -272,25 +264,6 @@ export class WebUiServer {
     }
 
     this.json(res, 404, { ok: false, message: `Not found: ${method} ${pathname}` });
-  }
-
-  private async handleLogin(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const body = await this.readJson(req).catch(() => null);
-    const token = typeof body?.token === 'string' ? body.token : '';
-    if (!this.settings.apiToken) {
-      this.json(res, 401, {
-        ok: false,
-        message: 'Admin auth chưa được cấu hình — đặt webui.api_token trong config/config.yml (hoặc Discord OAuth2 + admin_user_ids).',
-      });
-      return;
-    }
-    if (safeEqual(token, this.settings.apiToken)) {
-      const session = this.auth.createSession({ kind: 'admin' });
-      this.logger.info('Web: admin logged in');
-      this.json(res, 200, { ok: true, session: { id: session.id, kind: session.kind } });
-      return;
-    }
-    this.json(res, 403, { ok: false, message: 'Sai API token' });
   }
 
   private async handleOAuth2(_req: IncomingMessage, res: ServerResponse, pathname: string, url: URL): Promise<void> {

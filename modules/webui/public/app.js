@@ -56,7 +56,7 @@ function clearSession() {
 
 // ── View switching ──
 function showView(name) {
-  ['home', 'admin-login', 'admin', 'user'].forEach((v) => {
+  ['home', 'admin', 'user'].forEach((v) => {
     const el = $(`#view-${v}`);
     if (el) el.classList.toggle('hidden', v !== name);
   });
@@ -67,7 +67,6 @@ function showView(name) {
 
 function updateNav() {
   const hasSession = !!localStorage.getItem(SESSION_KEY);
-  $('#btn-admin-login').classList.toggle('hidden', hasSession || current?.kind === 'admin');
   $('#btn-discord-login').classList.toggle('hidden', hasSession);
   $('#btn-logout').classList.toggle('hidden', !hasSession);
   $('#nav-session').textContent = current
@@ -88,32 +87,11 @@ async function loadHome() {
   }
 }
 
-// ── Admin login ──
-function bindAdminLogin() {
-  $('#admin-login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const token = $('#admin-token').value.trim();
-    const errEl = $('#admin-login-error');
-    hide(errEl);
-    try {
-      const res = await api('/api/login', { method: 'POST', body: JSON.stringify({ token }) });
-      saveSession(res.session.id);
-      current = { kind: 'admin' };
-      showView('admin');
-      enterAdmin();
-    } catch (err) {
-      errEl.textContent = err.message;
-      show(errEl);
-    }
-  });
-}
-
 // ── Admin dashboard ──
 let adminTimer = null;
 let adminWs = null;
 
 function enterAdmin() {
-  $('#admin-token').value = '';
   current = { kind: 'admin' };
   showView('admin');
   selectTab('status');
@@ -312,8 +290,6 @@ async function enterUser() {
 
 // ── Boot ──
 async function boot() {
-  bindAdminLogin();
-
   $('#btn-logout').addEventListener('click', async () => {
     try { await api('/api/logout', { method: 'POST' }); } catch { /* noop */ }
     stopAdminTimers();
@@ -321,10 +297,7 @@ async function boot() {
     showView('home');
     loadHome();
   });
-  $('#btn-admin-login').addEventListener('click', () => showView('admin-login'));
   $('#btn-discord-login').addEventListener('click', () => { location.href = '/oauth2/login'; });
-  $('#home-admin').addEventListener('click', () => showView('admin-login'));
-  $('#home-admin-2').addEventListener('click', () => showView('admin-login'));
 
   $$('.tab').forEach((t) => t.addEventListener('click', () => selectTab(t.dataset.tab)));
   $('#config-target').addEventListener('change', (e) => renderConfigFor(e.target.value));
