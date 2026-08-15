@@ -1,3 +1,12 @@
+## [3.5.0] — 2024-05-18
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `modules/webio`: thêm module quản lý qua web dashboard và API (VI)
+  EN: Added `webio` module for web dashboard and API management.
+- `core/registry`: thêm các service manager, discord, usage, registry, root (VI)
+  EN: Added `manager`, `discord`, `usage`, `registry`, `root` services to `core/registry`.
+
 # CHANGELOG
 
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`

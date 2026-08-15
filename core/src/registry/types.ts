@@ -5,9 +5,19 @@
 import type { Logger } from '../../../shared/logger/index.js';
 import type { AppConfig } from '../config/index.js';
 
+import type { Registry } from './index.js';
+import type { UsageTracker } from './usage.js';
+import type { ModuleManager } from '../console/manager.js';
+import type { DiscordClient } from '../discord/index.js';
+
 export interface CoreServices {
   logger: Logger;
   config: AppConfig;
+  manager: ModuleManager;
+  discord: DiscordClient;
+  usage: UsageTracker;
+  registry: Registry;
+  root: string;
   // db: DatabaseClient; // (sẽ thêm sau)
 }
 
@@ -15,6 +25,8 @@ export type ServiceKey = keyof CoreServices;
 
 /** Tối thiểu core expose cho module để tra module đang chạy (không phải toàn bộ Registry). */
 export interface RegistryLike {
+  /** Lấy service (DI). */
+  getService<K extends ServiceKey>(key: K): CoreServices[K];
   /** Kiểm tra module có tồn tại không (non-throwing). */
   hasModule(name: string): boolean;
   /** Lấy module theo tên. */

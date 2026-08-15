@@ -96,6 +96,8 @@ export async function bootstrap() {
   // 4. Đăng ký service (DI)
   registry.registerService('logger', logger);
   registry.registerService('config', config);
+  registry.registerService('registry', registry);
+  registry.registerService('root', root);
 
   // 5. Load modules
   const loader = new ModuleLoader(registry, crashReporter, root);
@@ -107,8 +109,10 @@ export async function bootstrap() {
   // EN: Intents = CORE_INTENTS + all intents declared by modules on disk — discord.js cannot
   // add intents after login, so they are collected BEFORE creating the client (§4).
   const usage = new UsageTracker();
+  registry.registerService('usage', usage);
   const clientIntents = [...new Set([...CORE_INTENTS, ...collectDeclaredIntents(root)])];
   const discord = new DiscordClient(config, logger, usage, clientIntents);
+  registry.registerService('discord', discord);
   await discord.login(); // Đợi login + ready trước khi load module (fix latency -1ms)
 
   // ModuleManager: load toàn bộ module trên đĩa (discover modules/*) + gắn command listener
@@ -123,6 +127,7 @@ export async function bootstrap() {
     logger,
     softStopTimeoutMs: getConsoleConfig(config).soft_stop_timeout_ms,
   });
+  registry.registerService('manager', manager);
   await manager.loadAll();
 
   // Backup config cho từng module — chỉ backup config ĐÃ VALIDATE (đang dùng), KHÔNG backup

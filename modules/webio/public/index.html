@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Averon Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #d4d4d4; margin: 0; padding: 20px; }
+        h1, h2, h3 { color: #569cd6; }
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background-color: #252526; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #3c3c3c; }
+        th { color: #4ec9b0; }
+        button { background-color: #0e639c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        button:hover { background-color: #1177bb; }
+        #log-container { background-color: #000; padding: 10px; height: 300px; overflow-y: scroll; font-family: 'Courier New', Courier, monospace; font-size: 14px; border-radius: 4px; }
+        #auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-box { background: #252526; padding: 30px; border-radius: 8px; text-align: center; }
+        input[type="password"] { padding: 10px; width: 250px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #3c3c3c; background: #333; color: white; }
+        .full-width { grid-column: span 2; }
+    </style>
+</head>
+<body>
+    <div id="auth-overlay">
+        <div class="auth-box">
+            <h2>Authentication Required</h2>
+            <input type="password" id="token-input" placeholder="Enter Bearer Token">
+            <br>
+            <button onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <div class="container" style="display:none;" id="main-content">
+        <div class="card full-width">
+            <h2>Averon Dashboard</h2>
+            <p><strong>Uptime:</strong> <span id="stat-uptime">-</span></p>
+            <p><strong>Discord Status:</strong> <span id="stat-discord-ready">-</span></p>
+            <p><strong>Ping:</strong> <span id="stat-ping">-</span> ms</p>
+            <p><strong>Guilds:</strong> <span id="stat-guilds">-</span> | <strong>Users:</strong> <span id="stat-users">-</span></p>
+        </div>
+
+        <div class="card full-width">
+            <h2>Modules</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Version</th>
+                        <th>State</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="modules-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card full-width">
+            <h2>Realtime Logs</h2>
+            <div id="log-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('averon_token') || '';
+        let ws = null;
+
+        if (token) {
+            checkAuth();
+        }
+
+        async function login() {
+            token = document.getElementById('token-input').value;
+            localStorage.setItem('averon_token', token);
+            await checkAuth();
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const opts = {
+                method,
+                headers: { 'Authorization': `Bearer ${token}` }
+            };
+            if (body) {
+                opts.headers['Content-Type'] = 'application/json';
+                opts.body = JSON.stringify(body);
+            }
+            const res = await fetch(endpoint, opts);
+            if (res.status === 401) {
+                document.getElementById('auth-overlay').style.display = 'flex';
+                document.getElementById('main-content').style.display = 'none';
+                if(ws) ws.close();
+                throw new Error('Unauthorized');
+            }
+            return res.json();
+        }
+
+        async function checkAuth() {
+            try {
+                await apiCall('/api/status');
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('main-content').style.display = 'grid';
+                initDashboard();
+            } catch(e) {}
+        }
+
+        async function initDashboard() {
+            refreshModules();
+            connectWebSocket();
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}?token=${token}`);
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'stats') {
+                    document.getElementById('stat-uptime').innerText = formatDuration(msg.data.uptime);
+                    document.getElementById('stat-discord-ready').innerText = msg.data.discordReady ? 'Ready' : 'Offline';
+                    document.getElementById('stat-ping').innerText = msg.data.discordPing;
+                    document.getElementById('stat-guilds').innerText = msg.data.guilds;
+                    document.getElementById('stat-users').innerText = msg.data.users;
+                } else if (msg.type === 'log') {
+                    const logs = document.getElementById('log-container');
+                    const span = document.createElement('div');
+                    // Remove console colors for web display
+                    span.innerText = msg.data.replace(/\x1b\[[0-9;]*m/g, '');
+                    logs.appendChild(span);
+                    logs.scrollTop = logs.scrollHeight;
+                }
+            };
+
+            ws.onclose = () => {
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        async function refreshModules() {
+            const modules = await apiCall('/api/modules');
+            const tbody = document.getElementById('modules-body');
+            tbody.innerHTML = '';
+            modules.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${m.name}</td>
+                    <td>${m.version}</td>
+                    <td>${m.state}</td>
+                    <td>
+                        <button onclick="moduleAction('${m.name}', 'load')">Load</button>
+                        <button onclick="moduleAction('${m.name}', 'unload')">Unload</button>
+                        <button onclick="moduleAction('${m.name}', 'reload')">Reload</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function moduleAction(name, action) {
+            try {
+                await apiCall(`/api/modules/${name}/${action}`, 'POST');
+                setTimeout(refreshModules, 1000);
+            } catch (e) {
+                alert('Action failed');
+            }
+        }
+
+        function formatDuration(s) {
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            const sec = Math.floor(s % 60);
+            return `${h}h ${m}m ${sec}s`;
+        }
+    </script>
+</body>
+</html>

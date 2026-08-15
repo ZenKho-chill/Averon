@@ -1,0 +1,12 @@
+name: webio
+version: 1.0.0
+runtime:
+  language: typescript
+  engine: node
+  version: ">=18"
+  transport: in-process
+entry: src/index.ts
+config:
+  schema: config/schema.yml
+  defaults: config/defaults.yml
+commands: []
