@@ -1,0 +1,25 @@
+# Config mặc định cho module tempvoice — chỉnh trực tiếp file này (config module nằm trong folder module).
+# EN: Default config for module tempvoice — edit this file directly (module config lives in the module folder).
+#
+# hub_channel_id: ID kênh voice "hub". Khi user join kênh này, bot tự tạo 1 kênh thoại tạm
+# (tên theo channel_name_template) và chuyển user vào đó. Rời kênh + kênh trống → bot xóa sau
+# delete_empty_delay_ms. Để trống "" → module chưa hoạt động (log cảnh báo 1 lần).
+# EN: hub_channel_id: the voice "hub" channel ID. When a user joins it, the bot creates a temp
+# voice channel (name per channel_name_template) and moves them in. Leaving + empty → deleted after
+# delete_empty_delay_ms. Empty "" → module idle (logs a one-time warning).
+hub_channel_id: ""
+# channel_name_template: tên kênh tạm — {username} = tên Discord của user (giới hạn 100 ký tự của Discord).
+# EN: channel_name_template: temp channel name — {username} = user's Discord name (Discord caps at 100 chars).
+channel_name_template: "{username}'s Channel"
+# category_id: (tùy chọn) ID category để tạo kênh tạm bên trong. Trống → tạo ở root của guild.
+# EN: category_id: (optional) category ID to create the temp channel under. Empty → guild root.
+category_id: ""
+# max_users: giới hạn slot của kênh tạm. 0 → không giới hạn.
+# EN: max_users: user limit for the temp channel. 0 → unlimited.
+max_users: 0
+# bitrate_kbps: bitrate kênh tạm (kbps). 0 → mặc định của guild.
+# EN: bitrate_kbps: temp channel bitrate (kbps). 0 → guild default.
+bitrate_kbps: 0
+# delete_empty_delay_ms: delay (ms) trước khi xóa kênh tạm sau khi rỗng.
+# EN: delete_empty_delay_ms: delay (ms) before deleting the temp channel once empty.
+delete_empty_delay_ms: 3000

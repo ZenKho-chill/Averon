@@ -3,6 +3,13 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [3.4.0] — 2026-08-14
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `modules/tempvoice`: module mới — kênh thoại tạm thời (kiểu VoiceMaster). User join kênh "hub" → bot tạo kênh voice riêng (tên theo `channel_name_template`, `{username}` = tên user) và chuyển user vào; user rời + kênh rỗng → xóa sau `delete_empty_delay_ms`. Config: `hub_channel_id`, `channel_name_template`, `category_id`, `max_users`, `bitrate_kbps`, `delete_empty_delay_ms`. Chỉ xóa kênh do module tạo (track trong module-scope). Khai báo `intents: [GuildVoiceStates]` trong module.yml — restart bot để áp dụng. Kèm 20 test (VI)
+  EN: New `modules/tempvoice` — temporary voice channels (VoiceMaster-style). Joining the "hub" channel makes the bot create a private voice channel (name per `channel_name_template`, `{username}` = user name) and move the user in; leaving + empty → deleted after `delete_empty_delay_ms`. Config: `hub_channel_id`, `channel_name_template`, `category_id`, `max_users`, `bitrate_kbps`, `delete_empty_delay_ms`. Only module-created channels are deleted (tracked in module scope). Declares `intents: [GuildVoiceStates]` in module.yml — restart the bot to apply. 20 tests included.
+
 ## [3.3.0] — 2026-08-14
 **Loại / Type:** MINOR — thêm tính năng mới / new feature
 

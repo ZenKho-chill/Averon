@@ -1,0 +1,28 @@
+# JSON Schema cho config module tempvoice
+# EN: JSON Schema for module tempvoice config
+$schema: http://json-schema.org/draft-07/schema#
+title: TempVoice module config
+type: object
+additionalProperties: false
+properties:
+  hub_channel_id:
+    type: string
+    description: "ID kênh voice hub — user join vào để bot tạo kênh tạm / EN: hub voice channel ID — joining it triggers a temp channel"
+  channel_name_template:
+    type: string
+    description: "Template tên kênh tạm, {username} = tên user / EN: temp channel name template, {username} = user name"
+  category_id:
+    type: string
+    description: "ID category (tùy chọn) chứa kênh tạm / EN: optional category ID for temp channels"
+  max_users:
+    type: integer
+    minimum: 0
+    description: "Giới hạn slot kênh tạm, 0 = không giới hạn / EN: temp channel user limit, 0 = unlimited"
+  bitrate_kbps:
+    type: integer
+    minimum: 0
+    description: "Bitrate kênh tạm (kbps), 0 = mặc định guild / EN: temp channel bitrate (kbps), 0 = guild default"
+  delete_empty_delay_ms:
+    type: integer
+    minimum: 0
+    description: "Delay xóa kênh tạm khi rỗng (ms) / EN: delay before deleting an empty temp channel (ms)"
