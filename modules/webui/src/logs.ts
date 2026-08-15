@@ -180,7 +180,7 @@ export class LogTailer {
     return out;
   }
 
-  /** N dòng gần nhất trong buffer (cho GET /api/admin/logs). */
+  /** N dòng gần nhất trong buffer (cho GET /api/v1/admin/logs). */
   recent(limit: number): TailLine[] {
     const n = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), this.maxBuffer) : this.maxBuffer;
     return this.buffer.slice(-n);

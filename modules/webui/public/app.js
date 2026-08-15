@@ -77,7 +77,7 @@ function updateNav() {
 // ── Homepage (public info + invite CTA) ──
 async function loadHome() {
   try {
-    const s = await api('/api/status');
+    const s = await api('/api/v1/status');
     $('#home-version').textContent = `${s.name ?? 'Averon'} · v${s.version}`;
     const invite = typeof s.inviteUrl === 'string' && s.inviteUrl ? s.inviteUrl : '';
     $('#btn-invite').href = invite;
@@ -146,7 +146,7 @@ function connectWs() {
 
 async function refreshAdminStatus() {
   try {
-    const s = await api('/api/admin/status');
+    const s = await api('/api/v1/admin/status');
     renderAdminStatus(s);
   } catch { /* chờ WS hoặc lần sau */ }
 }
@@ -161,7 +161,7 @@ function renderAdminStatus(s) {
 
 async function refreshModules() {
   try {
-    const { modules } = await api('/api/admin/modules');
+    const { modules } = await api('/api/v1/admin/modules');
     renderModules(modules);
   } catch { /* noop */ }
 }
@@ -190,7 +190,7 @@ function renderModules(modules) {
 
 async function moduleAction(name, action) {
   try {
-    const res = await api(`/api/admin/modules/${encodeURIComponent(name)}/${action}`, { method: 'POST' });
+    const res = await api(`/api/v1/admin/modules/${encodeURIComponent(name)}/${action}`, { method: 'POST' });
     alert(res.message || `${action} ${name}`);
     refreshModules();
     refreshAdminStatus();
@@ -202,7 +202,7 @@ async function moduleAction(name, action) {
 // ── Logs ──
 async function loadLogs() {
   try {
-    const { logs } = await api('/api/admin/logs?limit=200');
+    const { logs } = await api('/api/v1/admin/logs?limit=200');
     const view = $('#logs-view');
     view.textContent = logs.length ? logs.map((l) => l.line).join('\n') : '(không có log)';
   } catch { /* noop */ }
@@ -226,7 +226,7 @@ function appendLogs(lines) {
 // ── Usage stats ──
 async function loadUsage() {
   try {
-    const s = await api('/api/admin/usage');
+    const s = await api('/api/v1/admin/usage');
     $('#usage-summary').innerHTML =
       `<div class="stat"><span class="stat-value">${s.total}</span><span class="stat-label">Tổng lệnh đã dùng</span></div>` +
       `<div class="stat"><span class="stat-value">${s.perModule.length}</span><span class="stat-label">Module có hoạt động</span></div>` +
@@ -257,15 +257,15 @@ let userInviteUrl = '';
 async function enterUser() {
   showView('user');
   try {
-    const me = await api('/api/me');
+    const me = await api('/api/v1/me');
     current = me.session;
     updateNav();
     $('#user-name').textContent = me.session.username || 'Người dùng';
     $('#user-id').textContent = me.session.userId ? `ID: ${me.session.userId}` : '';
     $('#user-avatar').textContent = (me.session.username || '?').slice(0, 1).toUpperCase();
-    const status = await api('/api/status');
+    const status = await api('/api/v1/status');
     userInviteUrl = typeof status.inviteUrl === 'string' && status.inviteUrl ? status.inviteUrl : '';
-    const { guilds } = await api('/api/user/guilds');
+    const { guilds } = await api('/api/v1/user/guilds');
     const wrap = $('#user-guilds');
     wrap.innerHTML = '';
     if (!guilds.length) {
@@ -310,7 +310,7 @@ async function boot() {
   });
 
   $('#btn-logout').addEventListener('click', async () => {
-    try { await api('/api/logout', { method: 'POST' }); } catch { /* noop */ }
+    try { await api('/api/v1/logout', { method: 'POST' }); } catch { /* noop */ }
     stopAdminTimers();
     clearSession();
     showView('home');
@@ -353,7 +353,7 @@ async function boot() {
     return;
   }
   try {
-    const me = await api('/api/me');
+    const me = await api('/api/v1/me');
     current = me.session;
     if (current.kind === 'admin') {
       enterAdmin();

@@ -59,14 +59,14 @@ webui:
 | Method + Path | Auth | Mô tả / EN |
 |---|---|---|
 | `GET /` | public | Homepage / admin dashboard SPA |
-| `GET /api/status` | public | Status public: online, modules count |
-| `POST /api/logout` | session | Đăng xuất |
-| `GET /api/me` | session | Session hiện tại |
+| `GET /api/v1/status` | public | Status public: online, modules count |
+| `POST /api/v1/logout` | session | Đăng xuất |
+| `GET /api/v1/me` | session | Session hiện tại |
 | `GET /oauth2/login` · `GET /oauth2/callback` | — | Discord OAuth2 flow (login duy nhất) |
-| `GET /api/admin/status` · `modules` · `logs` | admin | Dữ liệu dashboard admin |
-| `POST /api/admin/modules/:name/:action` | admin | `load` / `unload` / `reload` module |
-| `GET /api/admin/usage` | admin | Thống kê usage command (tổng + theo module/lệnh/guild) |
-| `GET /api/user/guilds` | user | Guilds dùng chung bot ↔ user (kèm iconUrl + userCanManage) |
+| `GET /api/v1/admin/status` · `modules` · `logs` | admin | Dữ liệu dashboard admin |
+| `POST /api/v1/admin/modules/:name/:action` | admin | `load` / `unload` / `reload` module |
+| `GET /api/v1/admin/usage` | admin | Thống kê usage command (tổng + theo module/lệnh/guild) |
+| `GET /api/v1/user/guilds` | user | Guilds dùng chung bot ↔ user (kèm iconUrl + userCanManage) |
 | `WS /ws?token=…` | admin session | Realtime snapshot (status + modules + log stream) mỗi 3s |
 
 ## Bảo mật / Security
