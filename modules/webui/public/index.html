@@ -154,7 +154,7 @@
           </div>
         </div>
         <h3>Guild chung với bot</h3>
-        <ul id="user-guilds" class="list"></ul>
+        <div id="user-guilds" class="guilds"></div>
       </div>
     </section>
 
@@ -165,6 +165,9 @@
         <button class="tab" data-tab="modules">Modules</button>
         <button class="tab" data-tab="config">Config</button>
         <button class="tab" data-tab="logs">Logs</button>
+        <button class="tab" data-tab="usage">Usage</button>
+        <button class="tab" data-tab="crash">Crash</button>
+        <button class="tab" data-tab="backups">Backups</button>
       </div>
 
       <div id="panel-status" class="panel">
@@ -198,6 +201,45 @@
       <div id="panel-logs" class="panel hidden">
         <button id="logs-refresh" class="btn btn-outline">Refresh</button>
         <pre id="logs-view" class="logs"></pre>
+      </div>
+
+      <div id="panel-usage" class="panel hidden">
+        <p class="muted small">Thống kê lệnh được dùng (từ log — từ khi server khởi động).</p>
+        <div class="stats" id="usage-summary"></div>
+        <div class="usage-grid">
+          <div>
+            <h3>Theo module</h3>
+            <table class="table"><thead><tr><th>Module</th><th>Lần dùng</th></tr></thead><tbody id="usage-modules"></tbody></table>
+          </div>
+          <div>
+            <h3>Theo lệnh</h3>
+            <table class="table"><thead><tr><th>Lệnh</th><th>Lần dùng</th></tr></thead><tbody id="usage-commands"></tbody></table>
+          </div>
+          <div>
+            <h3>Theo guild</h3>
+            <table class="table"><thead><tr><th>Guild</th><th>Lần dùng</th></tr></thead><tbody id="usage-guilds"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-crash" class="panel hidden">
+        <button id="crash-refresh" class="btn btn-outline">Refresh</button>
+        <div class="crash-layout">
+          <ul id="crash-list" class="list"></ul>
+          <pre id="crash-view" class="logs"></pre>
+        </div>
+      </div>
+
+      <div id="panel-backups" class="panel hidden">
+        <button id="backups-refresh" class="btn btn-outline">Refresh</button>
+        <div id="backups-core">
+          <h3>Core config (config/config.yml)</h3>
+          <table class="table"><thead><tr><th>File</th><th>Thời gian</th><th></th></tr></thead><tbody id="backups-core-body"></tbody></table>
+        </div>
+        <div id="backups-modules">
+          <h3>Config module</h3>
+          <div id="backups-modules-body"></div>
+        </div>
       </div>
     </section>
   </main>

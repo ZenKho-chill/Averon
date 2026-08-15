@@ -1,6 +1,7 @@
 /**
- * Test api — mask secret, module action, config save (validate+backup+write+reload), logs, guilds.
- * EN: API tests — secret masking, module actions, config save, logs, shared guilds.
+ * Test api — mask secret, module action, config save (validate+backup+write+reload), crash reports,
+ * backups (list/restore), shared guilds.
+ * EN: API tests — secret masking, module actions, config save, crash reports, backups, shared guilds.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
@@ -8,9 +9,12 @@ import { join } from 'node:path';
 import {
   getPublicModules,
   getSharedGuilds,
+  listBackups,
   maskYamlContent,
   readConfigs,
-  readLogLines,
+  readCrashReport,
+  readCrashReports,
+  restoreBackup,
   runModuleAction,
   saveConfig,
 } from '../src/api.js';
@@ -48,18 +52,115 @@ describe('maskYamlContent', () => {
   });
 });
 
-describe('readLogLines', () => {
-  it('đọc N dòng log mới nhất (giới hạn an toàn)', () => {
+describe('readCrashReports', () => {
+  it('liệt kê crash report mới nhất trước; thiếu thư mục → rỗng', () => {
     const root = tempRoot();
-    writeFileSync(join(root, 'logs', 'averon-2026-01-01.log'), ['a', 'b', 'c', 'd'].join('\n'), 'utf8');
-    const lines = readLogLines(root, 2);
-    expect(lines).toHaveLength(2);
-    expect(lines[0].line).toBe('c');
-    expect(lines[0].file).toContain('.log');
+    expect(readCrashReports(root)).toEqual([]);
+
+    mkdirSync(join(root, 'crash-reports'));
+    writeFileSync(join(root, 'crash-reports', 'crash-1.json'), '{}', 'utf8');
+    writeFileSync(join(root, 'crash-reports', 'crash-2.json'), '{}', 'utf8');
+    const reports = readCrashReports(root);
+    expect(reports).toHaveLength(2);
+    expect(reports[0].file).toBe('crash-2.json'); // mới nhất trước
   });
 
-  it('không có thư mục logs → rỗng', () => {
-    expect(readLogLines('C:/no-such-dir-xyz', 10)).toEqual([]);
+  it('readCrashReport đọc nội dung; chặn path traversal + file không hợp lệ', () => {
+    const root = tempRoot();
+    mkdirSync(join(root, 'crash-reports'));
+    writeFileSync(join(root, 'crash-reports', 'crash-1.json'), '{"error":"boom"}', 'utf8');
+
+    expect(readCrashReport(root, 'crash-1.json')).toContain('boom');
+    expect(readCrashReport(root, '..%2F..%2Fconfig.yml')).toBeNull();
+    expect(readCrashReport(root, '../config.yml')).toBeNull();
+    expect(readCrashReport(root, 'not-a-crash.json')).toBeNull();
+    expect(readCrashReport(root, 'crash-1.txt')).toBeNull();
+  });
+});
+
+describe('listBackups / restoreBackup', () => {
+  function seedCoreBackup(root: string, fileName: string, content: string): void {
+    mkdirSync(join(root, 'config', 'backups'), { recursive: true });
+    writeFileSync(join(root, 'config', 'backups', fileName), content, 'utf8');
+  }
+
+  function seedModuleBackup(root: string, mod: string, fileName: string, content: string): void {
+    mkdirSync(join(root, 'modules', mod, 'config', 'backups'), { recursive: true });
+    writeFileSync(join(root, 'modules', mod, 'config', 'backups', fileName), content, 'utf8');
+  }
+
+  it('listBackups trả core + module, chỉ module có backup', () => {
+    const root = tempRoot();
+    seedCoreBackup(root, 'config-2026-08-15_10-00-00.bak', 'discord:\n  token: "x"');
+    seedModuleBackup(root, 'testmod', 'module-testmod-2026-08-15_10-00-00.bak', 'port: 3000');
+
+    const registry = makeRegistry({
+      registry: { getAllModules: () => [
+        { name: 'testmod', commands: [], events: [] },
+        { name: 'nobackup', commands: [], events: [] },
+      ] },
+    });
+    const { core, modules } = listBackups(root, registry);
+    expect(core).toHaveLength(1);
+    expect(core[0].file).toContain('config-');
+    expect(modules).toHaveLength(1);
+    expect(modules[0].name).toBe('testmod');
+    expect(modules[0].backups[0].file).toContain('module-testmod-');
+  });
+
+  it('restoreBackup core: validate → khôi phục file config.yml', async () => {
+    const root = tempRoot();
+    seedTempRoot(root);
+    seedCoreBackup(root, 'config-2026-08-15_10-00-00.bak', VALID_CORE_YAML.replace('test-token-123', 'restored-token-999'));
+
+    const result = await restoreBackup(root, makeRegistry({}), { scope: 'core', file: 'config-2026-08-15_10-00-00.bak' });
+    expect(result.ok).toBe(true);
+    expect(readFileSync(join(root, 'config', 'config.yml'), 'utf8')).toContain('restored-token-999');
+  });
+
+  it('restoreBackup module: validate → khôi phục defaults.yml + reload module', async () => {
+    const root = tempRoot();
+    const modDir = join(root, 'modules', 'testmod');
+    mkdirSync(join(modDir, 'config'), { recursive: true });
+    writeFileSync(join(modDir, 'module.yml'), 'name: testmod\nversion: 1.0.0\nconfig:\n  schema: config/schema.yml', 'utf8');
+    writeFileSync(join(modDir, 'config', 'schema.yml'), 'type: object\nadditionalProperties: false\nproperties:\n  port:\n    type: integer\n', 'utf8');
+    writeFileSync(join(modDir, 'config', 'defaults.yml'), 'port: 3000', 'utf8');
+    seedModuleBackup(root, 'testmod', 'module-testmod-2026-08-15_10-00-00.bak', 'port: 8080');
+
+    let reloadCalled = false;
+    const manager = {
+      ...makeManagerMock(),
+      reload: async (name: string) => { reloadCalled = true; return { ok: true, name }; },
+    };
+    const result = await restoreBackup(root, makeRegistry({ manager }), {
+      scope: 'module',
+      name: 'testmod',
+      file: 'module-testmod-2026-08-15_10-00-00.bak',
+    });
+    expect(result.ok).toBe(true);
+    expect(reloadCalled).toBe(true);
+    expect(readFileSync(join(modDir, 'config', 'defaults.yml'), 'utf8')).toBe('port: 8080');
+  });
+
+  it('restoreBackup backup không hợp lệ theo schema → không ghi', async () => {
+    const root = tempRoot();
+    const modDir = join(root, 'modules', 'testmod');
+    mkdirSync(join(modDir, 'config'), { recursive: true });
+    writeFileSync(join(modDir, 'module.yml'), 'name: testmod\nversion: 1.0.0\nconfig:\n  schema: config/schema.yml', 'utf8');
+    writeFileSync(join(modDir, 'config', 'schema.yml'), 'type: object\nadditionalProperties: false\nproperties:\n  port:\n    type: integer\n', 'utf8');
+    writeFileSync(join(modDir, 'config', 'defaults.yml'), 'port: 3000', 'utf8');
+    seedModuleBackup(root, 'testmod', 'module-testmod-2026-08-15_10-00-00.bak', 'port: "khong-phai-so"');
+
+    const result = await restoreBackup(root, makeRegistry({}), { scope: 'module', name: 'testmod', file: 'module-testmod-2026-08-15_10-00-00.bak' });
+    expect(result.ok).toBe(false);
+    expect(readFileSync(join(modDir, 'config', 'defaults.yml'), 'utf8')).toBe('port: 3000');
+  });
+
+  it('restoreBackup chặn tên file traversal / không tồn tại', async () => {
+    const root = tempRoot();
+    seedTempRoot(root);
+    expect((await restoreBackup(root, makeRegistry({}), { scope: 'core', file: '../config/config.yml' })).ok).toBe(false);
+    expect((await restoreBackup(root, makeRegistry({}), { scope: 'core', file: 'config-ghost.bak' })).ok).toBe(false);
   });
 });
 
@@ -252,12 +353,35 @@ describe('getPublicModules', () => {
 });
 
 describe('getSharedGuilds', () => {
-  it('liệt kê guild user đang là thành viên', async () => {
+  it('liệt kê guild user đang là thành viên (kèm iconUrl + userCanManage)', async () => {
     const { client } = makeDiscordMock();
     const registry = makeRegistry({ discord: { getClient: () => client } });
     const guilds = await getSharedGuilds(registry, 'user-1');
     expect(guilds).toHaveLength(1);
-    expect(guilds[0].name).toBe('Test Guild');
+    expect(guilds[0]).toMatchObject({
+      id: '111',
+      name: 'Test Guild',
+      memberCount: 42,
+      userCanManage: false,
+    });
+    expect(guilds[0].iconUrl).toBeNull(); // icon null trong mock
+  });
+
+  it('userCanManage true khi member có permission ManageGuild', async () => {
+    const { client, guild } = makeDiscordMock();
+    guild.members.cache.set('admin-1', { permissions: { has: (bit: bigint) => bit === 32n } });
+    const registry = makeRegistry({ discord: { getClient: () => client } });
+    const guilds = await getSharedGuilds(registry, 'admin-1');
+    expect(guilds).toHaveLength(1);
+    expect(guilds[0].userCanManage).toBe(true);
+  });
+
+  it('iconUrl dựng từ CDN khi guild có icon', async () => {
+    const { client, guild } = makeDiscordMock();
+    guild.icon = 'abc123';
+    const registry = makeRegistry({ discord: { getClient: () => client } });
+    const guilds = await getSharedGuilds(registry, 'user-1');
+    expect(guilds[0].iconUrl).toBe('https://cdn.discordapp.com/icons/111/abc123.png?size=128');
   });
 
   it('user không phải thành viên → không trả guild', async () => {

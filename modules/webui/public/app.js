@@ -103,10 +103,13 @@ function enterAdmin() {
 
 function selectTab(name) {
   $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  ['status', 'modules', 'config', 'logs'].forEach((p) => $(`#panel-${p}`).classList.toggle('hidden', p !== name));
+  ['status', 'modules', 'config', 'logs', 'usage', 'crash', 'backups'].forEach((p) => $(`#panel-${p}`).classList.toggle('hidden', p !== name));
   if (name === 'modules') refreshModules();
   if (name === 'config') loadConfigTargets();
   if (name === 'logs') loadLogs();
+  if (name === 'usage') loadUsage();
+  if (name === 'crash') loadCrashReports();
+  if (name === 'backups') loadBackups();
 }
 
 function startAdminTimers() {
@@ -136,6 +139,7 @@ function connectWs() {
       if (msg.type === 'snapshot') {
         renderAdminStatus(msg.status);
         renderModules(msg.modules);
+        if (msg.logs && msg.logs.length) appendLogs(msg.logs);
       }
     } catch { /* bỏ qua */ }
   };
@@ -261,7 +265,158 @@ async function loadLogs() {
   } catch { /* noop */ }
 }
 
+/** Append dòng log mới (realtime qua WS) — chỉ khi đang xem tab Logs. */
+function appendLogs(lines) {
+  const panel = $('#panel-logs');
+  if (panel.classList.contains('hidden')) return;
+  const view = $('#logs-view');
+  for (const l of lines) {
+    const isMarker = l.line.startsWith('===');
+    view.textContent += (view.textContent ? '\n' : '') + l.line;
+    if (isMarker && view.textContent.split('\n').length > 400) {
+      view.textContent = view.textContent.split('\n').slice(-300).join('\n');
+    }
+  }
+  view.scrollTop = view.scrollHeight;
+}
+
+// ── Usage stats ──
+async function loadUsage() {
+  try {
+    const s = await api('/api/admin/usage');
+    $('#usage-summary').innerHTML =
+      `<div class="stat"><span class="stat-value">${s.total}</span><span class="stat-label">Tổng lệnh đã dùng</span></div>` +
+      `<div class="stat"><span class="stat-value">${s.perModule.length}</span><span class="stat-label">Module có hoạt động</span></div>` +
+      `<div class="stat"><span class="stat-value">${s.perGuild.length}</span><span class="stat-label">Guild</span></div>`;
+    renderUsageRows('#usage-modules', s.perModule);
+    renderUsageRows('#usage-commands', s.perCommand);
+    renderUsageRows('#usage-guilds', s.perGuild);
+  } catch { /* noop */ }
+}
+
+function renderUsageRows(sel, rows) {
+  const body = $(sel);
+  body.innerHTML = '';
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="2" class="muted">Chưa có dữ liệu.</td></tr>';
+    return;
+  }
+  for (const r of rows.slice(0, 50)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="mono">${esc(r.name)}</span></td><td>${r.count}</td>`;
+    body.appendChild(tr);
+  }
+}
+
+// ── Crash reports ──
+let crashCache = [];
+
+async function loadCrashReports() {
+  try {
+    const { reports } = await api('/api/admin/crash-reports');
+    crashCache = reports;
+    const ul = $('#crash-list');
+    ul.innerHTML = '';
+    if (!reports.length) {
+      ul.innerHTML = '<li class="muted">Không có crash report nào.</li>';
+      return;
+    }
+    for (const r of reports) {
+      const li = document.createElement('li');
+      li.innerHTML =
+        `<button class="crash-item btn-link" data-file="${esc(r.file)}">${esc(r.file)}</button> ` +
+        `<span class="muted small">${esc(r.mtime)} · ${r.size}B</span>`;
+      ul.appendChild(li);
+    }
+    // Tự mở bản mới nhất nếu chưa có view.
+    if (!$('#crash-view').textContent && reports.length) {
+      viewCrashReport(reports[0].file);
+    }
+  } catch { /* noop */ }
+}
+
+async function viewCrashReport(file) {
+  try {
+    const { content } = await api(`/api/admin/crash-reports/${encodeURIComponent(file)}`);
+    $('#crash-view').textContent = content;
+  } catch (err) {
+    $('#crash-view').textContent = `Lỗi: ${err.message}`;
+  }
+}
+
+// ── Backups ──
+async function loadBackups() {
+  try {
+    const { core, modules } = await api('/api/admin/backups');
+    const coreBody = $('#backups-core-body');
+    coreBody.innerHTML = '';
+    if (!core.length) {
+      coreBody.innerHTML = '<tr><td colspan="3" class="muted">Chưa có backup.</td></tr>';
+    } else {
+      for (const b of core) {
+        coreBody.appendChild(backupRow('core', '', b));
+      }
+    }
+    const modsWrap = $('#backups-modules-body');
+    modsWrap.innerHTML = '';
+    if (!modules.length) {
+      modsWrap.innerHTML = '<p class="muted small">Chưa có backup module.</p>';
+    } else {
+      for (const m of modules) {
+        const box = document.createElement('div');
+        box.className = 'card';
+        box.innerHTML = `<h4>${esc(m.name)}</h4>`;
+        const table = document.createElement('table');
+        table.className = 'table';
+        table.innerHTML = '<thead><tr><th>File</th><th>Thời gian</th><th></th></tr></thead>';
+        const tbody = document.createElement('tbody');
+        for (const b of m.backups) tbody.appendChild(backupRow('module', m.name, b));
+        table.appendChild(tbody);
+        box.appendChild(table);
+        modsWrap.appendChild(box);
+      }
+    }
+  } catch { /* noop */ }
+}
+
+function backupRow(scope, name, b) {
+  const tr = document.createElement('tr');
+  const tdFile = document.createElement('td');
+  tdFile.innerHTML = `<span class="mono small">${esc(b.file)}</span>`;
+  const tdMtime = document.createElement('td');
+  tdMtime.className = 'small muted';
+  tdMtime.textContent = b.mtime;
+  const tdBtn = document.createElement('td');
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-xs';
+  btn.textContent = 'Khôi phục';
+  btn.dataset.scope = scope;
+  btn.dataset.name = name;
+  btn.dataset.file = b.file;
+  tdBtn.appendChild(btn);
+  tr.appendChild(tdFile);
+  tr.appendChild(tdMtime);
+  tr.appendChild(tdBtn);
+  return tr;
+}
+
+async function restoreBackup(scope, name, file) {
+  if (!window.confirm(`Khôi phục '${file}'? Config hiện tại sẽ bị ghi đè.`)) return;
+  try {
+    const res = await api('/api/admin/backups/restore', {
+      method: 'POST',
+      body: JSON.stringify({ scope, name, file }),
+    });
+    alert(res.message || (res.ok ? 'Đã khôi phục' : 'Khôi phục thất bại'));
+    loadBackups();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
 // ── User dashboard ──
+let userInviteUrl = '';
+
 async function enterUser() {
   showView('user');
   try {
@@ -271,17 +426,29 @@ async function enterUser() {
     $('#user-name').textContent = me.session.username || 'Người dùng';
     $('#user-id').textContent = me.session.userId ? `ID: ${me.session.userId}` : '';
     $('#user-avatar').textContent = (me.session.username || '?').slice(0, 1).toUpperCase();
+    const status = await api('/api/status');
+    userInviteUrl = typeof status.inviteUrl === 'string' && status.inviteUrl ? status.inviteUrl : '';
     const { guilds } = await api('/api/user/guilds');
-    const ul = $('#user-guilds');
-    ul.innerHTML = '';
+    const wrap = $('#user-guilds');
+    wrap.innerHTML = '';
     if (!guilds.length) {
-      ul.innerHTML = '<li class="muted">Chưa có guild chung nào với bot.</li>';
-    } else {
-      for (const g of guilds) {
-        const li = document.createElement('li');
-        li.textContent = `${g.name} (${g.memberCount} thành viên)`;
-        ul.appendChild(li);
-      }
+      wrap.innerHTML = '<p class="muted">Chưa có guild chung nào với bot.</p>';
+      return;
+    }
+    for (const g of guilds) {
+      const card = document.createElement('div');
+      card.className = 'guild-card';
+      card.innerHTML =
+        `<div class="guild-icon">${g.iconUrl ? `<img src="${esc(g.iconUrl)}" alt="" loading="lazy">` : esc((g.name || '?').slice(0, 1).toUpperCase())}</div>` +
+        `<div class="guild-info">` +
+        `<div class="strong">${esc(g.name)}</div>` +
+        `<div class="muted small">${g.memberCount} thành viên</div>` +
+        `</div>` +
+        `<div class="guild-actions">` +
+        (g.userCanManage ? '<span class="badge badge-ok">Bạn quản lý guild này</span>' : '') +
+        (userInviteUrl ? `<a class="btn btn-xs btn-outline" target="_blank" rel="noopener" href="${esc(userInviteUrl)}&guild_id=${encodeURIComponent(g.id)}&disable_guild_select=true">Invite bot</a>` : '') +
+        `</div>`;
+      wrap.appendChild(card);
     }
   } catch (err) {
     setText('#user-id', err.message);
@@ -324,6 +491,16 @@ async function boot() {
   $('#modules-body').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act]');
     if (btn) moduleAction(btn.dataset.name, btn.dataset.act);
+  });
+  $('#crash-refresh').addEventListener('click', loadCrashReports);
+  $('#crash-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-file]');
+    if (btn) viewCrashReport(btn.dataset.file);
+  });
+  $('#backups-refresh').addEventListener('click', loadBackups);
+  $('#panel-backups').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-file]');
+    if (btn) restoreBackup(btn.dataset.scope, btn.dataset.name, btn.dataset.file);
   });
 
   // Xử lý callback OAuth2: /#session=<token>

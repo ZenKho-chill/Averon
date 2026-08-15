@@ -9,7 +9,14 @@ import { join } from 'node:path';
 import { Status } from 'discord.js';
 import { mask } from '../../../shared/utils/mask.js';
 import type { RegistryLike } from '../../../core/src/registry/types.js';
-import { ConfigError, backupConfig, loadConfigFromContent, validateSemantics } from '../../../shared/config/index.js';
+import {
+  ConfigError,
+  backupConfig,
+  listBackups as listSharedBackups,
+  loadConfigFromContent,
+  restoreConfig as restoreSharedConfig,
+  validateSemantics,
+} from '../../../shared/config/index.js';
 import { loadSchema, validateConfig } from '../../../shared/config/validator.js';
 import { validateModuleSemantics } from '../../../shared/config/module-semantic.js';
 import { isSecretKey } from './config.js';
@@ -249,13 +256,13 @@ export async function saveConfig(root: string, registry: RegistryLike, body: Sav
 }
 
 /** Validate config core bằng core.schema.json + semantic (§6.4). */
-function validateCoreConfig(root: string, content: string): void {
+export function validateCoreConfig(root: string, content: string): void {
   const config = loadConfigFromContent(content, { schema: join(root, 'config', 'schemas', 'core.schema.json'), file: 'config.yml' });
   validateSemantics(config as never, { file: 'config.yml' });
 }
 
 /** Validate config module bằng schema module + semantic. */
-function validateModuleConfig(moduleDir: string, name: string, content: string): void {
+export function validateModuleConfig(moduleDir: string, name: string, content: string): void {
   const manifest = loadConfigFromContent<{ config?: { schema?: string } }>(readFileSync(join(moduleDir, 'module.yml'), 'utf8'));
   const config = loadConfigFromContent<Record<string, unknown>>(content, { file: `modules/${name}/config/defaults.yml` });
   if (manifest.config?.schema) {
@@ -267,52 +274,181 @@ function validateModuleConfig(moduleDir: string, name: string, content: string):
   validateModuleSemantics(config, manifest as never, name);
 }
 
-export interface LogLine {
-  file: string;
-  index: number;
-  line: string;
-}
-
-/** Đọc N dòng log mới nhất từ file log mới nhất trong logs/ (prod) hoặc rỗng. */
-export function readLogLines(root: string, limit: number): LogLine[] {
-  const logsDir = join(root, 'logs');
-  if (!existsSync(logsDir)) return [];
-  const files = readdirSync(logsDir)
-    .filter((f) => f.endsWith('.log'))
-    .map((f) => ({ f, t: statSync(join(logsDir, f)).mtimeMs }))
-    .sort((a, b) => a.t - b.t);
-  if (files.length === 0) return [];
-  const newest = files[files.length - 1];
-  const content = readFileSync(join(logsDir, newest.f), 'utf8');
-  const lines = content.split('\n').filter(Boolean);
-  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 1000) : 200;
-  return lines.slice(-safeLimit).map((line, i) => ({ file: newest.f, index: i, line }));
+export interface SharedGuild {
+  id: string;
+  name: string;
+  icon: string | null;
+  iconUrl: string | null;
+  memberCount: number;
+  /** User có quyền ManageGuild trong guild này (best-effort). */
+  userCanManage: boolean;
 }
 
 /** Danh sách guild dùng chung giữa bot và user (dashboard user). */
 export async function getSharedGuilds(
   registry: RegistryLike,
   userId: string,
-): Promise<Array<{ id: string; name: string; icon: string | null; memberCount: number }>> {
+): Promise<SharedGuild[]> {
   const discord = registry.getService('discord');
   const client = discord.getClient();
   if (!client.isReady()) return [];
-  const shared: Array<{ id: string; name: string; icon: string | null; memberCount: number }> = [];
+  const shared: SharedGuild[] = [];
   for (const guild of client.guilds.cache.values()) {
-    let isMember = guild.members.cache.has(userId);
-    if (!isMember) {
+    let member = guild.members?.cache?.get(userId);
+    if (!member) {
       // Best-effort: fetch membership (cache-friendly). Lỗi → coi như không phải thành viên.
       // EN: Best-effort membership check; on error treat as not a member.
       try {
         await guild.members.fetch({ user: userId, force: false });
-        isMember = guild.members.cache.has(userId);
+        member = guild.members?.cache?.get(userId);
       } catch {
-        isMember = false;
+        member = undefined;
       }
     }
-    if (isMember) {
-      shared.push({ id: guild.id, name: guild.name, icon: guild.icon, memberCount: guild.memberCount });
-    }
+    if (!member) continue;
+    shared.push({
+      id: guild.id,
+      name: guild.name,
+      icon: guild.icon ?? null,
+      iconUrl: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128` : null,
+      memberCount: guild.memberCount,
+      userCanManage: canManageGuild(member),
+    });
   }
   return shared;
+}
+
+/** ManageGuild bit (PermissionFlagsBits.ManageGuild = 1n << 5n) — best-effort trên mọi hình thái permissions. */
+function canManageGuild(member: unknown): boolean {
+  const manageGuild = 1n << 5n;
+  try {
+    const perms = (member as { permissions?: unknown }).permissions;
+    if (perms === undefined || perms === null) return false;
+    if (typeof perms === 'bigint') return (perms & manageGuild) !== 0n;
+    if (typeof perms === 'number') return (perms & Number(manageGuild)) !== 0;
+    const has = (perms as { has?: (b: bigint) => boolean }).has;
+    if (typeof has === 'function') return has(manageGuild);
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export interface CrashReportMeta {
+  file: string;
+  mtime: string;
+  size: number;
+}
+
+/** Liệt kê crash report (crash-reports/, mới nhất trước) — §9.4. */
+export function readCrashReports(root: string): CrashReportMeta[] {
+  const dir = join(root, 'crash-reports');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .map((file) => {
+      const p = join(dir, file);
+      const st = statSync(p);
+      return { file, mtime: st.mtime.toISOString(), size: st.size };
+    })
+    .sort((a, b) => (a.mtime < b.mtime ? 1 : -1));
+}
+
+/** Đọc nội dung 1 crash report — chống path traversal (chỉ tên file `crash-*.json`). */
+export function readCrashReport(root: string, file: string): string | null {
+  if (!/^crash-[\w.-]+\.json$/.test(file) || file.includes('..') || file.includes('/') || file.includes('\\')) return null;
+  const p = join(root, 'crash-reports', file);
+  if (!existsSync(p) || statSync(p).isDirectory()) return null;
+  return readFileSync(p, 'utf8');
+}
+
+export interface BackupEntry {
+  file: string;
+  mtime: string;
+}
+
+/** Danh sách backup config core + từng module (§6.6). */
+export function listBackups(
+  root: string,
+  registry: RegistryLike,
+): { core: BackupEntry[]; modules: Array<{ name: string; backups: BackupEntry[] }> } {
+  const core = listSharedBackups(join(root, 'config'), { type: 'core' }).map(({ file, mtime }) => ({ file, mtime }));
+  const registrySvc = registry.getService('registry');
+  const modules = registrySvc
+    .getAllModules()
+    .map((m) => ({
+      name: m.name,
+      backups: listSharedBackups(join(root, 'modules', m.name), { type: 'module', name: m.name }).map(
+        ({ file, mtime }) => ({ file, mtime }),
+      ),
+    }))
+    .filter((m) => m.backups.length > 0);
+  return { core, modules };
+}
+
+export interface RestoreBackupBody {
+  scope: 'core' | 'module';
+  name?: string;
+  file: string;
+}
+
+export interface RestoreBackupResult {
+  ok: boolean;
+  message: string;
+  restored?: boolean;
+  reloaded?: boolean;
+  errors?: string[];
+}
+
+/** Validate backup → khôi phục config core/module từ file backup (§6.6); reload module sau khi khôi phục. */
+export async function restoreBackup(
+  root: string,
+  registry: RegistryLike,
+  body: RestoreBackupBody,
+): Promise<RestoreBackupResult> {
+  if (typeof body.file !== 'string' || body.file.length === 0 || body.file.includes('..') || body.file.includes('/') || body.file.includes('\\')) {
+    return { ok: false, message: 'Tên file backup không hợp lệ' };
+  }
+  try {
+    if (body.scope === 'core') {
+      if (!/^config-.+\.bak$/.test(body.file)) return { ok: false, message: 'File không phải backup config core' };
+      const backupsDir = join(root, 'config', 'backups');
+      if (!existsSync(join(backupsDir, body.file))) return { ok: false, message: 'Không tìm thấy backup' };
+      const content = readFileSync(join(backupsDir, body.file), 'utf8');
+      validateCoreConfig(root, content);
+      restoreSharedConfig(join(root, 'config'), body.file, { type: 'core' });
+      return {
+        ok: true,
+        message: `Đã khôi phục config/config.yml từ '${body.file}' — RESTART bot để áp dụng (core config không hot-reload).`,
+        restored: true,
+      };
+    }
+
+    // Scope module
+    const name = body.name;
+    if (!name) return { ok: false, message: 'Thiếu tên module' };
+    if (!/^module-.+\.bak$/.test(body.file)) return { ok: false, message: 'File không phải backup config module' };
+    const moduleDir = join(root, 'modules', name);
+    if (!existsSync(join(moduleDir, 'module.yml'))) {
+      return { ok: false, message: `Module '${name}' không tồn tại trên đĩa` };
+    }
+    const backupsDir = join(moduleDir, 'config', 'backups');
+    if (!existsSync(join(backupsDir, body.file))) return { ok: false, message: 'Không tìm thấy backup' };
+    const content = readFileSync(join(backupsDir, body.file), 'utf8');
+    validateModuleConfig(moduleDir, name, content);
+    restoreSharedConfig(moduleDir, body.file, { type: 'module' });
+    const reload = await runModuleAction(registry, name, 'reload', true);
+    return {
+      ok: reload.ok,
+      message: reload.ok
+        ? `Đã khôi phục config module '${name}' từ '${body.file}' + reload.`
+        : `Đã khôi phục config nhưng reload thất bại: ${reload.message}`,
+      restored: true,
+      reloaded: reload.ok,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const errors = err instanceof ConfigError ? message.split('\n').map((s) => s.trim()).filter(Boolean) : undefined;
+    return { ok: false, message: `Khôi phục thất bại: ${message}`, errors };
+  }
 }

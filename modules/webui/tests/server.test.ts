@@ -3,11 +3,11 @@
  * EN: HTTP server tests — public routes, admin auth, module action, static files, traversal guard.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { WebUiServer } from '../src/server.js';
 import { findProjectRoot } from '../../../shared/config/index.js';
-import { cleanupTempRoot, makeAppConfig, makeDiscordMock, makeLogger, makeManagerMock, makeRegistry, makeTempRoot, seedTempRoot } from './helpers.js';
+import { cleanupTempRoot, makeAppConfig, makeDiscordMock, makeLogger, makeManagerMock, makeRegistry, makeTempRoot, seedTempRoot, VALID_CORE_YAML } from './helpers.js';
 import type { RegistryLike } from '../../../core/src/registry/types.js';
 import type { ResolvedWebUiSettings } from '../src/config.js';
 
@@ -30,6 +30,9 @@ describe('WebUiServer HTTP', () => {
 
     manager = makeManagerMock();
     const discord = makeDiscordMock();
+    // oauth2Login({ admin: false }) dùng userId '222-user' → đưa user này vào cache để guild chung
+    // hiển thị được. EN: oauth2Login({ admin: false }) uses userId '222-user' → add to member cache.
+    discord.guild.members.cache.set('222-user', {});
     const registrySvc = {
       getAllModules: () => [
         { name: 'ping', version: '1.0.0', state: 'RUNNING', commands: [{ name: 'ping', handler: 'x' }], events: [] },
@@ -308,6 +311,100 @@ describe('WebUiServer HTTP', () => {
     await startServer();
     const { status } = await request('/api/user/guilds');
     expect(status).toBe(401);
+  });
+
+  it('GET /api/user/guilds → guild chung kèm userCanManage', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: false }); // user-222
+    const { status, body } = await request('/api/user/guilds', authed(sid));
+    expect(status).toBe(200);
+    const guilds = body.guilds as Array<{ name: string; memberCount: number; userCanManage: boolean }>;
+    expect(guilds).toHaveLength(1);
+    expect(guilds[0].name).toBe('Test Guild');
+    expect(typeof guilds[0].userCanManage).toBe('boolean');
+  });
+
+  it('GET /api/admin/logs → log từ tailer (buffer)', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const { status, body } = await request('/api/admin/logs?limit=5', authed(sid));
+    expect(status).toBe(200);
+    expect(Array.isArray(body.logs)).toBe(true);
+  });
+
+  it('GET /api/admin/usage → thống kê usage command', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const { status, body } = await request('/api/admin/usage', authed(sid));
+    expect(status).toBe(200);
+    expect(typeof (body as { total: number }).total).toBe('number');
+    expect(Array.isArray((body as { perModule: unknown[] }).perModule)).toBe(true);
+    expect(Array.isArray((body as { perCommand: unknown[] }).perCommand)).toBe(true);
+  });
+
+  it('GET /api/admin/crash-reports → liệt kê + xem nội dung', async () => {
+    await startServer(ADMIN_OAUTH);
+    mkdirSync(join(root, 'crash-reports'), { recursive: true });
+    writeFileSync(join(root, 'crash-reports', 'crash-123.json'), '{"error":"boom"}', 'utf8');
+    const sid = await oauth2Login({ admin: true });
+
+    const list = await request('/api/admin/crash-reports', authed(sid));
+    expect(list.status).toBe(200);
+    const reports = list.body.reports as Array<{ file: string }>;
+    expect(reports[0].file).toBe('crash-123.json');
+
+    const detail = await request('/api/admin/crash-reports/crash-123.json', authed(sid));
+    expect(detail.status).toBe(200);
+    expect((detail.body as { content: string }).content).toContain('boom');
+
+    const missing = await request('/api/admin/crash-reports/nope.json', authed(sid));
+    expect(missing.status).toBe(404);
+  });
+
+  it('GET /api/admin/backups → liệt kê core backup', async () => {
+    await startServer(ADMIN_OAUTH);
+    mkdirSync(join(root, 'config', 'backups'), { recursive: true });
+    writeFileSync(join(root, 'config', 'backups', 'config-2026-08-15_10-00-00.bak'), 'discord:\n  token: "x"', 'utf8');
+    const sid = await oauth2Login({ admin: true });
+
+    const { status, body } = await request('/api/admin/backups', authed(sid));
+    expect(status).toBe(200);
+    const core = body.core as Array<{ file: string }>;
+    expect(core.some((b) => b.file.includes('config-2026-08-15'))).toBe(true);
+  });
+
+  it('POST /api/admin/backups/restore → khôi phục core config', async () => {
+    await startServer(ADMIN_OAUTH);
+    const backupContent = VALID_CORE_YAML.replace('test-token-123', 'restored-token-999');
+    mkdirSync(join(root, 'config', 'backups'), { recursive: true });
+    writeFileSync(join(root, 'config', 'backups', 'config-2026-08-15_10-00-00.bak'), backupContent, 'utf8');
+    const sid = await oauth2Login({ admin: true });
+
+    const { status, body } = await request(
+      '/api/admin/backups/restore',
+      authed(sid, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'core', file: 'config-2026-08-15_10-00-00.bak' }),
+      }),
+    );
+    expect(status).toBe(200);
+    expect((body as { ok: boolean }).ok).toBe(true);
+    expect(readFileSync(join(root, 'config', 'config.yml'), 'utf8')).toContain('restored-token-999');
+  });
+
+  it('POST /api/admin/backups/restore với file traversal → 400', async () => {
+    await startServer(ADMIN_OAUTH);
+    const sid = await oauth2Login({ admin: true });
+    const { status } = await request(
+      '/api/admin/backups/restore',
+      authed(sid, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'core', file: '../config/config.yml' }),
+      }),
+    );
+    expect(status).toBe(400);
   });
 
   it('route không tồn tại → 404', async () => {

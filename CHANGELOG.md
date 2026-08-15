@@ -3,6 +3,20 @@
 Quy ước version tuân theo [CLAUDE.md §10](CLAUDE.md): `MAJOR.MINOR.PATCH`
 EN: Versioning follows CLAUDE.md §10 — PATCH=bugfix only, MINOR=new feature, MAJOR=breaking change.
 
+## [3.6.0] — 2026-08-15
+**Loại / Type:** MINOR — thêm tính năng mới / new feature
+
+### Added
+- `modules/webui` (1.0.0 → 1.1.0): **nâng cấp dashboard admin + người dùng**. (VI)
+  - **Log stream realtime qua WebSocket**: thay vì bấm Refresh, `LogTailer` (mới, `src/logs.ts`) tail file log mới nhất trong `logs/` (xử lý rotation + truncate + dòng đang dở) và đẩy dòng mới cho mọi admin socket cùng snapshot status+modules mỗi 3s — tab Logs cập nhật tự động, có marker khi đổi file log.
+  - **Thống kê usage command** (tab Usage): `LogTailer` gộp dòng `Command '/x' used by … in guild … {"module":"…"}` của core → tổng + theo module/lệnh/guild (`GET /api/admin/usage`).
+  - **Crash reports UI** (tab Crash): liệt kê + xem nội dung `crash-reports/` (mới nhất trước, chống path traversal) — `GET /api/admin/crash-reports`, `GET /api/admin/crash-reports/:file`.
+  - **Backups/rollback UI** (tab Backups): liệt kê backup config core + từng module (`listBackups` của shared/config), khôi phục có **validate lại schema trước khi ghi** + reload module (`POST /api/admin/backups/restore`).
+  - **User dashboard chi tiết hơn**: mỗi guild chung hiển thị icon, số thành viên, badge "bạn quản lý guild này" (permission `ManageGuild`), nút "Invite bot" điền sẵn guild — `getSharedGuilds` trả thêm `iconUrl` + `userCanManage`.
+  - WS broadcast dùng chung 1 ticker (thay cho timer mỗi connection) — tiết kiệm tài nguyên, log vẫn được tail kể cả khi không có client.
+  - Kèm test mới: `logs.test.ts` (8 test LogTailer), mở rộng `api.test.ts`/`server.test.ts` (crash/backups/usage/guilds).
+  - EN: **Enhanced admin + user dashboards.** Realtime log streaming over WebSocket via a new `LogTailer` (tails the newest `logs/` file; handles rotation/truncate/incomplete lines) pushed to all admin sockets with the status+modules snapshot every 3s. New **Usage** tab: aggregates core command-usage log lines → total + by module/command/guild (`GET /api/admin/usage`). New **Crash** tab: list + view `crash-reports/` (newest first, traversal-guarded). New **Backups** tab: list core + per-module config backups and restore **re-validated against the schema** (+ module reload). Richer **user dashboard**: per shared guild show icon, member count, "you manage this guild" badge (`ManageGuild` permission) and a guild-prefilled "Invite bot" link. WS now uses a single shared broadcast ticker. New tests: `logs.test.ts`, extended `api.test.ts`/`server.test.ts`.
+
 ## [3.5.0] — 2026-08-15
 **Loại / Type:** MINOR — thêm tính năng mới / new feature
 

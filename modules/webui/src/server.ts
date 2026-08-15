@@ -5,8 +5,10 @@
  * Routes:
  *   Công khai (public):   GET  /api/status, / , static assets
  *   Auth (admin/user):    POST /api/logout, GET /api/me (login duy nhất = Discord OAuth2)
- *   Admin:                GET /api/admin/* , POST /api/admin/modules/:name/:action,
- *                         POST /api/admin/config, GET /api/admin/logs, /ws (realtime)
+ *   Admin:                GET /api/admin/* (status, modules, config, logs, usage,
+ *                         crash-reports, backups), POST /api/admin/modules/:name/:action,
+ *                         POST /api/admin/config, POST /api/admin/backups/restore,
+ *                         /ws (realtime status+modules+log stream)
  *   User (OAuth2):        GET /api/user/guilds
  *   OAuth2:               GET /oauth2/login, GET /oauth2/callback
  */
@@ -14,11 +16,12 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { URL } from 'node:url';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, type WebSocket } from 'ws';
 import type { Logger } from '../../../shared/logger/index.js';
 import type { RegistryLike } from '../../../core/src/registry/types.js';
 import type { ResolvedWebUiSettings } from './config.js';
 import { AuthStore, buildAuthorizeUrl, exchangeCode, fetchDiscordUser, type SessionInfo } from './auth.js';
+import { LogTailer, type TailLine } from './logs.js';
 import * as api from './api.js';
 
 const MIME: Record<string, string> = {
@@ -68,6 +71,10 @@ export class WebUiServer {
   private readonly registry: RegistryLike;
   private readonly settings: ResolvedWebUiSettings;
   private readonly logger: Logger;
+  /** Tailer log dùng chung — cấp log realtime (WS) + thống kê usage command cho admin. */
+  private readonly tailer: LogTailer;
+  private readonly adminSockets = new Set<WebSocket>();
+  private broadcastTimer: NodeJS.Timeout | null = null;
 
   constructor(opts: WebUiServerOptions) {
     this.registry = opts.registry;
@@ -76,6 +83,10 @@ export class WebUiServer {
     // Cross-platform path: static dir tính từ folder module (qua registry.getService('root')).
     // EN: Static dir resolved from the module folder via registry.getService('root').
     this.publicDir = join(this.registry.getService('root'), 'modules', 'webui', this.settings.staticDir);
+    this.tailer = new LogTailer({
+      logsDir: join(this.registry.getService('root'), 'logs'),
+      logger: this.logger.child({ source: 'modules/webui/logs', context: 'modules/webui' }),
+    });
     this.server = createServer((req, res) => this.handleRequest(req, res).catch((err) => this.handleError(res, err)));
     this.wss = this.setupWebSocket();
   }
@@ -92,16 +103,18 @@ export class WebUiServer {
         this.started = true;
         const addr = this.server.address();
         const port = typeof addr === 'object' && addr ? addr.port : this.settings.port;
+        this.startBroadcastTimer();
         this.logger.info(`Web UI listening on http://${this.settings.host}:${port}`, { host: this.settings.host, port });
         resolve(port);
       });
     });
   }
 
-  /** Dừng server + WS + đóng toàn bộ handle (an toàn hot-reload — không "port đã dùng"). */
+  /** Dừng server + WS + ticker + đóng toàn bộ handle (an toàn hot-reload — không "port đã dùng"). */
   async stop(): Promise<void> {
     if (!this.started) return;
     this.started = false;
+    this.stopBroadcastTimer();
     await new Promise<void>((resolve) => {
       this.wss.close(() => {
         this.server.close(() => resolve());
@@ -114,7 +127,7 @@ export class WebUiServer {
     return typeof addr === 'object' && addr ? addr.port : this.settings.port;
   }
 
-  // ── WebSocket (realtime dashboard: status + modules snapshot) ──
+  // ── WebSocket (realtime dashboard: status + modules + log stream) ──
   private setupWebSocket(): WebSocketServer {
     const wss = new WebSocketServer({ server: this.server, path: '/ws' });
     // ws re-emit 'error' của http server lên chính nó (vd EADDRINUSE khi listen lỗi) — nếu
@@ -130,22 +143,49 @@ export class WebUiServer {
         socket.close(4001, 'unauthorized');
         return;
       }
-      const send = (): void => {
-        if (socket.readyState === socket.OPEN) {
-          socket.send(JSON.stringify({
-            type: 'snapshot',
-            now: Date.now(),
-            status: api.getAdminStatus(this.registry),
-            modules: api.getModules(this.registry),
-          }));
-        }
-      };
-      send();
-      const timer = setInterval(send, 3000);
-      socket.on('close', () => clearInterval(timer));
-      socket.on('error', () => clearInterval(timer));
+      this.adminSockets.add(socket);
+      this.sendSnapshot(socket);
+      socket.on('close', () => this.adminSockets.delete(socket));
+      socket.on('error', () => this.adminSockets.delete(socket));
     });
     return wss;
+  }
+
+  /** Ticker dùng chung: mỗi 3s tail log mới + broadcast snapshot (status+modules+log) tới mọi admin socket. */
+  private startBroadcastTimer(): void {
+    if (this.broadcastTimer) return;
+    // Chạy liên tục kể cả khi hết client — log vẫn được tail để usage stats luôn mới.
+    // EN: Keeps running even with no clients — logs keep being tailed so usage stats stay fresh.
+    this.broadcastTimer = setInterval(() => {
+      const logs = this.tailer.tick();
+      if (this.adminSockets.size === 0) return;
+      const snapshot = this.buildSnapshot(logs);
+      for (const socket of this.adminSockets) {
+        if (socket.readyState === socket.OPEN) socket.send(snapshot);
+      }
+    }, 3000);
+  }
+
+  private stopBroadcastTimer(): void {
+    if (this.broadcastTimer) {
+      clearInterval(this.broadcastTimer);
+      this.broadcastTimer = null;
+    }
+  }
+
+  private buildSnapshot(logs: TailLine[]): string {
+    return JSON.stringify({
+      type: 'snapshot',
+      now: Date.now(),
+      status: api.getAdminStatus(this.registry),
+      modules: api.getModules(this.registry),
+      logs,
+    });
+  }
+
+  private sendSnapshot(socket: WebSocket): void {
+    if (socket.readyState !== socket.OPEN) return;
+    socket.send(this.buildSnapshot([]));
   }
 
   // ── Auth helpers ──
@@ -267,7 +307,45 @@ export class WebUiServer {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
       const limit = Number(url.searchParams.get('limit') ?? 200);
-      this.json(res, 200, { ok: true, logs: api.readLogLines(this.registry.getService('root'), limit) });
+      this.json(res, 200, { ok: true, logs: this.tailer.recent(limit) });
+      return;
+    }
+    if (pathname === '/api/admin/usage' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      this.json(res, 200, { ok: true, ...this.tailer.usageStats() });
+      return;
+    }
+    if (pathname === '/api/admin/crash-reports' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      this.json(res, 200, { ok: true, reports: api.readCrashReports(this.registry.getService('root')) });
+      return;
+    }
+    const crashReportMatch = pathname.match(/^\/api\/admin\/crash-reports\/(.+)$/);
+    if (crashReportMatch && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      const content = api.readCrashReport(this.registry.getService('root'), crashReportMatch[1]);
+      if (content === null) {
+        this.json(res, 404, { ok: false, message: 'Không tìm thấy crash report' });
+        return;
+      }
+      this.json(res, 200, { ok: true, content });
+      return;
+    }
+    if (pathname === '/api/admin/backups' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      this.json(res, 200, { ok: true, ...api.listBackups(this.registry.getService('root'), this.registry) });
+      return;
+    }
+    if (pathname === '/api/admin/backups/restore' && method === 'POST') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      const body = await this.readJson(req) as unknown as api.RestoreBackupBody;
+      const result = await api.restoreBackup(this.registry.getService('root'), this.registry, body);
+      this.json(res, result.ok ? 200 : 400, result);
       return;
     }
 
