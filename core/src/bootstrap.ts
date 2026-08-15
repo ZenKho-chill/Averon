@@ -123,6 +123,16 @@ export async function bootstrap() {
     logger,
     softStopTimeoutMs: getConsoleConfig(config).soft_stop_timeout_ms,
   });
+
+  // Đăng ký toàn bộ service cho module (webui, ...) — TRƯỚC loadAll để module có thể
+  // truy cập qua `registry.getService(key)` khi chạy hook onLoad (§13.3).
+  // EN: Register the full service set for modules — BEFORE loadAll so modules can reach
+  // them via `registry.getService(key)` inside their onLoad hook (§13.3).
+  registry.registerService('manager', manager);
+  registry.registerService('discord', discord);
+  registry.registerService('usage', usage);
+  registry.registerService('registry', registry);
+  registry.registerService('root', root);
   await manager.loadAll();
 
   // Backup config cho từng module — chỉ backup config ĐÃ VALIDATE (đang dùng), KHÔNG backup

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Registry } from './index.js';
-import type { ModuleRegistryEntry } from './index.js';
+import type { ModuleRegistryEntry, RegistryLike } from './index.js';
 
 function makeLogger() {
   return {
@@ -9,6 +9,8 @@ function makeLogger() {
     warn: () => {},
     info: () => {},
     debug: () => {},
+    mask: () => '',
+    child: () => makeLogger(),
   };
 }
 
@@ -36,6 +38,43 @@ describe('Registry', () => {
     registry.registerService('logger', logger);
     expect(registry.hasService('logger')).toBe(true);
     expect(registry.hasService('config')).toBe(false);
+  });
+
+  it('register toàn bộ service webui cần (manager/discord/usage/registry/root)', () => {
+    const registry = new Registry();
+    const logger = makeLogger();
+    const config = {} as never;
+    const manager = {} as never;
+    const discord = {} as never;
+    const usage = {} as never;
+    const root = '/tmp/averon-test';
+
+    registry.registerService('logger', logger);
+    registry.registerService('config', config);
+    registry.registerService('manager', manager);
+    registry.registerService('discord', discord);
+    registry.registerService('usage', usage);
+    registry.registerService('registry', registry);
+    registry.registerService('root', root);
+
+    expect(registry.getService('manager')).toBe(manager);
+    expect(registry.getService('discord')).toBe(discord);
+    expect(registry.getService('usage')).toBe(usage);
+    expect(registry.getService('registry')).toBe(registry);
+    expect(registry.getService('root')).toBe(root);
+  });
+
+  it('RegistryLike.getService cho phép module lấy service qua mặt public (§5.3)', () => {
+    const registry = new Registry();
+    const logger = makeLogger();
+    registry.registerService('logger', logger);
+    registry.registerService('root', '/tmp/averon-test');
+
+    // Module chỉ thấy RegistryLike (không phải toàn bộ Registry).
+    const like: RegistryLike = registry;
+    expect(like.hasModule('ping')).toBe(false);
+    expect(like.getService('logger')).toBe(logger);
+    expect(like.getService('root')).toBe('/tmp/averon-test');
   });
 
   it('register + get module', () => {

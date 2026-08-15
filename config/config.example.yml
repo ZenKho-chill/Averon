@@ -61,3 +61,21 @@ console:
   # Thời gian chờ soft-stop khi unload module đang có in-flight handler (ms). Vượt → báo retry --force.
   # EN: Soft-stop wait when unloading a busy module (ms). Timeout → retry with --force.
   soft_stop_timeout_ms: 15000
+
+# ==================================================
+# webui — SECRET cho module webui (trang chủ + dashboard).
+# EN: webui — SECRETS for the webui module (homepage + dashboard).
+#
+# ⚠️ Section này chứa SECRET — chỉ khai báo trong config/config.yml (gitignored),
+# KHÔNG track trong git. Module config (modules/webui/config/defaults.yml, TRACKED)
+# chỉ chứa non-secret (host/port/admin_user_ids/oauth2 client_id/redirect_uri).
+# EN: This section holds SECRETS — declare it only in config/config.yml (gitignored),
+# never tracked. Non-secret settings live in modules/webui/config/defaults.yml (tracked).
+# Bỏ comment (uncomment) và điền giá trị thật khi dùng module webui.
+# EN: Uncomment and fill in real values when using the webui module.
+# webui:
+#   oauth2:
+#     # Client secret của Discord OAuth2 app (Discord Developer Portal → OAuth2).
+#     # EN: Discord OAuth2 app client secret (Discord Developer Portal → OAuth2).
+#     client_secret: "PASTE_OAUTH2_CLIENT_SECRET_HERE"
+# (client_id + redirect_uri là non-secret → khai báo trong modules/webui/config/defaults.yml)

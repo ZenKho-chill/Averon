@@ -22,9 +22,44 @@ export async function handler(interaction: InteractionLike, ctx?: CommandContext
 | `config` | `Record<string, unknown>` | Config module sau khi validate (`modules/<name>/config/defaults.yml`). Là **config source chính** cho module — không đọc file trực tiếp. |
 | `logger` | `Logger` | Logger chuẩn của core. Dùng để log thay vì `console.log` (có source/context, che secret, ghi file). |
 | `moduleName` | `string` (optional) | Tên module sở hữu command. Core dùng nội bộ để đếm in-flight handler khi soft-unload (`DRAINING`). Module thường không cần đụng — nếu cần tên module, đọc từ `ctx.moduleName`. |
-| `registry` | `RegistryLike` (optional) | Tra module đang chạy. Dùng `ctx.registry.hasModule(name)` + `ctx.registry.getModule(name).getConfig?.()` để lấy config module **mới nhất** (sau reload, config đã đổi trên đĩa sẽ được nạp lại — đừng dùng `ctx.config` nếu module có thể bị reload). |
+| `registry` | `RegistryLike` (optional) | Tra module đang chạy + **lấy service core** (`registry.getService(key)`). Dùng `ctx.registry.hasModule(name)` + `ctx.registry.getModule(name).getConfig?.()` để lấy config module **mới nhất** (sau reload, config đã đổi trên đĩa sẽ được nạp lại — đừng dùng `ctx.config` nếu module có thể bị reload). |
 
-> `RegistryLike` chỉ lộ 2 hàm non-destructive: `hasModule(name): boolean` và `getModule(name): ModuleRegistryEntry`. Đọc metadata (name/version/state/config) là an toàn; **không** gọi `handlerFn`/`commands` của module khác (vi phạm §5.3).
+> `RegistryLike` chỉ lộ các hàm non-destructive: `hasModule(name)`, `getModule(name)`, `getService(key)` (§5.3). Đọc metadata (name/version/state/config) là an toàn; **không** gọi `handlerFn`/`commands` của module khác.
+
+## 1a. `registry.getService(key)` — truy cập service core (webui, ...)
+
+Từ core **3.5.0**, `RegistryLike.getService<K extends ServiceKey>(key)` cho module lấy **service core type-safe** mà không cần import core internal (§13.3). Module `webui` là ví dụ điển hình: dùng service để start HTTP server quản trị.
+
+```ts
+import type { RegistryLike } from '../../../core/src/registry/types.js';
+
+export async function onLoad(registry?: RegistryLike) {
+  // onLoad nhận registry từ core (hook mở rộng — module cũ `onLoad()` vẫn hoạt động).
+  if (!registry) return;
+  const manager = registry.getService('manager'); // load/unload/reload module
+  const discord = registry.getService('discord'); // status, ping, guilds
+  const usage = registry.getService('usage');     // đếm in-flight handler
+  const coreRegistry = registry.getService('registry'); // danh sách module
+  const root = registry.getService('root');       // project root (đọc/ghi config paths)
+  const appConfig = registry.getService('config'); // AppConfig (app.name/version, discord...)
+}
+```
+
+Danh sách service hiện có (key → mô tả):
+
+| Key | Kiểu | Mô tả |
+|---|---|---|
+| `logger` | `Logger` | Logger chuẩn (§2). |
+| `config` | `AppConfig` | Config tổng đã validate (`config/config.yml`). |
+| `manager` | `ModuleManager` | Load/unload/reload module lúc runtime (`manager.load/unload/reload(name, { force })`). |
+| `discord` | `DiscordClient` | Status bot: `getClient()` → discord.js Client (`isReady()`, `ws.ping`, `guilds.cache`...). |
+| `usage` | `UsageTracker` | `usage.activeCount(moduleName)` — số handler in-flight của module. |
+| `registry` | `Registry` | `getAllModules()` — danh sách module + trạng thái. |
+| `root` | `string` | Project root (nơi có `package.json`) — cross-platform (§6.1). |
+
+> ⚠️ Service API là **mặt public core** — mọi service expose cho module đều phải có docs ở đây (bắt buộc §13.3). Muốn thêm service mới → mở issue/PR, đừng tự đăng ký.
+
+> Trong handler command/event, `ctx.registry` là `RegistryLike` → gọi `ctx.registry.getService('manager')` y như trên.
 
 > Nếu module cần thêm service (database, ...), mở issue/PR — đừng tự đăng ký vào core registry.
 

@@ -141,6 +141,21 @@
           "minimum": 0
         }
       }
+    },
+    "webui": {
+      "type": "object",
+      "description": "SECRET cho module webui — chỉ khai báo trong config/config.yml (gitignored). Non-secret (client_id, redirect_uri, admin_user_ids) nằm trong modules/webui/config/defaults.yml.",
+      "properties": {
+        "oauth2": {
+          "type": "object",
+          "properties": {
+            "client_secret": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
     }
   }
 }

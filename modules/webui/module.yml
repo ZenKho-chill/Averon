@@ -1,0 +1,22 @@
+name: webui
+version: 1.0.0
+description:
+  vi: "Web UI — trang chủ bot + dashboard admin & người dùng"
+  en: "Web UI — bot homepage + admin & user dashboard"
+author: "Averon Team"
+runtime:
+  language: typescript
+  engine: node
+  version: ">=18"
+  transport: in-process
+entry: src/index.ts
+load:
+  after: ["logger"]
+config:
+  schema: config/schema.yml
+  defaults: config/defaults.yml
+# KHÔNG khai báo intents/commands/events Discord — webui là HTTP server thuần.
+# EN: No Discord intents/commands/events — webui is a plain HTTP server.
+tests:
+  command: "npm test"
+  dir: tests/
