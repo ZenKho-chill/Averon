@@ -98,18 +98,14 @@ function enterAdmin() {
   refreshAdminStatus();
   connectWs();
   startAdminTimers();
-  loadConfigTargets();
 }
 
 function selectTab(name) {
   $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  ['status', 'modules', 'config', 'logs', 'usage', 'crash', 'backups'].forEach((p) => $(`#panel-${p}`).classList.toggle('hidden', p !== name));
+  ['status', 'modules', 'logs', 'usage'].forEach((p) => $(`#panel-${p}`).classList.toggle('hidden', p !== name));
   if (name === 'modules') refreshModules();
-  if (name === 'config') loadConfigTargets();
   if (name === 'logs') loadLogs();
   if (name === 'usage') loadUsage();
-  if (name === 'crash') loadCrashReports();
-  if (name === 'backups') loadBackups();
 }
 
 function startAdminTimers() {
@@ -203,59 +199,6 @@ async function moduleAction(name, action) {
   }
 }
 
-// ── Config management ──
-let configsCache = null;
-
-async function loadConfigTargets() {
-  try {
-    const res = await api('/api/admin/config');
-    configsCache = res;
-    const sel = $('#config-target');
-    sel.innerHTML = '';
-    const add = (label, value) => {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      sel.appendChild(opt);
-    };
-    add(res.core.path, 'core');
-    for (const m of res.modules) add(m.path, m.path);
-    sel.value = 'core';
-    renderConfigFor('core');
-  } catch { /* noop */ }
-}
-
-function renderConfigFor(value) {
-  if (!configsCache) return;
-  if (value === 'core') {
-    $('#config-content').value = configsCache.core.content;
-  } else {
-    const mod = configsCache.modules.find((m) => m.path === value);
-    $('#config-content').value = mod ? mod.content : '';
-  }
-}
-
-async function saveConfig() {
-  const sel = $('#config-target');
-  const value = sel.value;
-  const body = value === 'core'
-    ? { scope: 'core', content: $('#config-content').value }
-    : { scope: 'module', name: value.split('/')[2], content: $('#config-content').value };
-  const resultEl = $('#config-result');
-  hide(resultEl);
-  try {
-    const res = await api('/api/admin/config', { method: 'POST', body: JSON.stringify(body) });
-    resultEl.textContent = res.message;
-    resultEl.classList.toggle('error', !res.ok);
-    show(resultEl);
-    await loadConfigTargets();
-  } catch (err) {
-    resultEl.textContent = err.message;
-    resultEl.classList.add('error');
-    show(resultEl);
-  }
-}
-
 // ── Logs ──
 async function loadLogs() {
   try {
@@ -305,112 +248,6 @@ function renderUsageRows(sel, rows) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><span class="mono">${esc(r.name)}</span></td><td>${r.count}</td>`;
     body.appendChild(tr);
-  }
-}
-
-// ── Crash reports ──
-let crashCache = [];
-
-async function loadCrashReports() {
-  try {
-    const { reports } = await api('/api/admin/crash-reports');
-    crashCache = reports;
-    const ul = $('#crash-list');
-    ul.innerHTML = '';
-    if (!reports.length) {
-      ul.innerHTML = '<li class="muted">Không có crash report nào.</li>';
-      return;
-    }
-    for (const r of reports) {
-      const li = document.createElement('li');
-      li.innerHTML =
-        `<button class="crash-item btn-link" data-file="${esc(r.file)}">${esc(r.file)}</button> ` +
-        `<span class="muted small">${esc(r.mtime)} · ${r.size}B</span>`;
-      ul.appendChild(li);
-    }
-    // Tự mở bản mới nhất nếu chưa có view.
-    if (!$('#crash-view').textContent && reports.length) {
-      viewCrashReport(reports[0].file);
-    }
-  } catch { /* noop */ }
-}
-
-async function viewCrashReport(file) {
-  try {
-    const { content } = await api(`/api/admin/crash-reports/${encodeURIComponent(file)}`);
-    $('#crash-view').textContent = content;
-  } catch (err) {
-    $('#crash-view').textContent = `Lỗi: ${err.message}`;
-  }
-}
-
-// ── Backups ──
-async function loadBackups() {
-  try {
-    const { core, modules } = await api('/api/admin/backups');
-    const coreBody = $('#backups-core-body');
-    coreBody.innerHTML = '';
-    if (!core.length) {
-      coreBody.innerHTML = '<tr><td colspan="3" class="muted">Chưa có backup.</td></tr>';
-    } else {
-      for (const b of core) {
-        coreBody.appendChild(backupRow('core', '', b));
-      }
-    }
-    const modsWrap = $('#backups-modules-body');
-    modsWrap.innerHTML = '';
-    if (!modules.length) {
-      modsWrap.innerHTML = '<p class="muted small">Chưa có backup module.</p>';
-    } else {
-      for (const m of modules) {
-        const box = document.createElement('div');
-        box.className = 'card';
-        box.innerHTML = `<h4>${esc(m.name)}</h4>`;
-        const table = document.createElement('table');
-        table.className = 'table';
-        table.innerHTML = '<thead><tr><th>File</th><th>Thời gian</th><th></th></tr></thead>';
-        const tbody = document.createElement('tbody');
-        for (const b of m.backups) tbody.appendChild(backupRow('module', m.name, b));
-        table.appendChild(tbody);
-        box.appendChild(table);
-        modsWrap.appendChild(box);
-      }
-    }
-  } catch { /* noop */ }
-}
-
-function backupRow(scope, name, b) {
-  const tr = document.createElement('tr');
-  const tdFile = document.createElement('td');
-  tdFile.innerHTML = `<span class="mono small">${esc(b.file)}</span>`;
-  const tdMtime = document.createElement('td');
-  tdMtime.className = 'small muted';
-  tdMtime.textContent = b.mtime;
-  const tdBtn = document.createElement('td');
-  const btn = document.createElement('button');
-  btn.className = 'btn btn-xs';
-  btn.textContent = 'Khôi phục';
-  btn.dataset.scope = scope;
-  btn.dataset.name = name;
-  btn.dataset.file = b.file;
-  tdBtn.appendChild(btn);
-  tr.appendChild(tdFile);
-  tr.appendChild(tdMtime);
-  tr.appendChild(tdBtn);
-  return tr;
-}
-
-async function restoreBackup(scope, name, file) {
-  if (!window.confirm(`Khôi phục '${file}'? Config hiện tại sẽ bị ghi đè.`)) return;
-  try {
-    const res = await api('/api/admin/backups/restore', {
-      method: 'POST',
-      body: JSON.stringify({ scope, name, file }),
-    });
-    alert(res.message || (res.ok ? 'Đã khôi phục' : 'Khôi phục thất bại'));
-    loadBackups();
-  } catch (err) {
-    alert(err.message);
   }
 }
 
@@ -484,23 +321,10 @@ async function boot() {
   $('#home-admin-2').addEventListener('click', (e) => { e.preventDefault(); openLoginPopup(); });
 
   $$('.tab').forEach((t) => t.addEventListener('click', () => selectTab(t.dataset.tab)));
-  $('#config-target').addEventListener('change', (e) => renderConfigFor(e.target.value));
-  $('#config-reload').addEventListener('click', loadConfigTargets);
-  $('#config-save').addEventListener('click', saveConfig);
   $('#logs-refresh').addEventListener('click', loadLogs);
   $('#modules-body').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act]');
     if (btn) moduleAction(btn.dataset.name, btn.dataset.act);
-  });
-  $('#crash-refresh').addEventListener('click', loadCrashReports);
-  $('#crash-list').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-file]');
-    if (btn) viewCrashReport(btn.dataset.file);
-  });
-  $('#backups-refresh').addEventListener('click', loadBackups);
-  $('#panel-backups').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-file]');
-    if (btn) restoreBackup(btn.dataset.scope, btn.dataset.name, btn.dataset.file);
   });
 
   // Xử lý callback OAuth2: /#session=<token>

@@ -5,9 +5,8 @@
  * Routes:
  *   Công khai (public):   GET  /api/status, / , static assets
  *   Auth (admin/user):    POST /api/logout, GET /api/me (login duy nhất = Discord OAuth2)
- *   Admin:                GET /api/admin/* (status, modules, config, logs, usage,
- *                         crash-reports, backups), POST /api/admin/modules/:name/:action,
- *                         POST /api/admin/config, POST /api/admin/backups/restore,
+ *   Admin:                GET /api/admin/* (status, modules, logs, usage),
+ *                         POST /api/admin/modules/:name/:action,
  *                         /ws (realtime status+modules+log stream)
  *   User (OAuth2):        GET /api/user/guilds
  *   OAuth2:               GET /oauth2/login, GET /oauth2/callback
@@ -289,20 +288,6 @@ export class WebUiServer {
       this.json(res, 200, await api.runModuleAction(this.registry, name, action, force));
       return;
     }
-    if (pathname === '/api/admin/config' && method === 'GET') {
-      const session = this.requireAuth(req, res, 'admin');
-      if (!session) return;
-      this.json(res, 200, { ok: true, ...api.readConfigs(this.registry.getService('root'), this.registry) });
-      return;
-    }
-    if (pathname === '/api/admin/config' && method === 'POST') {
-      const session = this.requireAuth(req, res, 'admin');
-      if (!session) return;
-      const body = await this.readJson(req) as unknown as api.SaveConfigBody;
-      const result = await api.saveConfig(this.registry.getService('root'), this.registry, body);
-      this.json(res, result.ok ? 200 : 400, result);
-      return;
-    }
     if (pathname === '/api/admin/logs' && method === 'GET') {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
@@ -314,38 +299,6 @@ export class WebUiServer {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
       this.json(res, 200, { ok: true, ...this.tailer.usageStats() });
-      return;
-    }
-    if (pathname === '/api/admin/crash-reports' && method === 'GET') {
-      const session = this.requireAuth(req, res, 'admin');
-      if (!session) return;
-      this.json(res, 200, { ok: true, reports: api.readCrashReports(this.registry.getService('root')) });
-      return;
-    }
-    const crashReportMatch = pathname.match(/^\/api\/admin\/crash-reports\/(.+)$/);
-    if (crashReportMatch && method === 'GET') {
-      const session = this.requireAuth(req, res, 'admin');
-      if (!session) return;
-      const content = api.readCrashReport(this.registry.getService('root'), crashReportMatch[1]);
-      if (content === null) {
-        this.json(res, 404, { ok: false, message: 'Không tìm thấy crash report' });
-        return;
-      }
-      this.json(res, 200, { ok: true, content });
-      return;
-    }
-    if (pathname === '/api/admin/backups' && method === 'GET') {
-      const session = this.requireAuth(req, res, 'admin');
-      if (!session) return;
-      this.json(res, 200, { ok: true, ...api.listBackups(this.registry.getService('root'), this.registry) });
-      return;
-    }
-    if (pathname === '/api/admin/backups/restore' && method === 'POST') {
-      const session = this.requireAuth(req, res, 'admin');
-      if (!session) return;
-      const body = await this.readJson(req) as unknown as api.RestoreBackupBody;
-      const result = await api.restoreBackup(this.registry.getService('root'), this.registry, body);
-      this.json(res, result.ok ? 200 : 400, result);
       return;
     }
 
@@ -431,27 +384,6 @@ export class WebUiServer {
     const payload = JSON.stringify(data);
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(payload);
-  }
-
-  private readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      req.on('data', (chunk) => {
-        body += chunk;
-        if (body.length > 1_000_000) {
-          reject(new Error('Request body quá lớn'));
-          req.destroy();
-        }
-      });
-      req.on('end', () => {
-        try {
-          resolve(body ? (JSON.parse(body) as Record<string, unknown>) : {});
-        } catch {
-          reject(new Error('Body không phải JSON hợp lệ'));
-        }
-      });
-      req.on('error', reject);
-    });
   }
 
   private handleError(res: ServerResponse, err: unknown): void {

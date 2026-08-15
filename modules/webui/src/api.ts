@@ -1,25 +1,14 @@
 /**
- * modules/webui/api — xử lý dữ liệu cho API routes (status, modules, config, logs).
- * EN: Data handlers for API routes (status, modules, config, logs).
+ * modules/webui/api — xử lý dữ liệu cho API routes (status, modules, logs, usage).
+ * EN: Data handlers for API routes (status, modules, logs, usage).
  *
  * Chỉ dùng service qua registry.getService() — KHÔNG import core internal (§5.3).
  */
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Status } from 'discord.js';
-import { mask } from '../../../shared/utils/mask.js';
 import type { RegistryLike } from '../../../core/src/registry/types.js';
-import {
-  ConfigError,
-  backupConfig,
-  listBackups as listSharedBackups,
-  loadConfigFromContent,
-  restoreConfig as restoreSharedConfig,
-  validateSemantics,
-} from '../../../shared/config/index.js';
-import { loadSchema, validateConfig } from '../../../shared/config/validator.js';
-import { validateModuleSemantics } from '../../../shared/config/module-semantic.js';
-import { isSecretKey } from './config.js';
+import { loadConfigFromContent } from '../../../shared/config/index.js';
 
 export interface ModuleInfo {
   name: string;
@@ -29,21 +18,6 @@ export interface ModuleInfo {
   activeCount: number;
   commands: number;
   events: number;
-}
-
-/** Mask toàn bộ secret trong nội dung YAML (token/secret/password) trước khi trả ra web (§7.4). */
-export function maskYamlContent(content: string): string {
-  return content
-    .split('\n')
-    .map((line) => {
-      const m = line.match(/^(\s*)([A-Za-z0-9_.-]+):\s*(.+?)\s*$/);
-      if (m && isSecretKey(m[2])) {
-        const raw = m[3].replace(/^["']|["']$/g, '');
-        return `${m[1]}${m[2]}: "${mask(raw)}"`;
-      }
-      return line;
-    })
-    .join('\n');
 }
 
 /** Status công khai (homepage) — thông tin tối thiểu, không lộ internals. */
@@ -175,105 +149,6 @@ export async function runModuleAction(
   }
 }
 
-export interface ConfigFileView {
-  path: string;
-  content: string;
-}
-
-/** Đọc core + module configs (mask secret) cho Config tab. */
-export function readConfigs(root: string, registry: RegistryLike): { core: ConfigFileView; modules: ConfigFileView[] } {
-  const corePath = join(root, 'config', 'config.yml');
-  const core = {
-    path: 'config/config.yml',
-    content: existsSync(corePath) ? maskYamlContent(readFileSync(corePath, 'utf8')) : '# config/config.yml chưa tồn tại — copy từ config.example.yml',
-  };
-  const registrySvc = registry.getService('registry');
-  const modules = registrySvc.getAllModules()
-    .map((m) => {
-      const p = join(root, 'modules', m.name, 'config', 'defaults.yml');
-      return {
-        path: `modules/${m.name}/config/defaults.yml`,
-        content: existsSync(p) ? maskYamlContent(readFileSync(p, 'utf8')) : '# không có config module',
-      };
-    });
-  return { core, modules };
-}
-
-export interface SaveConfigBody {
-  scope: 'core' | 'module';
-  name?: string;
-  content: string;
-}
-
-export interface SaveConfigResult {
-  ok: boolean;
-  message: string;
-  backup?: string;
-  reloaded?: boolean;
-  errors?: string[];
-}
-
-/** Validate → backup → ghi config mới; reload module nếu là config module. */
-export async function saveConfig(root: string, registry: RegistryLike, body: SaveConfigBody): Promise<SaveConfigResult> {
-  if (typeof body.content !== 'string' || body.content.length === 0) {
-    return { ok: false, message: 'Config rỗng' };
-  }
-  try {
-    if (body.scope === 'core') {
-      validateCoreConfig(root, body.content);
-      const dir = join(root, 'config');
-      const backup = backupConfig(dir, { type: 'core' });
-      writeFileSync(join(dir, 'config.yml'), body.content, 'utf8');
-      return {
-        ok: true,
-        message: 'Đã lưu config/config.yml — RESTART bot để áp dụng (core config không hot-reload).',
-        backup: backup?.replaceAll('\\', '/') ?? undefined,
-      };
-    }
-
-    // Scope module
-    const name = body.name;
-    if (!name) return { ok: false, message: 'Thiếu tên module' };
-    const moduleDir = join(root, 'modules', name);
-    if (!existsSync(join(moduleDir, 'module.yml'))) {
-      return { ok: false, message: `Module '${name}' không tồn tại trên đĩa` };
-    }
-    validateModuleConfig(moduleDir, name, body.content);
-    const backup = backupConfig(moduleDir, { type: 'module', name });
-    writeFileSync(join(moduleDir, 'config', 'defaults.yml'), body.content, 'utf8');
-    const reload = await runModuleAction(registry, name, 'reload', true);
-    return {
-      ok: reload.ok,
-      message: reload.ok ? `Đã lưu + reload module '${name}'` : `Đã lưu config nhưng reload thất bại: ${reload.message}`,
-      backup: backup?.replaceAll('\\', '/') ?? undefined,
-      reloaded: reload.ok,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const errors = err instanceof ConfigError ? message.split('\n').map((s) => s.trim()).filter(Boolean) : undefined;
-    return { ok: false, message: `Lưu config thất bại: ${message}`, errors };
-  }
-}
-
-/** Validate config core bằng core.schema.json + semantic (§6.4). */
-export function validateCoreConfig(root: string, content: string): void {
-  const config = loadConfigFromContent(content, { schema: join(root, 'config', 'schemas', 'core.schema.json'), file: 'config.yml' });
-  validateSemantics(config as never, { file: 'config.yml' });
-}
-
-/** Validate config module bằng schema module + semantic. */
-export function validateModuleConfig(moduleDir: string, name: string, content: string): void {
-  const manifest = loadConfigFromContent<{ config?: { schema?: string } }>(readFileSync(join(moduleDir, 'module.yml'), 'utf8'));
-  const config = loadConfigFromContent<Record<string, unknown>>(content, { file: `modules/${name}/config/defaults.yml` });
-  if (manifest.config?.schema) {
-    const schemaPath = join(moduleDir, manifest.config.schema);
-    if (existsSync(schemaPath)) {
-      validateConfig(config, loadSchema(schemaPath), [schemaPath]);
-    }
-  }
-  validateModuleSemantics(config, manifest as never, name);
-}
-
 export interface SharedGuild {
   id: string;
   name: string;
@@ -331,124 +206,5 @@ function canManageGuild(member: unknown): boolean {
     return false;
   } catch {
     return false;
-  }
-}
-
-export interface CrashReportMeta {
-  file: string;
-  mtime: string;
-  size: number;
-}
-
-/** Liệt kê crash report (crash-reports/, mới nhất trước) — §9.4. */
-export function readCrashReports(root: string): CrashReportMeta[] {
-  const dir = join(root, 'crash-reports');
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .map((file) => {
-      const p = join(dir, file);
-      const st = statSync(p);
-      return { file, mtime: st.mtime.toISOString(), size: st.size };
-    })
-    .sort((a, b) => (a.mtime < b.mtime ? 1 : -1));
-}
-
-/** Đọc nội dung 1 crash report — chống path traversal (chỉ tên file `crash-*.json`). */
-export function readCrashReport(root: string, file: string): string | null {
-  if (!/^crash-[\w.-]+\.json$/.test(file) || file.includes('..') || file.includes('/') || file.includes('\\')) return null;
-  const p = join(root, 'crash-reports', file);
-  if (!existsSync(p) || statSync(p).isDirectory()) return null;
-  return readFileSync(p, 'utf8');
-}
-
-export interface BackupEntry {
-  file: string;
-  mtime: string;
-}
-
-/** Danh sách backup config core + từng module (§6.6). */
-export function listBackups(
-  root: string,
-  registry: RegistryLike,
-): { core: BackupEntry[]; modules: Array<{ name: string; backups: BackupEntry[] }> } {
-  const core = listSharedBackups(join(root, 'config'), { type: 'core' }).map(({ file, mtime }) => ({ file, mtime }));
-  const registrySvc = registry.getService('registry');
-  const modules = registrySvc
-    .getAllModules()
-    .map((m) => ({
-      name: m.name,
-      backups: listSharedBackups(join(root, 'modules', m.name), { type: 'module', name: m.name }).map(
-        ({ file, mtime }) => ({ file, mtime }),
-      ),
-    }))
-    .filter((m) => m.backups.length > 0);
-  return { core, modules };
-}
-
-export interface RestoreBackupBody {
-  scope: 'core' | 'module';
-  name?: string;
-  file: string;
-}
-
-export interface RestoreBackupResult {
-  ok: boolean;
-  message: string;
-  restored?: boolean;
-  reloaded?: boolean;
-  errors?: string[];
-}
-
-/** Validate backup → khôi phục config core/module từ file backup (§6.6); reload module sau khi khôi phục. */
-export async function restoreBackup(
-  root: string,
-  registry: RegistryLike,
-  body: RestoreBackupBody,
-): Promise<RestoreBackupResult> {
-  if (typeof body.file !== 'string' || body.file.length === 0 || body.file.includes('..') || body.file.includes('/') || body.file.includes('\\')) {
-    return { ok: false, message: 'Tên file backup không hợp lệ' };
-  }
-  try {
-    if (body.scope === 'core') {
-      if (!/^config-.+\.bak$/.test(body.file)) return { ok: false, message: 'File không phải backup config core' };
-      const backupsDir = join(root, 'config', 'backups');
-      if (!existsSync(join(backupsDir, body.file))) return { ok: false, message: 'Không tìm thấy backup' };
-      const content = readFileSync(join(backupsDir, body.file), 'utf8');
-      validateCoreConfig(root, content);
-      restoreSharedConfig(join(root, 'config'), body.file, { type: 'core' });
-      return {
-        ok: true,
-        message: `Đã khôi phục config/config.yml từ '${body.file}' — RESTART bot để áp dụng (core config không hot-reload).`,
-        restored: true,
-      };
-    }
-
-    // Scope module
-    const name = body.name;
-    if (!name) return { ok: false, message: 'Thiếu tên module' };
-    if (!/^module-.+\.bak$/.test(body.file)) return { ok: false, message: 'File không phải backup config module' };
-    const moduleDir = join(root, 'modules', name);
-    if (!existsSync(join(moduleDir, 'module.yml'))) {
-      return { ok: false, message: `Module '${name}' không tồn tại trên đĩa` };
-    }
-    const backupsDir = join(moduleDir, 'config', 'backups');
-    if (!existsSync(join(backupsDir, body.file))) return { ok: false, message: 'Không tìm thấy backup' };
-    const content = readFileSync(join(backupsDir, body.file), 'utf8');
-    validateModuleConfig(moduleDir, name, content);
-    restoreSharedConfig(moduleDir, body.file, { type: 'module' });
-    const reload = await runModuleAction(registry, name, 'reload', true);
-    return {
-      ok: reload.ok,
-      message: reload.ok
-        ? `Đã khôi phục config module '${name}' từ '${body.file}' + reload.`
-        : `Đã khôi phục config nhưng reload thất bại: ${reload.message}`,
-      restored: true,
-      reloaded: reload.ok,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const errors = err instanceof ConfigError ? message.split('\n').map((s) => s.trim()).filter(Boolean) : undefined;
-    return { ok: false, message: `Khôi phục thất bại: ${message}`, errors };
   }
 }

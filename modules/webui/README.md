@@ -50,7 +50,7 @@ webui:
 3. Điền non-secret (host/port/admin_user_ids/oauth2 client_id + redirect_uri) trong `modules/webui/config/defaults.yml`.
 4. Restart bot → mở `http://127.0.0.1:3000`.
 
-- **Admin dashboard**: login **Discord OAuth2** (tài khoản trong `admin_user_ids` = admin) → xem status/modules/config/logs, load/unload/reload module, sửa config (trang web hiển thị **mask secret**, lưu thật vào đĩa), xem **usage command**, **crash reports**, và **backup/khôi phục config** (validate lại trước khi ghi).
+- **Admin dashboard**: login **Discord OAuth2** (tài khoản trong `admin_user_ids` = admin) → xem status/modules/logs realtime, load/unload/reload module, xem **usage command**.
 - **User dashboard**: login Discord OAuth2 → xem server (guilds) mà bot và bạn cùng ở — icon, số thành viên, badge "bạn quản lý guild này", nút invite bot điền sẵn guild.
 - **Trang chủ**: status bot (online/modules) public, cập nhật realtime qua WebSocket.
 
@@ -63,25 +63,18 @@ webui:
 | `POST /api/logout` | session | Đăng xuất |
 | `GET /api/me` | session | Session hiện tại |
 | `GET /oauth2/login` · `GET /oauth2/callback` | — | Discord OAuth2 flow (login duy nhất) |
-| `GET /api/admin/status` · `modules` · `config` · `logs` | admin | Dữ liệu dashboard admin |
+| `GET /api/admin/status` · `modules` · `logs` | admin | Dữ liệu dashboard admin |
 | `POST /api/admin/modules/:name/:action` | admin | `load` / `unload` / `reload` module |
-| `POST /api/admin/config` | admin | Lưu core hoặc module config (validate trước khi ghi) |
 | `GET /api/admin/usage` | admin | Thống kê usage command (tổng + theo module/lệnh/guild) |
-| `GET /api/admin/crash-reports` · `/crash-reports/:file` | admin | Liệt kê + xem nội dung crash report |
-| `GET /api/admin/backups` | admin | Liệt kê backup config core + module |
-| `POST /api/admin/backups/restore` | admin | Khôi phục config từ backup (validate + reload module) |
 | `GET /api/user/guilds` | user | Guilds dùng chung bot ↔ user (kèm iconUrl + userCanManage) |
 | `WS /ws?token=…` | admin session | Realtime snapshot (status + modules + log stream) mỗi 3s |
 
 ## Bảo mật / Security
 
-- Secret (`client_secret`) KHÔNG bao giờ được trả ra web — config hiển thị được mask theo key pattern `/(token|secret|password)/i`.
 - Auth 100% qua **Discord OAuth2** (không có API token) — admin = user trong `admin_user_ids`; session id random 32-byte.
 - OAuth2 dùng `state` (ngẫu nhiên, 1 lần dùng) chống CSRF.
 - Static file chống path traversal (guard `..` + normalize); WS session sai → đóng `4001`.
 - Host non-localhost mà thiếu OAuth2 → boot từ chối (fail-fast).
-- Config lưu qua web được **validate lại** bằng schema của core/module trước khi ghi đĩa.
-- Crash report / backup config KHÔNG bao giờ để lộ ra ngoài thư mục của chúng (guard path traversal trên `crash-reports/:file` + `backups/restore`).
 
 ## Test
 
@@ -89,5 +82,5 @@ webui:
 npx vitest run modules/webui
 ```
 
-Che: `config` (resolve settings + secrets), `auth` (session, OAuth2 state), `api` (mask, status/modules/actions, read/save config, crash reports, backups, logs), `logs` (LogTailer: tail/rotation/truncate/usage aggregation), `server` (HTTP routes, auth middleware, static, traversal, WS realtime log stream).
-EN: Covers config resolution/secrets, auth (sessions, OAuth2 state), api (masking, status/modules/actions, read/save config, logs), server (HTTP routes, auth middleware, static, traversal, WebSocket).
+Che: `config` (resolve settings + secrets), `auth` (session, OAuth2 state), `api` (status/modules/actions, shared guilds), `logs` (LogTailer: tail/rotation/truncate/usage aggregation), `server` (HTTP routes, auth middleware, static, traversal, WS realtime log stream).
+EN: Covers config resolution/secrets, auth (sessions, OAuth2 state), api (status/modules/actions, shared guilds), logs (LogTailer), server (HTTP routes, auth middleware, static, traversal, WebSocket).

@@ -80,7 +80,7 @@
           <div class="step">
             <span class="step-num mono">03</span>
             <h3>Quản lý mọi thứ từ web</h3>
-            <p>Dashboard quản trị để theo dõi trạng thái bot, xem log và chỉnh config có validate.</p>
+            <p>Dashboard quản trị để theo dõi trạng thái bot, xem log realtime và quản lý module.</p>
           </div>
         </div>
       </section>
@@ -100,7 +100,7 @@
           <div class="feature">
             <div class="feature-main">
               <h3>Dashboard quản trị</h3>
-              <p>Xem trạng thái bot, log và danh sách module ngay trên web. Chỉnh config có validate, không lo làm hỏng gì.</p>
+              <p>Xem trạng thái bot, log realtime, thống kê lệnh và danh sách module ngay trên web.</p>
             </div>
             <span class="feature-tag mono">webui</span>
           </div>
@@ -163,11 +163,8 @@
       <div class="tabs">
         <button class="tab active" data-tab="status">Status</button>
         <button class="tab" data-tab="modules">Modules</button>
-        <button class="tab" data-tab="config">Config</button>
         <button class="tab" data-tab="logs">Logs</button>
         <button class="tab" data-tab="usage">Usage</button>
-        <button class="tab" data-tab="crash">Crash</button>
-        <button class="tab" data-tab="backups">Backups</button>
       </div>
 
       <div id="panel-status" class="panel">
@@ -185,17 +182,6 @@
           <thead><tr><th>Name</th><th>Version</th><th>State</th><th>Active</th><th>CMDs</th><th>Events</th><th></th></tr></thead>
           <tbody id="modules-body"></tbody>
         </table>
-      </div>
-
-      <div id="panel-config" class="panel hidden">
-        <label for="config-target">Config file</label>
-        <select id="config-target"></select>
-        <textarea id="config-content" rows="18" spellcheck="false"></textarea>
-        <div class="row">
-          <button id="config-reload" class="btn">Đọc lại</button>
-          <button id="config-save" class="btn btn-primary">Lưu</button>
-        </div>
-        <p id="config-result" class="small hidden"></p>
       </div>
 
       <div id="panel-logs" class="panel hidden">
@@ -219,26 +205,6 @@
             <h3>Theo guild</h3>
             <table class="table"><thead><tr><th>Guild</th><th>Lần dùng</th></tr></thead><tbody id="usage-guilds"></tbody></table>
           </div>
-        </div>
-      </div>
-
-      <div id="panel-crash" class="panel hidden">
-        <button id="crash-refresh" class="btn btn-outline">Refresh</button>
-        <div class="crash-layout">
-          <ul id="crash-list" class="list"></ul>
-          <pre id="crash-view" class="logs"></pre>
-        </div>
-      </div>
-
-      <div id="panel-backups" class="panel hidden">
-        <button id="backups-refresh" class="btn btn-outline">Refresh</button>
-        <div id="backups-core">
-          <h3>Core config (config/config.yml)</h3>
-          <table class="table"><thead><tr><th>File</th><th>Thời gian</th><th></th></tr></thead><tbody id="backups-core-body"></tbody></table>
-        </div>
-        <div id="backups-modules">
-          <h3>Config module</h3>
-          <div id="backups-modules-body"></div>
         </div>
       </div>
     </section>

@@ -372,16 +372,9 @@ textarea { resize: vertical; line-height: 1.6; }
 .guild-info { flex: 1; min-width: 0; }
 .guild-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-/* ── Usage / Crash / Backups panels ── */
+/* ── Usage panel ── */
 .usage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 18px; }
 .usage-grid h3, .panel h3, .panel h4 { font-size: 1em; margin: 18px 0 8px; }
-
-.crash-layout { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 16px; margin-top: 14px; align-items: start; }
-.crash-layout .list li { display: flex; flex-direction: column; gap: 2px; }
-#crash-view { max-height: 60vh; overflow: auto; white-space: pre-wrap; }
-
-#backups-modules-body { display: grid; gap: 12px; margin-top: 6px; }
-#backups-modules-body .card { padding: 14px 18px; }
 
 /* ── Responsive ── */
 @media (max-width: 820px) {
@@ -395,5 +388,4 @@ textarea { resize: vertical; line-height: 1.6; }
   .feature { flex-direction: column; gap: 8px; }
   .container { padding: 0 16px 56px; }
   .nav-link { display: none; }
-  .crash-layout { grid-template-columns: 1fr; }
 }
