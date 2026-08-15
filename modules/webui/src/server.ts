@@ -1,0 +1,392 @@
+/**
+ * modules/webui/server — HTTP server (node:http built-in) + WebSocket (ws) + static frontend.
+ * EN: HTTP server (node:http built-in) + WebSocket (ws) + static frontend.
+ *
+ * Routes:
+ *   Công khai (public):   GET  /api/status, / , static assets
+ *   Auth (admin/user):    POST /api/login, POST /api/logout, GET /api/me
+ *   Admin:                GET /api/admin/* , POST /api/admin/modules/:name/:action,
+ *                         POST /api/admin/config, GET /api/admin/logs, /ws (realtime)
+ *   User (OAuth2):        GET /api/user/guilds
+ *   OAuth2:               GET /oauth2/login, GET /oauth2/callback
+ */
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { extname, join, normalize } from 'node:path';
+import { URL } from 'node:url';
+import { WebSocketServer } from 'ws';
+import type { Logger } from '../../../shared/logger/index.js';
+import type { RegistryLike } from '../../../core/src/registry/types.js';
+import type { ResolvedWebUiSettings } from './config.js';
+import { AuthStore, buildAuthorizeUrl, exchangeCode, fetchDiscordUser, safeEqual, type SessionInfo } from './auth.js';
+import * as api from './api.js';
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+};
+
+export interface WebUiServerOptions {
+  registry: RegistryLike;
+  settings: ResolvedWebUiSettings;
+  logger: Logger;
+}
+
+export class WebUiServer {
+  private readonly server: Server;
+  private readonly wss: WebSocketServer;
+  private readonly auth = new AuthStore();
+  private started = false;
+  private readonly publicDir: string;
+  private readonly registry: RegistryLike;
+  private readonly settings: ResolvedWebUiSettings;
+  private readonly logger: Logger;
+
+  constructor(opts: WebUiServerOptions) {
+    this.registry = opts.registry;
+    this.settings = opts.settings;
+    this.logger = opts.logger;
+    // Cross-platform path: static dir tính từ folder module (qua registry.getService('root')).
+    // EN: Static dir resolved from the module folder via registry.getService('root').
+    this.publicDir = join(this.registry.getService('root'), 'modules', 'webui', this.settings.staticDir);
+    this.server = createServer((req, res) => this.handleRequest(req, res).catch((err) => this.handleError(res, err)));
+    this.wss = this.setupWebSocket();
+  }
+
+  /** Bắt đầu lắng nghe (port 0 → chọn port tự do, test).
+   * `on('error')` thay vì `once` — reject sau khi promise đã settle là no-op, nên error phát
+   * sau (vd EADDRINUSE) không bao giờ thành uncaughtException làm sập process (§9.1).
+   * EN: `on('error')` not `once` — reject on a settled promise is a no-op, so any late
+   * 'error' (e.g. EADDRINUSE) can never become an uncaughtException that kills the process. */
+  start(): Promise<number> {
+    return new Promise((resolve, reject) => {
+      this.server.on('error', reject);
+      this.server.listen(this.settings.port, this.settings.host, () => {
+        this.started = true;
+        const addr = this.server.address();
+        const port = typeof addr === 'object' && addr ? addr.port : this.settings.port;
+        this.logger.info(`Web UI listening on http://${this.settings.host}:${port}`, { host: this.settings.host, port });
+        resolve(port);
+      });
+    });
+  }
+
+  /** Dừng server + WS + đóng toàn bộ handle (an toàn hot-reload — không "port đã dùng"). */
+  async stop(): Promise<void> {
+    if (!this.started) return;
+    this.started = false;
+    await new Promise<void>((resolve) => {
+      this.wss.close(() => {
+        this.server.close(() => resolve());
+      });
+    });
+  }
+
+  get port(): number {
+    const addr = this.server.address();
+    return typeof addr === 'object' && addr ? addr.port : this.settings.port;
+  }
+
+  // ── WebSocket (realtime dashboard: status + modules snapshot) ──
+  private setupWebSocket(): WebSocketServer {
+    const wss = new WebSocketServer({ server: this.server, path: '/ws' });
+    // ws re-emit 'error' của http server lên chính nó (vd EADDRINUSE khi listen lỗi) — nếu
+    // không có listener sẽ thành uncaughtException làm sập process (§9.1). Bắt + log, không crash.
+    // EN: ws re-emits the http server's 'error' on itself (e.g. EADDRINUSE on listen failure);
+    // without a listener this becomes an uncaughtException that kills the process. Catch + log.
+    wss.on('error', (err) => {
+      this.logger.warn(`Web: WebSocket server error`, { error: err instanceof Error ? err.message : String(err) });
+    });
+    wss.on('connection', (socket, req) => {
+      const token = new URL(req.url ?? '/', 'http://localhost').searchParams.get('token') ?? '';
+      if (!this.authorizeAdminToken(token)) {
+        socket.close(4001, 'unauthorized');
+        return;
+      }
+      const send = (): void => {
+        if (socket.readyState === socket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'snapshot',
+            now: Date.now(),
+            status: api.getAdminStatus(this.registry),
+            modules: api.getModules(this.registry),
+          }));
+        }
+      };
+      send();
+      const timer = setInterval(send, 3000);
+      socket.on('close', () => clearInterval(timer));
+      socket.on('error', () => clearInterval(timer));
+    });
+    return wss;
+  }
+
+  // ── Auth helpers ──
+  private extractToken(req: IncomingMessage): string {
+    const header = req.headers.authorization;
+    if (header && header.startsWith('Bearer ')) return header.slice(7).trim();
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    return url.searchParams.get('token') ?? '';
+  }
+
+  /** Token hợp lệ cho admin: session admin hoặc api_token (timing-safe). */
+  private authorizeAdminToken(token: string): SessionInfo | null {
+    if (!token) return null;
+    const session = this.auth.getSession(token);
+    if (session?.kind === 'admin') return session;
+    if (this.settings.apiToken && safeEqual(token, this.settings.apiToken)) {
+      return { id: token, kind: 'admin', createdAt: 0 };
+    }
+    return null;
+  }
+
+  private requireAuth(req: IncomingMessage, res: ServerResponse, minKind: 'admin' | 'user'): SessionInfo | null {
+    const session = this.authorizeAdminToken(this.extractToken(req)) ?? this.auth.getSession(this.extractToken(req));
+    if (!session) {
+      this.json(res, 401, { ok: false, message: 'Unauthorized' });
+      return null;
+    }
+    if (minKind === 'admin' && session.kind !== 'admin') {
+      this.json(res, 403, { ok: false, message: 'Forbidden — cần admin' });
+      return null;
+    }
+    return session;
+  }
+
+  // ── HTTP routing ──
+  private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const { pathname } = url;
+
+    if (pathname.startsWith('/api/')) {
+      await this.handleApi(req, res, pathname, url);
+      return;
+    }
+    if (pathname === '/oauth2/login' || pathname === '/oauth2/callback') {
+      await this.handleOAuth2(req, res, pathname, url);
+      return;
+    }
+    this.serveStatic(res, pathname);
+  }
+
+  private async handleApi(req: IncomingMessage, res: ServerResponse, pathname: string, url: URL): Promise<void> {
+    const method = req.method ?? 'GET';
+
+    // Công khai
+    if (method === 'GET' && pathname === '/api/status') {
+      this.json(res, 200, api.getPublicStatus(this.registry));
+      return;
+    }
+    if (method === 'GET' && pathname === '/api/modules') {
+      this.json(res, 200, { ok: true, modules: api.getPublicModules(this.registry, this.registry.getService('root')) });
+      return;
+    }
+    if (method === 'GET' && pathname === '/api/me') {
+      const session = this.requireAuth(req, res, 'user');
+      if (!session) return;
+      this.json(res, 200, {
+        ok: true,
+        session: {
+          kind: session.kind,
+          userId: session.userId ?? null,
+          username: session.username ?? null,
+          avatar: session.avatar ?? null,
+        },
+      });
+      return;
+    }
+    if (method === 'POST' && pathname === '/api/login') {
+      await this.handleLogin(req, res);
+      return;
+    }
+    if (method === 'POST' && pathname === '/api/logout') {
+      const token = this.extractToken(req);
+      this.auth.destroySession(token);
+      this.json(res, 200, { ok: true });
+      return;
+    }
+
+    // Admin
+    if (pathname === '/api/admin/status' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      this.json(res, 200, api.getAdminStatus(this.registry));
+      return;
+    }
+    if (pathname === '/api/admin/modules' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      this.json(res, 200, { ok: true, modules: api.getModules(this.registry) });
+      return;
+    }
+    const moduleActionMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/(load|unload|reload)$/);
+    if (moduleActionMatch && method === 'POST') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      const name = moduleActionMatch[1];
+      const action = moduleActionMatch[2] as api.ModuleAction;
+      const force = url.searchParams.get('force') === 'true';
+      this.logger.info(`Web: ${action} module '${name}'${force ? ' (force)' : ''}`, { actor: session.kind });
+      this.json(res, 200, await api.runModuleAction(this.registry, name, action, force));
+      return;
+    }
+    if (pathname === '/api/admin/config' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      this.json(res, 200, { ok: true, ...api.readConfigs(this.registry.getService('root'), this.registry) });
+      return;
+    }
+    if (pathname === '/api/admin/config' && method === 'POST') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      const body = await this.readJson(req) as unknown as api.SaveConfigBody;
+      const result = await api.saveConfig(this.registry.getService('root'), this.registry, body);
+      this.json(res, result.ok ? 200 : 400, result);
+      return;
+    }
+    if (pathname === '/api/admin/logs' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'admin');
+      if (!session) return;
+      const limit = Number(url.searchParams.get('limit') ?? 200);
+      this.json(res, 200, { ok: true, logs: api.readLogLines(this.registry.getService('root'), limit) });
+      return;
+    }
+
+    // User
+    if (pathname === '/api/user/guilds' && method === 'GET') {
+      const session = this.requireAuth(req, res, 'user');
+      if (!session) return;
+      if (!session.userId) {
+        this.json(res, 400, { ok: false, message: 'User session thiếu userId' });
+        return;
+      }
+      const guilds = await api.getSharedGuilds(this.registry, session.userId);
+      this.json(res, 200, { ok: true, guilds });
+      return;
+    }
+
+    this.json(res, 404, { ok: false, message: `Not found: ${method} ${pathname}` });
+  }
+
+  private async handleLogin(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await this.readJson(req).catch(() => null);
+    const token = typeof body?.token === 'string' ? body.token : '';
+    if (!this.settings.apiToken) {
+      this.json(res, 401, {
+        ok: false,
+        message: 'Admin auth chưa được cấu hình — đặt webui.api_token trong config/config.yml (hoặc Discord OAuth2 + admin_user_ids).',
+      });
+      return;
+    }
+    if (safeEqual(token, this.settings.apiToken)) {
+      const session = this.auth.createSession({ kind: 'admin' });
+      this.logger.info('Web: admin logged in');
+      this.json(res, 200, { ok: true, session: { id: session.id, kind: session.kind } });
+      return;
+    }
+    this.json(res, 403, { ok: false, message: 'Sai API token' });
+  }
+
+  private async handleOAuth2(_req: IncomingMessage, res: ServerResponse, pathname: string, url: URL): Promise<void> {
+    const { oauth2 } = this.settings;
+    const configured = oauth2.clientId && oauth2.clientSecret && oauth2.redirectUri;
+    if (!configured) {
+      this.json(res, 400, {
+        ok: false,
+        message: 'Discord OAuth2 chưa được cấu hình — đặt oauth2.client_id/redirect_uri trong modules/webui/config/defaults.yml và oauth2.client_secret trong config/config.yml.',
+      });
+      return;
+    }
+    if (pathname === '/oauth2/login') {
+      const state = this.auth.createOAuthState();
+      this.redirect(res, buildAuthorizeUrl(oauth2.clientId, oauth2.redirectUri, state));
+      return;
+    }
+    // /oauth2/callback
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    if (!code || !this.auth.consumeOAuthState(state)) {
+      this.json(res, 400, { ok: false, message: 'OAuth2 callback không hợp lệ (thiếu/mismatch state)' });
+      return;
+    }
+    try {
+      const { accessToken } = await exchangeCode(oauth2.clientId, oauth2.clientSecret, oauth2.redirectUri, code);
+      const user = await fetchDiscordUser(accessToken);
+      const kind = this.settings.adminUserIds.includes(user.id) ? 'admin' : 'user';
+      const session = this.auth.createSession({ kind, userId: user.id, username: user.username, avatar: user.avatar });
+      this.logger.info(`Web: Discord user '${user.username}' logged in (${kind})`, { userId: user.id });
+      this.redirect(res, `/#session=${session.id}`);
+    } catch (err) {
+      this.logger.warn(`Web: OAuth2 login thất bại`, { error: err instanceof Error ? err.message : String(err) });
+      this.json(res, 502, { ok: false, message: 'Đăng nhập Discord thất bại' });
+    }
+  }
+
+  /** Phục vụ static (SPA fallback: không tìm thấy file → trả index.html). Chống path traversal. */
+  private serveStatic(res: ServerResponse, pathname: string): void {
+    const root = normalize(this.publicDir);
+    const rel = decodeURIComponent(pathname).replace(/^\/+/, '') || 'index.html';
+    const filePath = normalize(join(root, rel));
+    if (!filePath.startsWith(root) || pathname.includes('..')) {
+      res.writeHead(403).end('Forbidden');
+      return;
+    }
+    let target = filePath;
+    if (!existsSync(target)) {
+      target = join(root, 'index.html');
+    }
+    if (!existsSync(target) || statSync(target).isDirectory()) {
+      res.writeHead(404).end('Not found');
+      return;
+    }
+    const type = MIME[extname(target)] ?? 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+    res.end(readFileSync(target));
+  }
+
+  private redirect(res: ServerResponse, location: string): void {
+    res.writeHead(302, { Location: location }).end();
+  }
+
+  private json(res: ServerResponse, status: number, data: unknown): void {
+    const payload = JSON.stringify(data);
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(payload);
+  }
+
+  private readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 1_000_000) {
+          reject(new Error('Request body quá lớn'));
+          req.destroy();
+        }
+      });
+      req.on('end', () => {
+        try {
+          resolve(body ? (JSON.parse(body) as Record<string, unknown>) : {});
+        } catch {
+          reject(new Error('Body không phải JSON hợp lệ'));
+        }
+      });
+      req.on('error', reject);
+    });
+  }
+
+  private handleError(res: ServerResponse, err: unknown): void {
+    this.logger.error(`Web: request thất bại`, { error: err instanceof Error ? err.message : String(err) });
+    if (!res.headersSent) {
+      this.json(res, 500, { ok: false, message: 'Internal error' });
+    } else {
+      res.end();
+    }
+  }
+}

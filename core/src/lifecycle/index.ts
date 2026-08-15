@@ -21,7 +21,7 @@ export class Lifecycle {
     this.registry.setModuleState(name, 'LOADING');
 
     try {
-      if (module.onLoad) await module.onLoad();
+      if (module.onLoad) await module.onLoad(this.registry);
       this.registry.setModuleState(name, 'LOADED');
     } catch (err) {
       this.registry.setModuleState(name, 'FAULTED');

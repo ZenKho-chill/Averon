@@ -1,0 +1,39 @@
+# JSON Schema cho config module webui
+# EN: JSON Schema for module webui config
+$schema: http://json-schema.org/draft-07/schema#
+title: WebUI module config
+type: object
+additionalProperties: false
+properties:
+  host:
+    type: string
+    description: "Địa chỉ bind (127.0.0.1 local / 0.0.0.0 public) / EN: bind host (127.0.0.1 local / 0.0.0.0 public)"
+  port:
+    type: integer
+    minimum: 0
+    maximum: 65535
+    description: "Cổng HTTP / EN: HTTP port"
+  static_dir:
+    type: string
+    description: "Thư mục frontend tương đối folder module / EN: frontend dir relative to the module folder"
+  public_home:
+    type: boolean
+    description: "Bật trang chủ công khai / EN: enable the public homepage"
+  invite_url:
+    type: string
+    description: "Link invite bot (OAuth2 invite) cho nút 'Add to Discord' trên trang chủ / EN: bot invite link for the 'Add to Discord' homepage CTA"
+  admin_user_ids:
+    type: array
+    items:
+      type: string
+    description: "Discord user IDs được xem là admin khi OAuth2 / EN: Discord user IDs treated as admins via OAuth2"
+  oauth2:
+    type: object
+    additionalProperties: false
+    properties:
+      client_id:
+        type: string
+        description: "Discord application client ID / EN: Discord application client ID"
+      redirect_uri:
+        type: string
+        description: "OAuth2 redirect URI (khớp giá trị trong Discord Developer Portal) / EN: OAuth2 redirect URI (must match the portal)"

@@ -4,21 +4,46 @@
  */
 import type { Logger } from '../../../shared/logger/index.js';
 import type { AppConfig } from '../config/index.js';
+import type { ModuleManager } from '../console/manager.js';
+import type { DiscordClient } from '../discord/index.js';
+import type { UsageTracker } from './usage.js';
+import type { Registry } from './index.js';
 
+/**
+ * Service registry (DI) core expose cho module (§2.1, §13.3). Module truy cập qua
+ * `ctx.registry.getService(key)` (xem RegistryLike) — KHÔNG import core internal.
+ * EN: Services core exposes to modules via the DI registry. Modules reach them through
+ * `ctx.registry.getService(key)` (see RegistryLike) — never by importing core internals.
+ */
 export interface CoreServices {
   logger: Logger;
   config: AppConfig;
-  // db: DatabaseClient; // (sẽ thêm sau)
+  /** ModuleManager — load/unload/reload module lúc runtime (console manager). */
+  manager: ModuleManager;
+  /** DiscordClient — status (ready/ping/guilds), client wrapper. */
+  discord: DiscordClient;
+  /** UsageTracker — đếm in-flight handler của từng module. */
+  usage: UsageTracker;
+  /** Registry — danh sách module đang chạy (đọc metadata an toàn). */
+  registry: Registry;
+  /** Project root (nơi có package.json) — đọc/ghi config paths cross-platform (§6.1). */
+  root: string;
 }
 
 export type ServiceKey = keyof CoreServices;
 
-/** Tối thiểu core expose cho module để tra module đang chạy (không phải toàn bộ Registry). */
+/**
+ * Mặt public tối thiểu core expose cho module (tra module + lấy service). KHÔNG lộ toàn bộ
+ * Registry — module chỉ được gọi các hàm non-destructive này (CLAUDE.md §5.3).
+ * EN: Minimal public surface core exposes to modules — module lookup + typed service access.
+ */
 export interface RegistryLike {
   /** Kiểm tra module có tồn tại không (non-throwing). */
   hasModule(name: string): boolean;
   /** Lấy module theo tên. */
   getModule(name: string): ModuleRegistryEntry;
+  /** Lấy service core theo key (type-safe) — vd `getService('manager')` cho load/unload/reload module. */
+  getService<K extends ServiceKey>(key: K): CoreServices[K];
 }
 
 /** Context truyền cho handler command (module) — config module + logger (§2.1). */

@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { bootstrap } from './bootstrap.js';
 import type { AppConfig } from './config/index.js';
-
-// Mock loadCoreConfig để trả về config giả
 vi.mock('./config/index.js', () => ({
   loadCoreConfig: vi.fn(async () => ({
     app: { name: 'averon', version: '0.4.0' },
@@ -44,13 +42,31 @@ vi.mock('../../shared/config/index.js', async (importOriginal) => {
   };
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Unload mọi module được bootstrap load (vd webui — HTTP server) — tránh leak handle
+  // giữa các test (server giữ event loop, port bị chiếm giữa test này và test khác).
+  // EN: Unload every module bootstrap loaded (e.g. webui — HTTP server) so no handles/ports
+  // leak between tests.
+  if (booted) {
+    for (const name of [...booted.registry.getAllModules().map((m) => m.name)]) {
+      await booted.manager.unload(name, { force: true }).catch(() => undefined);
+    }
+  }
+  booted = undefined;
   vi.restoreAllMocks();
 });
 
+// Chạy bootstrap + giữ result để afterEach unload toàn bộ module (bao gồm webui).
+// EN: Run bootstrap and keep the result so afterEach can unload every module (incl. webui).
+let booted: Awaited<ReturnType<typeof bootstrap>> | undefined;
+async function boot(): Promise<Awaited<ReturnType<typeof bootstrap>>> {
+  booted = await bootstrap();
+  return booted;
+}
+
 describe('bootstrap', () => {
   it('gọi pipeline khởi động: config → logger → anti-crash → registry → discord', async () => {
-    const result = await bootstrap();
+    const result = await boot();
     expect(result.config.app.name).toBe('averon');
     expect(result.logger).toBeDefined();
     expect(result.registry).toBeDefined();
@@ -59,7 +75,7 @@ describe('bootstrap', () => {
   });
 
   it('expose lifecycle/usage/manager/console sau khi bootstrap', async () => {
-    const result = await bootstrap();
+    const result = await boot();
     expect(result.lifecycle).toBeDefined();
     expect(result.usage).toBeDefined();
     expect(result.manager).toBeDefined();
@@ -69,14 +85,23 @@ describe('bootstrap', () => {
   });
 
   it('pipeline chạy qua module loader', async () => {
-    await bootstrap();
+    await boot();
     // Không kiểm tra chi tiết — chỉ đảm bảo không throw
   });
 
   it('gắn command handler từ module ping qua discord.registerCommand', async () => {
-    const result = await bootstrap();
+    const result = await boot();
     // Mock DiscordClient.registerCommand là vi.fn → assert đã gọi với tên lệnh + handler function + ctx
     const registerCommand = result.discord.registerCommand as ReturnType<typeof vi.fn>;
     expect(registerCommand).toHaveBeenCalledWith('ping', expect.any(Function), expect.objectContaining({ config: expect.any(Object), moduleName: 'ping' }));
+  });
+
+  it('register toàn bộ service core cho module (manager/discord/usage/registry/root)', async () => {
+    const result = await boot();
+    expect(result.registry.getService('manager')).toBe(result.manager);
+    expect(result.registry.getService('discord')).toBe(result.discord);
+    expect(result.registry.getService('usage')).toBe(result.usage);
+    expect(result.registry.getService('registry')).toBe(result.registry);
+    expect(result.registry.getService('root')).toBeDefined();
   });
 });

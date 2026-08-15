@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Averon — Discord Bot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">A</span>
+      <span class="brand-name">Averon</span>
+    </div>
+    <nav class="topnav">
+      <a href="#about" class="nav-link">Về Averon</a>
+      <a href="#how" class="nav-link">Cách bắt đầu</a>
+      <a href="#features" class="nav-link">Tính năng</a>
+      <span id="nav-session" class="muted small"></span>
+      <button id="btn-admin-login" class="btn btn-ghost hidden">Admin</button>
+      <button id="btn-discord-login" class="btn btn-ghost hidden">Discord login</button>
+      <button id="btn-logout" class="btn btn-ghost hidden">Logout</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- ═══════════ TRANG CHỦ / HOMEPAGE ═══════════ -->
+    <section id="view-home">
+      <!-- ── Hero ── -->
+      <div class="hero">
+        <h1 class="hero-title">Averon</h1>
+        <p class="hero-tagline">Mọi tính năng server cần, trong một bot.</p>
+        <p class="hero-sub">
+          Averon là nền tảng Discord bot module hóa: mỗi tính năng là một module độc lập —
+          kênh thoại tạm thời, dashboard quản trị — và sẵn sàng cho mọi thứ tiếp theo.
+          Lỗi bị cô lập, bot vẫn trực tuyến.
+        </p>
+        <div class="actions">
+          <a id="btn-invite" class="btn btn-primary btn-lg" href="#" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.5 3l-.6 1.2a13.3 13.3 0 0 0-5.8 0L8.5 3a19.8 19.8 0 0 0-4.8 1.4A20.4 20.4 0 0 0 .1 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.9 12.9 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2a19.9 19.9 0 0 0 6-3 20.3 20.3 0 0 0-2.2-13.7zM8.7 15.3c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg>
+            Add to Discord
+          </a>
+          <button id="home-admin" class="btn btn-outline btn-lg">Admin dashboard</button>
+        </div>
+      </div>
+
+      <!-- ── Về Averon ── -->
+      <section class="home-section" id="about">
+        <h2 class="section-title">Về Averon</h2>
+        <div class="prose">
+          <p>
+            Averon được xây theo một hướng khác: mỗi tính năng là một <b>module độc lập</b>,
+            không ôm đồm hàng chục lệnh rối rắm. Bạn dùng đúng thứ mình cần — kênh thoại tạm thời,
+            dashboard quản trị — và mọi thứ đều quản lý được ngay trên trình duyệt.
+          </p>
+          <p>
+            Lỗi thì bị cô lập, không làm sập bot. Thêm tính năng mới là một thư mục mới,
+            không đụng vào lõi hệ thống.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── Cách bắt đầu ── -->
+      <section class="home-section" id="how">
+        <h2 class="section-title">Cách bắt đầu</h2>
+        <p class="section-sub">Ba bước, và không có bước thứ tư.</p>
+        <div class="steps">
+          <div class="step">
+            <span class="step-num mono">01</span>
+            <h3>Thêm bot vào server</h3>
+            <p>Bấm "Add to Discord", chọn server của bạn và cấp quyền cho bot.</p>
+          </div>
+          <div class="step">
+            <span class="step-num mono">02</span>
+            <h3>Bật đúng tính năng bạn dùng</h3>
+            <p>Mỗi tính năng là một module riêng — chỉ bật những gì server cần, không thừa, không thiếu.</p>
+          </div>
+          <div class="step">
+            <span class="step-num mono">03</span>
+            <h3>Quản lý mọi thứ từ web</h3>
+            <p>Dashboard quản trị để theo dõi trạng thái bot, xem log và chỉnh config có validate.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Tính năng ── -->
+      <section class="home-section" id="features">
+        <h2 class="section-title">Tính năng</h2>
+        <p class="section-sub">Những gì server của bạn nhận được ngay khi bot được thêm vào.</p>
+        <div class="features">
+          <div class="feature">
+            <div class="feature-main">
+              <h3>Kênh thoại tạm thời</h3>
+              <p>Mỗi người một phòng riêng, tự tạo khi họ vào và tự dọn khi họ rời. Không ai phải ngồi canh.</p>
+            </div>
+            <span class="feature-tag mono">tempvoice</span>
+          </div>
+          <div class="feature">
+            <div class="feature-main">
+              <h3>Dashboard quản trị</h3>
+              <p>Xem trạng thái bot, log và danh sách module ngay trên web. Chỉnh config có validate, không lo làm hỏng gì.</p>
+            </div>
+            <span class="feature-tag mono">webui</span>
+          </div>
+          <div class="feature">
+            <div class="feature-main">
+              <h3>Luôn trực tuyến</h3>
+              <p>Module lỗi bị cô lập thay vì làm sập bot, watchdog chống restart-loop. Bot ở đó khi bạn cần.</p>
+            </div>
+            <span class="feature-tag mono">core</span>
+          </div>
+          <div class="feature">
+            <div class="feature-main">
+              <h3>Luôn phát triển</h3>
+              <p>Mỗi module mới là một tính năng mới cho server của bạn, thêm vào mà không phá vỡ gì đang chạy.</p>
+            </div>
+            <span class="feature-tag mono">platform</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── CTA ── -->
+      <section class="home-section">
+        <div class="cta">
+          <h2 class="section-title">Thêm Averon vào Discord của bạn</h2>
+          <p class="section-sub">Cài đặt nhanh, dễ dùng. Thành viên sẽ thấy sự khác biệt ngay lần đầu vào kênh.</p>
+          <div class="actions">
+            <a id="btn-invite-2" class="btn btn-primary btn-lg" href="#" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.5 3l-.6 1.2a13.3 13.3 0 0 0-5.8 0L8.5 3a19.8 19.8 0 0 0-4.8 1.4A20.4 20.4 0 0 0 .1 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.9 12.9 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2a19.9 19.9 0 0 0 6-3 20.3 20.3 0 0 0-2.2-13.7zM8.7 15.3c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg>
+              Add to Discord
+            </a>
+            <button id="home-admin-2" class="btn btn-outline btn-lg">Admin dashboard</button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="home-footer">
+        <span class="brand-mark">A</span>
+        <p id="home-version" class="mono small"></p>
+      </footer>
+    </section>
+
+    <!-- ═══════════ LOGIN ADMIN / ADMIN LOGIN ═══════════ -->
+    <section id="view-admin-login" class="hidden">
+      <div class="card center-card">
+        <h2>Admin login</h2>
+        <p class="muted small">Nhập API token được cấu hình trong <code>webui.api_token</code>.</p>
+        <form id="admin-login-form">
+          <label for="admin-token">API token</label>
+          <input id="admin-token" type="password" autocomplete="current-password" placeholder="Nhập webui.api_token" required>
+          <button type="submit" class="btn btn-primary btn-block">Login</button>
+          <p id="admin-login-error" class="error small hidden"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- ═══════════ USER DASHBOARD ═══════════ -->
+    <section id="view-user" class="hidden">
+      <div class="card">
+        <h2>Dashboard của bạn</h2>
+        <div id="user-info" class="row">
+          <div class="avatar" id="user-avatar">?</div>
+          <div>
+            <div id="user-name" class="strong"></div>
+            <div id="user-id" class="muted small"></div>
+          </div>
+        </div>
+        <h3>Guild chung với bot</h3>
+        <ul id="user-guilds" class="list"></ul>
+      </div>
+    </section>
+
+    <!-- ═══════════ ADMIN DASHBOARD ═══════════ -->
+    <section id="view-admin" class="hidden">
+      <div class="tabs">
+        <button class="tab active" data-tab="status">Status</button>
+        <button class="tab" data-tab="modules">Modules</button>
+        <button class="tab" data-tab="config">Config</button>
+        <button class="tab" data-tab="logs">Logs</button>
+      </div>
+
+      <div id="panel-status" class="panel">
+        <div class="stats" id="admin-stats">
+          <div class="stat"><span class="stat-value" id="a-online">…</span><span class="stat-label">Discord</span></div>
+          <div class="stat"><span class="stat-value" id="a-ping">…</span><span class="stat-label">Ping (ms)</span></div>
+          <div class="stat"><span class="stat-value" id="a-guilds">…</span><span class="stat-label">Guilds</span></div>
+          <div class="stat"><span class="stat-value" id="a-modules">…</span><span class="stat-label">Modules</span></div>
+        </div>
+        <p class="muted small" id="a-ws"></p>
+      </div>
+
+      <div id="panel-modules" class="panel hidden">
+        <table class="table">
+          <thead><tr><th>Name</th><th>Version</th><th>State</th><th>Active</th><th>CMDs</th><th>Events</th><th></th></tr></thead>
+          <tbody id="modules-body"></tbody>
+        </table>
+      </div>
+
+      <div id="panel-config" class="panel hidden">
+        <label for="config-target">Config file</label>
+        <select id="config-target"></select>
+        <textarea id="config-content" rows="18" spellcheck="false"></textarea>
+        <div class="row">
+          <button id="config-reload" class="btn">Đọc lại</button>
+          <button id="config-save" class="btn btn-primary">Lưu</button>
+        </div>
+        <p id="config-result" class="small hidden"></p>
+      </div>
+
+      <div id="panel-logs" class="panel hidden">
+        <button id="logs-refresh" class="btn btn-outline">Refresh</button>
+        <pre id="logs-view" class="logs"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

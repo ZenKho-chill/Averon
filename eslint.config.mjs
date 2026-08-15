@@ -3,7 +3,9 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
+  // public/ là frontend browser (plain JS, không build) — lint với Node globals sẽ sai.
+  // EN: public/ is browser frontend (plain JS, no build) — linting with Node globals would be wrong.
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'modules/webui/public/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
