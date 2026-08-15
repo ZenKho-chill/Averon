@@ -296,14 +296,13 @@ function openLoginPopup() {
 }
 
 async function boot() {
-  // Nhận session từ popup login (callback redirect về /#session=... trong popup).
-  window.addEventListener('message', (e) => {
-    if (e.origin !== location.origin) return;
-    const d = e.data || {};
-    if (d.type === 'averon-oauth' && typeof d.session === 'string' && d.session) {
-      saveSession(d.session);
-      location.reload();
-    }
+  // Nhận session từ popup login: popup (cùng origin) ghi localStorage → cửa sổ chính
+  // nhận `storage` event → reload vào dashboard. Đáng tin cậy hơn postMessage (không mất
+  // khi popup đóng nhanh).
+  // EN: Handoff from the login popup: the popup (same origin) writes localStorage → this
+  // window gets a `storage` event → reloads into the dashboard. More reliable than postMessage.
+  window.addEventListener('storage', (e) => {
+    if (e.key === SESSION_KEY && e.newValue) location.reload();
   });
 
   $('#btn-logout').addEventListener('click', async () => {
@@ -328,14 +327,16 @@ async function boot() {
   });
 
   // Xử lý callback OAuth2: /#session=<token>
-  // - Trong popup (window.opener tồn tại): gửi session về cửa sổ chính rồi đóng popup.
-  //   EN: In the popup (window.opener exists): hand the session back to the opener and close.
+  // - Trong popup (window.opener tồn tại): lưu session vào localStorage (cùng origin → cửa sổ
+  //   chính nhận `storage` event và reload) rồi đóng popup.
+  //   EN: In the popup (window.opener exists): save the session to localStorage (same origin →
+  //   the opener gets a `storage` event and reloads), then close the popup.
   // - Mở trực tiếp trên tab: lưu session và tiếp tục như bình thường.
   const hash = location.hash;
   if (hash.startsWith('#session=')) {
     const token = hash.slice('#session='.length);
     if (window.opener) {
-      window.opener.postMessage({ type: 'averon-oauth', session: token }, location.origin);
+      saveSession(token);
       window.close();
       return;
     }
