@@ -130,9 +130,9 @@ describe('WebUiServer HTTP', () => {
     });
   }
 
-  it('GET /api/status công khai (không cần auth)', async () => {
+  it('GET /api/v1/status công khai (không cần auth)', async () => {
     await startServer();
-    const { status, body } = await request('/api/status');
+    const { status, body } = await request('/api/v1/status');
     expect(status).toBe(200);
     expect(body.name).toBe('averon');
     expect(body.online).toBe(true);
@@ -140,15 +140,15 @@ describe('WebUiServer HTTP', () => {
     expect(body.inviteUrl).toBe('');
   });
 
-  it('GET /api/status — inviteUrl lấy từ module config', async () => {
+  it('GET /api/v1/status — inviteUrl lấy từ module config', async () => {
     await startServer({}, { invite_url: 'https://discord.com/oauth2/authorize?client_id=1' });
-    const { body } = await request('/api/status');
+    const { body } = await request('/api/v1/status');
     expect(body.inviteUrl).toBe('https://discord.com/oauth2/authorize?client_id=1');
   });
 
-  it('GET /api/modules công khai — danh sách module cho homepage', async () => {
+  it('GET /api/v1/modules công khai — danh sách module cho homepage', async () => {
     await startServer();
-    const { status, body } = await request('/api/modules');
+    const { status, body } = await request('/api/v1/modules');
     expect(status).toBe(200);
     expect(Array.isArray(body.modules)).toBe(true);
     expect(body.modules[0]).toMatchObject({ name: 'ping', state: 'RUNNING', commands: 1 });
@@ -180,7 +180,7 @@ describe('WebUiServer HTTP', () => {
 
   it('admin route không có session → 401', async () => {
     await startServer(ADMIN_OAUTH);
-    const { status } = await request('/api/admin/status');
+    const { status } = await request('/api/v1/admin/status');
     expect(status).toBe(401);
   });
 
@@ -188,7 +188,7 @@ describe('WebUiServer HTTP', () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: true });
     expect(sid).toBeTruthy();
-    const { status, body } = await request('/api/admin/status', authed(sid));
+    const { status, body } = await request('/api/v1/admin/status', authed(sid));
     expect(status).toBe(200);
     expect(body.discord?.ping).toBe(42);
     expect(body.modules?.registered).toBe(1);
@@ -197,26 +197,26 @@ describe('WebUiServer HTTP', () => {
   it('admin route với user session → 403 (cần admin)', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: false });
-    const { status } = await request('/api/admin/status', authed(sid));
+    const { status } = await request('/api/v1/admin/status', authed(sid));
     expect(status).toBe(403);
   });
 
   it('admin route với session sai → 401', async () => {
     await startServer(ADMIN_OAUTH);
-    const { status } = await request('/api/admin/status', { headers: { Authorization: 'Bearer wrong' } });
+    const { status } = await request('/api/v1/admin/status', { headers: { Authorization: 'Bearer wrong' } });
     expect(status).toBe(401);
   });
 
-  it('POST /api/login đã bị gỡ (OAuth2-only) → 404', async () => {
+  it('POST /api/v1/login đã bị gỡ (OAuth2-only) → 404', async () => {
     await startServer();
-    const { status } = await request('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'x' }) });
+    const { status } = await request('/api/v1/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'x' }) });
     expect(status).toBe(404);
   });
 
   it('OAuth2 login: user trong admin_user_ids → session admin', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: true });
-    const me = await request('/api/me', authed(sid));
+    const me = await request('/api/v1/me', authed(sid));
     expect(me.status).toBe(200);
     expect((me.body.session as { kind: string }).kind).toBe('admin');
     expect((me.body.session as { userId: string }).userId).toBe('111-admin');
@@ -225,7 +225,7 @@ describe('WebUiServer HTTP', () => {
   it('OAuth2 login: user ngoài admin_user_ids → session user', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: false });
-    const me = await request('/api/me', authed(sid));
+    const me = await request('/api/v1/me', authed(sid));
     expect(me.status).toBe(200);
     expect((me.body.session as { kind: string }).kind).toBe('user');
   });
@@ -248,16 +248,16 @@ describe('WebUiServer HTTP', () => {
     expect(cbLoc.match(/session=([0-9a-f]+)/)?.[1]).toBeTruthy();
   });
 
-  it('POST /api/admin/modules/:name/reload → gọi manager, trả kết quả', async () => {
+  it('POST /api/v1/admin/modules/:name/reload → gọi manager, trả kết quả', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: true });
-    const { status, body } = await request('/api/admin/modules/ping/reload', authed(sid, { method: 'POST' }));
+    const { status, body } = await request('/api/v1/admin/modules/ping/reload', authed(sid, { method: 'POST' }));
     expect(status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.message).toContain('ping');
   });
 
-  it('POST /api/admin/modules/:name/unload với ?force=true → force', async () => {
+  it('POST /api/v1/admin/modules/:name/unload với ?force=true → force', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: true });
     const spy = { called: false };
@@ -265,7 +265,7 @@ describe('WebUiServer HTTP', () => {
       spy.called = opts.force === true;
       return { ok: true, outcome: 'unloaded', name };
     };
-    const { status } = await request('/api/admin/modules/ping/unload?force=true', authed(sid, { method: 'POST' }));
+    const { status } = await request('/api/v1/admin/modules/ping/unload?force=true', authed(sid, { method: 'POST' }));
     expect(status).toBe(200);
     expect(spy.called).toBe(true);
   });
@@ -298,16 +298,16 @@ describe('WebUiServer HTTP', () => {
     expect(text).toContain('Averon');             // trả SPA homepage thay vì file ngoài
   });
 
-  it('GET /api/user/guilds không có session → 401', async () => {
+  it('GET /api/v1/user/guilds không có session → 401', async () => {
     await startServer();
-    const { status } = await request('/api/user/guilds');
+    const { status } = await request('/api/v1/user/guilds');
     expect(status).toBe(401);
   });
 
-  it('GET /api/user/guilds → guild chung kèm userCanManage', async () => {
+  it('GET /api/v1/user/guilds → guild chung kèm userCanManage', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: false }); // user-222
-    const { status, body } = await request('/api/user/guilds', authed(sid));
+    const { status, body } = await request('/api/v1/user/guilds', authed(sid));
     expect(status).toBe(200);
     const guilds = body.guilds as Array<{ name: string; memberCount: number; userCanManage: boolean }>;
     expect(guilds).toHaveLength(1);
@@ -315,18 +315,18 @@ describe('WebUiServer HTTP', () => {
     expect(typeof guilds[0].userCanManage).toBe('boolean');
   });
 
-  it('GET /api/admin/logs → log từ tailer (buffer)', async () => {
+  it('GET /api/v1/admin/logs → log từ tailer (buffer)', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: true });
-    const { status, body } = await request('/api/admin/logs?limit=5', authed(sid));
+    const { status, body } = await request('/api/v1/admin/logs?limit=5', authed(sid));
     expect(status).toBe(200);
     expect(Array.isArray(body.logs)).toBe(true);
   });
 
-  it('GET /api/admin/usage → thống kê usage command', async () => {
+  it('GET /api/v1/admin/usage → thống kê usage command', async () => {
     await startServer(ADMIN_OAUTH);
     const sid = await oauth2Login({ admin: true });
-    const { status, body } = await request('/api/admin/usage', authed(sid));
+    const { status, body } = await request('/api/v1/admin/usage', authed(sid));
     expect(status).toBe(200);
     expect(typeof (body as { total: number }).total).toBe('number');
     expect(Array.isArray((body as { perModule: unknown[] }).perModule)).toBe(true);
@@ -335,7 +335,7 @@ describe('WebUiServer HTTP', () => {
 
   it('route không tồn tại → 404', async () => {
     await startServer();
-    const { status } = await request('/api/nope');
+    const { status } = await request('/api/v1/nope');
     expect(status).toBe(404);
   });
 });

@@ -3,12 +3,12 @@
  * EN: HTTP server (node:http built-in) + WebSocket (ws) + static frontend.
  *
  * Routes:
- *   Công khai (public):   GET  /api/status, / , static assets
- *   Auth (admin/user):    POST /api/logout, GET /api/me (login duy nhất = Discord OAuth2)
- *   Admin:                GET /api/admin/* (status, modules, logs, usage),
- *                         POST /api/admin/modules/:name/:action,
+ *   Công khai (public):   GET  /api/v1/status, / , static assets
+ *   Auth (admin/user):    POST /api/v1/logout, GET /api/v1/me (login duy nhất = Discord OAuth2)
+ *   Admin:                GET /api/v1/admin/* (status, modules, logs, usage),
+ *                         POST /api/v1/admin/modules/:name/:action,
  *                         /ws (realtime status+modules+log stream)
- *   User (OAuth2):        GET /api/user/guilds
+ *   User (OAuth2):        GET /api/v1/user/guilds
  *   OAuth2:               GET /oauth2/login, GET /oauth2/callback
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
@@ -220,7 +220,7 @@ export class WebUiServer {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const { pathname } = url;
 
-    if (pathname.startsWith('/api/')) {
+    if (pathname.startsWith('/api/v1/')) {
       await this.handleApi(req, res, pathname, url);
       return;
     }
@@ -235,15 +235,15 @@ export class WebUiServer {
     const method = req.method ?? 'GET';
 
     // Công khai
-    if (method === 'GET' && pathname === '/api/status') {
+    if (method === 'GET' && pathname === '/api/v1/status') {
       this.json(res, 200, api.getPublicStatus(this.registry));
       return;
     }
-    if (method === 'GET' && pathname === '/api/modules') {
+    if (method === 'GET' && pathname === '/api/v1/modules') {
       this.json(res, 200, { ok: true, modules: api.getPublicModules(this.registry, this.registry.getService('root')) });
       return;
     }
-    if (method === 'GET' && pathname === '/api/me') {
+    if (method === 'GET' && pathname === '/api/v1/me') {
       const session = this.requireAuth(req, res, 'user');
       if (!session) return;
       this.json(res, 200, {
@@ -257,7 +257,7 @@ export class WebUiServer {
       });
       return;
     }
-    if (method === 'POST' && pathname === '/api/logout') {
+    if (method === 'POST' && pathname === '/api/v1/logout') {
       const token = this.extractToken(req);
       this.auth.destroySession(token);
       this.json(res, 200, { ok: true });
@@ -265,19 +265,19 @@ export class WebUiServer {
     }
 
     // Admin
-    if (pathname === '/api/admin/status' && method === 'GET') {
+    if (pathname === '/api/v1/admin/status' && method === 'GET') {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
       this.json(res, 200, api.getAdminStatus(this.registry));
       return;
     }
-    if (pathname === '/api/admin/modules' && method === 'GET') {
+    if (pathname === '/api/v1/admin/modules' && method === 'GET') {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
       this.json(res, 200, { ok: true, modules: api.getModules(this.registry) });
       return;
     }
-    const moduleActionMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/(load|unload|reload)$/);
+    const moduleActionMatch = pathname.match(/^\/api\/v1\/admin\/modules\/([^/]+)\/(load|unload|reload)$/);
     if (moduleActionMatch && method === 'POST') {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
@@ -288,14 +288,14 @@ export class WebUiServer {
       this.json(res, 200, await api.runModuleAction(this.registry, name, action, force));
       return;
     }
-    if (pathname === '/api/admin/logs' && method === 'GET') {
+    if (pathname === '/api/v1/admin/logs' && method === 'GET') {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
       const limit = Number(url.searchParams.get('limit') ?? 200);
       this.json(res, 200, { ok: true, logs: this.tailer.recent(limit) });
       return;
     }
-    if (pathname === '/api/admin/usage' && method === 'GET') {
+    if (pathname === '/api/v1/admin/usage' && method === 'GET') {
       const session = this.requireAuth(req, res, 'admin');
       if (!session) return;
       this.json(res, 200, { ok: true, ...this.tailer.usageStats() });
@@ -303,7 +303,7 @@ export class WebUiServer {
     }
 
     // User
-    if (pathname === '/api/user/guilds' && method === 'GET') {
+    if (pathname === '/api/v1/user/guilds' && method === 'GET') {
       const session = this.requireAuth(req, res, 'user');
       if (!session) return;
       if (!session.userId) {
