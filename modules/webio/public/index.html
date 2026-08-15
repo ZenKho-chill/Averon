@@ -12,12 +12,13 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #3c3c3c; }
         th { color: #4ec9b0; }
-        button { background-color: #0e639c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        button { background-color: #0e639c; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 14px; font-weight: bold;}
         button:hover { background-color: #1177bb; }
+        .btn-discord { background-color: #5865F2; }
+        .btn-discord:hover { background-color: #4752C4; }
         #log-container { background-color: #000; padding: 10px; height: 300px; overflow-y: scroll; font-family: 'Courier New', Courier, monospace; font-size: 14px; border-radius: 4px; }
         #auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-box { background: #252526; padding: 30px; border-radius: 8px; text-align: center; }
-        input[type="password"] { padding: 10px; width: 250px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #3c3c3c; background: #333; color: white; }
+        .auth-box { background: #252526; padding: 40px; border-radius: 8px; text-align: center; }
         .full-width { grid-column: span 2; }
     </style>
 </head>
@@ -25,9 +26,8 @@
     <div id="auth-overlay">
         <div class="auth-box">
             <h2>Authentication Required</h2>
-            <input type="password" id="token-input" placeholder="Enter Bearer Token">
-            <br>
-            <button onclick="login()">Login</button>
+            <p style="margin-bottom: 20px; color: #999;">Please login with your Discord account.</p>
+            <button class="btn-discord" onclick="window.location.href='/api/auth/login'">Login with Discord</button>
         </div>
     </div>
 
@@ -38,6 +38,7 @@
             <p><strong>Discord Status:</strong> <span id="stat-discord-ready">-</span></p>
             <p><strong>Ping:</strong> <span id="stat-ping">-</span> ms</p>
             <p><strong>Guilds:</strong> <span id="stat-guilds">-</span> | <strong>Users:</strong> <span id="stat-users">-</span></p>
+            <button onclick="logout()" style="background-color: #f44336; margin-top: 10px;">Logout</button>
         </div>
 
         <div class="card full-width">
@@ -63,17 +64,26 @@
     </div>
 
     <script>
-        let token = localStorage.getItem('averon_token') || '';
+        const urlParams = new URLSearchParams(window.location.search);
+        let token = urlParams.get('token');
+
+        if (token) {
+            localStorage.setItem('averon_token', token);
+            // Clean url
+            window.history.replaceState({}, document.title, "/");
+        } else {
+            token = localStorage.getItem('averon_token') || '';
+        }
+
         let ws = null;
 
         if (token) {
             checkAuth();
         }
 
-        async function login() {
-            token = document.getElementById('token-input').value;
-            localStorage.setItem('averon_token', token);
-            await checkAuth();
+        function logout() {
+            localStorage.removeItem('averon_token');
+            window.location.reload();
         }
 
         async function apiCall(endpoint, method = 'GET', body = null) {
@@ -86,10 +96,11 @@
                 opts.body = JSON.stringify(body);
             }
             const res = await fetch(endpoint, opts);
-            if (res.status === 401) {
+            if (res.status === 401 || res.status === 403) {
                 document.getElementById('auth-overlay').style.display = 'flex';
                 document.getElementById('main-content').style.display = 'none';
                 if(ws) ws.close();
+                localStorage.removeItem('averon_token');
                 throw new Error('Unauthorized');
             }
             return res.json();
@@ -110,6 +121,7 @@
         }
 
         function connectWebSocket() {
+            if(ws) ws.close();
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}?token=${token}`);
 
@@ -132,7 +144,10 @@
             };
 
             ws.onclose = () => {
-                setTimeout(connectWebSocket, 5000);
+                // Don't auto-reconnect if we explicitly logged out and cleared token
+                if(localStorage.getItem('averon_token')) {
+                    setTimeout(connectWebSocket, 5000);
+                }
             };
         }
 

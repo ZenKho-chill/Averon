@@ -1,10 +1,20 @@
 type: object
-required: [port, token]
+required: [port, client_id, client_secret, redirect_uri, session_secret, allowed_users]
 properties:
   port:
     type: integer
     minimum: 1
     maximum: 65535
-  token:
+  client_id:
+    type: string
+  client_secret:
+    type: string
+  redirect_uri:
+    type: string
+  session_secret:
     type: string
     minLength: 16
+  allowed_users:
+    type: array
+    items:
+      type: string

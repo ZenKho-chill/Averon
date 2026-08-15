@@ -7,14 +7,44 @@ import * as fs from 'fs';
 import { backupConfig } from '../../../shared/config/backup.js';
 import { validateConfig } from '../../../shared/config/validator.js';
 import YAML from 'yaml';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let server: http.Server | null = null;
 let wss: WebSocketServer | null = null;
-let originalLoggerWrite: unknown = null;
 
-function timingSafeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+// In-memory session store (sessionToken -> { userId, expiresAt })
+
+
+function generateSessionToken(secret: string, userId: string): string {
+    const data = `${userId}:${Date.now()}:${crypto.randomBytes(16).toString('hex')}`;
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(data);
+    return `${data}.${hmac.digest('hex')}`;
+}
+
+function verifySession(token: string, secret: string): string | null {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 2) return null;
+        const [data, signature] = parts;
+        const hmac = crypto.createHmac('sha256', secret);
+        hmac.update(data);
+        const expectedSignature = hmac.digest('hex');
+        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+            return null;
+        }
+        const [userId, timestampStr] = data.split(':');
+        if (Date.now() - parseInt(timestampStr) > 24 * 60 * 60 * 1000) { // 24 hours expiry
+             return null;
+        }
+        return userId;
+    } catch {
+        return null;
+    }
 }
 
 import type { CommandContext } from '../../../core/src/registry/types.js';
@@ -23,8 +53,12 @@ export const onLoad = async (ctx?: CommandContext) => {
 
   const { config, logger, registry } = ctx;
   const webioConfig = config as Record<string, unknown>;
-  const token = webioConfig.token;
-  const port = webioConfig.port;
+  const port = webioConfig.port as number;
+  const clientId = webioConfig.client_id as string;
+  const clientSecret = webioConfig.client_secret as string;
+  const redirectUri = webioConfig.redirect_uri as string;
+  const sessionSecret = webioConfig.session_secret as string;
+  const allowedUsers = webioConfig.allowed_users as string[];
 
   const app = express();
   server = http.createServer(app);
@@ -32,17 +66,77 @@ export const onLoad = async (ctx?: CommandContext) => {
 
   app.use(express.json());
 
-  app.use(express.static(path.join(registry!.getService('root'), 'modules/webio/public')));
+  // Serve static files properly
+  const publicPath = path.join(__dirname, '..', 'public');
+  app.use(express.static(publicPath));
+
+  // OAuth2 Routes
+  app.get('/api/auth/login', (_req, res) => {
+      const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify`;
+      res.redirect(authUrl);
+  });
+
+  app.get('/api/auth/callback', async (req, res) => {
+      const code = req.query.code as string;
+      if (!code) {
+          res.status(400).send('Missing code');
+          return;
+      }
+      try {
+          const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+              method: 'POST',
+              body: new URLSearchParams({
+                  client_id: clientId,
+                  client_secret: clientSecret,
+                  grant_type: 'authorization_code',
+                  code: code,
+                  redirect_uri: redirectUri
+              }).toString(),
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+          });
+          const tokenData = await tokenRes.json() as Record<string, unknown>;
+          if (!tokenRes.ok) {
+              res.status(400).send('Failed to get token');
+              return;
+          }
+
+          const userRes = await fetch('https://discord.com/api/users/@me', {
+              headers: { Authorization: `Bearer ${tokenData.access_token}` }
+          });
+          const userData = await userRes.json() as Record<string, unknown>;
+          if (!userRes.ok) {
+              res.status(400).send('Failed to fetch user');
+              return;
+          }
+
+          if (!allowedUsers.includes(userData.id as string)) {
+              res.status(403).send('Access denied: User not in allowed_users list.');
+              return;
+          }
+
+          const sessionToken = generateSessionToken(sessionSecret, userData.id as string);
+          // Redirect back to dashboard with token
+          res.redirect(`/?token=${encodeURIComponent(sessionToken)}`);
+      } catch (err) {
+          logger.error('OAuth error', { error: err });
+          res.status(500).send('Internal Server Error');
+      }
+  });
+
 
   // Auth Middleware for API
   app.use('/api', (req, res, next) => {
+    // skip auth for public endpoints
+    if (req.path.startsWith('/auth/')) return next();
+
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
     const providedToken = authHeader.split(' ')[1];
-    if (!providedToken || !timingSafeCompare(providedToken, token as string)) {
+    const userId = verifySession(providedToken, sessionSecret);
+    if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
@@ -114,7 +208,6 @@ export const onLoad = async (ctx?: CommandContext) => {
       let targetDir = '';
       if (module === 'core') {
          targetDir = path.join(rootPath, 'config');
-         // Backup current core config
          backupConfig(targetDir, { type: 'core' });
          const targetFile = path.join(targetDir, 'config.yml');
          const fileContent = fs.readFileSync(targetFile, 'utf8');
@@ -162,7 +255,7 @@ export const onLoad = async (ctx?: CommandContext) => {
     // Auth for WS
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const wToken = url.searchParams.get('token');
-    if (!wToken || !timingSafeCompare(wToken, token as string)) {
+    if (!wToken || !verifySession(wToken, sessionSecret)) {
       ws.close(4001, 'Unauthorized');
       return;
     }
@@ -201,7 +294,7 @@ export const onLoad = async (ctx?: CommandContext) => {
         }
     };
     sinks.push(customSink);
-    originalLoggerWrite = customSink;
+
   }
 
   server.listen(port, () => {
@@ -217,10 +310,5 @@ export const onUnload = () => {
   if (wss) {
     wss.close();
     wss = null;
-  }
-
-  if (originalLoggerWrite) {
-      // Need a way to unregister custom sink. We can't easily pop it since we don't know index.
-      // So we just clear the wss reference and it will stop sending.
   }
 };

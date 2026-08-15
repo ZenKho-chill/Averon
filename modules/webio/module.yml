@@ -9,4 +9,3 @@ entry: src/index.ts
 config:
   schema: config/schema.yml
   defaults: config/defaults.yml
-commands: []

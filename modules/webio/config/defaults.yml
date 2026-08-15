@@ -1,2 +1,6 @@
 port: 3000
-token: "change-this-to-a-secure-token-123"
+client_id: "your_discord_client_id"
+client_secret: "your_discord_client_secret"
+redirect_uri: "http://localhost:3000/api/auth/callback"
+session_secret: "change-this-to-a-secure-random-string"
+allowed_users: ["your_discord_user_id"]
