@@ -1,0 +1,25 @@
+name: tempvoice
+version: 1.0.0
+description:
+  vi: "Kênh thoại tạm thời — join kênh hub để bot tạo kênh riêng cho bạn"
+  en: "Temporary voice channels — join the hub channel and the bot creates a private channel for you"
+author: "Averon Team"
+runtime:
+  language: typescript
+  engine: node
+  version: ">=18"
+  transport: in-process
+entry: src/index.ts
+intents:
+  - GuildVoiceStates
+load:
+  after: ["logger"]
+events:
+  - name: voiceStateUpdate
+    handler: events/voiceStateUpdate.ts
+config:
+  schema: config/schema.yml
+  defaults: config/defaults.yml
+tests:
+  command: "npm test"
+  dir: tests/
