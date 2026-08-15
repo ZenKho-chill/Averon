@@ -32,6 +32,27 @@ const MIME: Record<string, string> = {
   '.ico': 'image/x-icon',
 };
 
+/**
+ * Lấy origin loopback từ Referer để popup OAuth2 quay về ĐÚNG cửa sổ chính sau login.
+ * Tránh lỗi mismatch host: mở web bằng 127.0.0.1 nhưng redirect_uri là localhost → popup
+ * đáp trên origin khác → localStorage/storage event không chạm tới opener.
+ * Chỉ chấp nhận loopback (bảo mật: không redirect session ra origin lạ).
+ * EN: Extract the loopback origin from Referer so the OAuth2 popup returns to the EXACT
+ * opener after login. Fixes host mismatch (web on 127.0.0.1 but redirect_uri on localhost →
+ * popup lands on a different origin → the storage event never reaches the opener).
+ * Loopback only (never redirect a session to a foreign origin).
+ */
+function extractLoopbackReturnTo(referer?: string): string {
+  if (!referer) return '';
+  try {
+    const u = new URL(referer);
+    if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1' && u.hostname !== '::1') return '';
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return '';
+  }
+}
+
 export interface WebUiServerOptions {
   registry: RegistryLike;
   settings: ResolvedWebUiSettings;
@@ -277,14 +298,15 @@ export class WebUiServer {
       return;
     }
     if (pathname === '/oauth2/login') {
-      const state = this.auth.createOAuthState();
+      const state = this.auth.createOAuthState(extractLoopbackReturnTo(_req.headers.referer));
       this.redirect(res, buildAuthorizeUrl(oauth2.clientId, oauth2.redirectUri, state));
       return;
     }
     // /oauth2/callback
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    if (!code || !this.auth.consumeOAuthState(state)) {
+    const oauth = this.auth.consumeOAuthState(state);
+    if (!code || !oauth) {
       this.json(res, 400, { ok: false, message: 'OAuth2 callback không hợp lệ (thiếu/mismatch state)' });
       return;
     }
@@ -294,7 +316,7 @@ export class WebUiServer {
       const kind = this.settings.adminUserIds.includes(user.id) ? 'admin' : 'user';
       const session = this.auth.createSession({ kind, userId: user.id, username: user.username, avatar: user.avatar });
       this.logger.info(`Web: Discord user '${user.username}' logged in (${kind})`, { userId: user.id });
-      this.redirect(res, `/#session=${session.id}`);
+      this.redirect(res, `${oauth.returnTo}/#session=${session.id}`);
     } catch (err) {
       this.logger.warn(`Web: OAuth2 login thất bại`, { error: err instanceof Error ? err.message : String(err) });
       this.json(res, 502, { ok: false, message: 'Đăng nhập Discord thất bại' });

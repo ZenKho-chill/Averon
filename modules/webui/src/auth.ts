@@ -18,8 +18,8 @@ export interface SessionInfo {
 
 export class AuthStore {
   private readonly sessions = new Map<string, SessionInfo>();
-  /** OAuth2 `state` chống CSRF — chỉ sống vài phút. */
-  private readonly oauthStates = new Map<string, number>();
+  /** OAuth2 `state` chống CSRF — chỉ sống vài phút; kèm returnTo (origin) để popup quay về đúng cửa sổ chính. */
+  private readonly oauthStates = new Map<string, { createdAt: number; returnTo: string }>();
   private static readonly OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
   createSession(input: Omit<SessionInfo, 'id' | 'createdAt'>): SessionInfo {
@@ -37,26 +37,27 @@ export class AuthStore {
     this.sessions.delete(id);
   }
 
-  /** Tạo OAuth2 state (CSRF) — ngắn hạn. */
-  createOAuthState(): string {
+  /** Tạo OAuth2 state (CSRF) — ngắn hạn. `returnTo`: origin (loopback) để popup quay về đúng
+   * cửa sổ chính sau login (tránh mismatch host localhost vs 127.0.0.1). */
+  createOAuthState(returnTo?: string): string {
     this.cleanupOAuthStates();
     const state = randomBytes(16).toString('hex');
-    this.oauthStates.set(state, Date.now());
+    this.oauthStates.set(state, { createdAt: Date.now(), returnTo: returnTo ?? '' });
     return state;
   }
 
-  /** Tiêu thụ (và xóa) OAuth2 state — trả false nếu không hợp lệ. */
-  consumeOAuthState(state: string | null | undefined): boolean {
-    if (!state) return false;
-    const createdAt = this.oauthStates.get(state);
+  /** Tiêu thụ (và xóa) OAuth2 state — trả null nếu không hợp lệ. */
+  consumeOAuthState(state: string | null | undefined): { returnTo: string } | null {
+    if (!state) return null;
+    const entry = this.oauthStates.get(state);
     this.oauthStates.delete(state);
-    return createdAt !== undefined;
+    return entry ? { returnTo: entry.returnTo } : null;
   }
 
   private cleanupOAuthStates(): void {
     const now = Date.now();
-    for (const [state, createdAt] of this.oauthStates) {
-      if (now - createdAt > AuthStore.OAUTH_STATE_TTL_MS) this.oauthStates.delete(state);
+    for (const [state, entry] of this.oauthStates) {
+      if (now - entry.createdAt > AuthStore.OAUTH_STATE_TTL_MS) this.oauthStates.delete(state);
     }
   }
 }

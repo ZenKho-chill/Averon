@@ -90,31 +90,41 @@ describe('WebUiServer HTTP', () => {
   }
 
   /**
-   * Đăng nhập qua OAuth2 thật (mock fetch Discord) → trả session id.
-   * EN: Real OAuth2 login (Discord fetch mocked) → returns the session id.
+   * Mock fetch Discord cho OAuth2 flow (exchangeCode + fetchDiscordUser) trong phạm vi fn().
+   * EN: Mock Discord fetch (exchangeCode + fetchDiscordUser) for the OAuth2 flow within fn().
    */
   const REAL_FETCH = globalThis.fetch;
-  async function oauth2Login(opts: { admin: boolean }): Promise<string> {
-    const targetId = opts.admin ? '111-admin' : '222-user';
+  async function withDiscordMock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
     globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === 'https://discord.com/api/oauth2/token') {
         return new Response(JSON.stringify({ access_token: 'mock-access' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       if (url === 'https://discord.com/api/users/@me') {
-        return new Response(JSON.stringify({ id: targetId, username: 'tuan', avatar: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ id: userId, username: 'tuan', avatar: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       return REAL_FETCH(input, init);
     };
     try {
+      return await fn();
+    } finally {
+      globalThis.fetch = REAL_FETCH;
+    }
+  }
+
+  /**
+   * Đăng nhập qua OAuth2 thật (mock fetch Discord) → trả session id.
+   * EN: Real OAuth2 login (Discord fetch mocked) → returns the session id.
+   */
+  async function oauth2Login(opts: { admin: boolean }): Promise<string> {
+    const targetId = opts.admin ? '111-admin' : '222-user';
+    return withDiscordMock(targetId, async () => {
       const login = await fetch(`http://127.0.0.1:${port}/oauth2/login`, { redirect: 'manual' });
       const state = new URL(login.headers.get('location') ?? '').searchParams.get('state') ?? '';
       const cb = await fetch(`http://127.0.0.1:${port}/oauth2/callback?code=mock&state=${encodeURIComponent(state)}`, { redirect: 'manual' });
       const loc = cb.headers.get('location') ?? '';
       return loc.match(/session=([0-9a-f]+)/)?.[1] ?? '';
-    } finally {
-      globalThis.fetch = REAL_FETCH;
-    }
+    });
   }
 
   it('GET /api/status công khai (không cần auth)', async () => {
@@ -221,6 +231,18 @@ describe('WebUiServer HTTP', () => {
     await startServer();
     const res = await fetch(`http://127.0.0.1:${port}/oauth2/login`, { redirect: 'manual' });
     expect(res.status).toBe(400);
+  });
+
+  it('OAuth2 login kèm Referer loopback → callback redirect về đúng origin (fix mismatch localhost/127.0.0.1)', async () => {
+    await startServer(ADMIN_OAUTH);
+    const login = await fetch(`http://127.0.0.1:${port}/oauth2/login`, { redirect: 'manual', headers: { Referer: 'http://127.0.0.1:3000/' } });
+    const state = new URL(login.headers.get('location') ?? '').searchParams.get('state') ?? '';
+    const cbLoc = await withDiscordMock('111-admin', async () => {
+      const cb = await fetch(`http://127.0.0.1:${port}/oauth2/callback?code=mock&state=${encodeURIComponent(state)}`, { redirect: 'manual' });
+      return cb.headers.get('location') ?? '';
+    });
+    expect(cbLoc.startsWith('http://127.0.0.1:3000/#session=')).toBe(true);
+    expect(cbLoc.match(/session=([0-9a-f]+)/)?.[1]).toBeTruthy();
   });
 
   it('POST /api/admin/modules/:name/reload → gọi manager, trả kết quả', async () => {

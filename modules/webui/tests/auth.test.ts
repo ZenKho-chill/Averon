@@ -25,15 +25,21 @@ describe('AuthStore', () => {
   it('OAuth2 state: tạo → consume hợp lệ 1 lần, lần 2 fail', () => {
     const store = new AuthStore();
     const state = store.createOAuthState();
-    expect(store.consumeOAuthState(state)).toBe(true);
-    expect(store.consumeOAuthState(state)).toBe(false);
+    expect(store.consumeOAuthState(state)).toEqual({ returnTo: '' });
+    expect(store.consumeOAuthState(state)).toBeNull();
+  });
+
+  it('OAuth2 state kèm returnTo (loopback) → consume trả lại returnTo', () => {
+    const store = new AuthStore();
+    const state = store.createOAuthState('http://127.0.0.1:3000');
+    expect(store.consumeOAuthState(state)).toEqual({ returnTo: 'http://127.0.0.1:3000' });
   });
 
   it('OAuth2 state sai/rỗng → fail', () => {
     const store = new AuthStore();
-    expect(store.consumeOAuthState('nope')).toBe(false);
-    expect(store.consumeOAuthState(null)).toBe(false);
-    expect(store.consumeOAuthState(undefined)).toBe(false);
+    expect(store.consumeOAuthState('nope')).toBeNull();
+    expect(store.consumeOAuthState(null)).toBeNull();
+    expect(store.consumeOAuthState(undefined)).toBeNull();
   });
 });
 
